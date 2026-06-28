@@ -748,6 +748,36 @@ textarea {
   cursor: pointer;
 }
 
+.basemap-switch {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #dce6ec;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fbfcfd;
+}
+
+.basemap-switch > strong {
+  color: #203244;
+  font-size: 14px;
+}
+
+.basemap-switch label {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 8px;
+  color: #34495e;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.basemap-switch input {
+  width: 15px;
+  height: 15px;
+  accent-color: #23836f;
+}
+
 .layer-toggle input {
   width: 16px;
   height: 16px;

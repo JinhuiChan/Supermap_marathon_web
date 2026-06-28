@@ -1,9 +1,18 @@
+export type BasemapMode = "online" | "supermapDem";
+
 export const superMapConfig = {
   version: "SuperMap GIS 2025 Update1 / V12.0.1.0",
   iServerBaseUrl: "http://127.0.0.1:8090/iserver",
 
   leafletJsUrl: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
   leafletCssUrl: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+
+  defaultBasemap: "online" as BasemapMode,
+  onlineBasemap: {
+    name: "在线真实地图",
+    tileUrl: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: "© OpenStreetMap contributors"
+  },
 
   // Published from iDesktopX on this machine.
   wmsMapUrl: "http://127.0.0.1:8090/iserver/services/map-wuhan-marathon/wms111/武汉马拉松赛道地图",

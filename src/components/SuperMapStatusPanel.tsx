@@ -113,6 +113,10 @@ export function SuperMapStatusPanel() {
           <dd title={superMapConfig.wmsMapUrl}>{superMapConfig.wmsLayerName} DEM (SuperMap iServer)</dd>
         </div>
         <div>
+          <dt>在线真实底图</dt>
+          <dd>{superMapConfig.onlineBasemap.name} · OpenStreetMap</dd>
+        </div>
+        <div>
           <dt>iClient JavaScript</dt>
           <dd>{superMapConfig.iClientJavaScriptUrl}</dd>
         </div>
@@ -135,7 +139,7 @@ export function SuperMapStatusPanel() {
       </dl>
 
       <p className="integration-note">
-        地图面板已接入 SuperMap iServer WMS 的 DEM 子图层；2026 官方路线、备选路线和服务点由前端矢量图层叠加。
+        地图面板默认使用在线真实地图，保留 SuperMap iServer WMS 的 DEM 子图层作为可切换底图；2026 官方路线、备选路线和服务点由前端矢量图层叠加。
         上次检测：{lastCheck}
       </p>
     </section>

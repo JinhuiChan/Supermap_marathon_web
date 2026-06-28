@@ -18,5 +18,7 @@ describe("App", () => {
     expect(html).toContain("ASTGTMV003_N30E114");
     expect(html).toContain("GIS 数据包");
     expect(html).toContain("wuhan-marathon-routes.geojson");
+    expect(html).toContain("底图切换");
+    expect(html).toContain("在线真实地图");
   });
 });

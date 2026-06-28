@@ -7,6 +7,8 @@ import { RouteAnalysisPanel } from "./components/RouteAnalysisPanel";
 import { RouteDetails } from "./components/RouteDetails";
 import { RouteLibrary } from "./components/RouteLibrary";
 import { SuperMapStatusPanel } from "./components/SuperMapStatusPanel";
+import type { BasemapMode } from "./config/supermap";
+import { superMapConfig } from "./config/supermap";
 import type { MapLayerVisibility } from "./map/components/SuperMapMap";
 import { SuperMapMap } from "./map/components/SuperMapMap";
 import { Scene3DPanel } from "./map/components/Scene3DPanel";
@@ -20,6 +22,7 @@ export default function App() {
     routes: true,
     supportPoints: true
   });
+  const [basemapMode, setBasemapMode] = useState<BasemapMode>(superMapConfig.defaultBasemap);
   const activeRoute = useMemo(
     () => demoRoutes.find((route) => route.id === activeRouteId) ?? demoRoutes[0],
     [activeRouteId]
@@ -55,14 +58,17 @@ export default function App() {
         activeRouteId={activeRouteId}
         comparedRouteIds={comparedRouteIds}
         layerVisibility={mapLayerVisibility}
+        basemapMode={basemapMode}
         onSelectRoute={setActiveRouteId}
       />
       <aside className="right-panel">
         <SuperMapStatusPanel />
         <LayerControlPanel
           visibility={mapLayerVisibility}
+          basemapMode={basemapMode}
           supportPointCount={supportPoints.length}
           onChange={setMapLayerVisibility}
+          onBasemapChange={setBasemapMode}
         />
         <RouteAnalysisPanel route={activeRoute} supportPoints={supportPoints} />
         <Scene3DPanel />

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import type { MarathonRoute } from "../../domain/routeMetrics";
-import type { SupportPoint } from "../../data/supportPoints";
+import type { BasemapMode } from "../../config/supermap";
 import { superMapConfig } from "../../config/supermap";
+import type { SupportPoint } from "../../data/supportPoints";
+import type { MarathonRoute } from "../../domain/routeMetrics";
+import { RouteMap } from "../../components/RouteMap";
 import { loadScript, loadStylesheet } from "../core/loadScript";
 import { MapEngine } from "../core/MapEngine";
 import { LoadingSpinner } from "./LoadingSpinner";
-import { RouteMap } from "../../components/RouteMap";
 
 interface SuperMapMapProps {
   routes: MarathonRoute[];
@@ -13,6 +14,7 @@ interface SuperMapMapProps {
   activeRouteId: string;
   comparedRouteIds: string[];
   layerVisibility: MapLayerVisibility;
+  basemapMode: BasemapMode;
   onSelectRoute: (id: string) => void;
 }
 
@@ -24,7 +26,7 @@ export interface MapLayerVisibility {
 type MapPhase = "loading" | "initializing" | "ready" | "fallback";
 
 export function SuperMapMap(props: SuperMapMapProps) {
-  const { routes, supportPoints, activeRouteId, comparedRouteIds, layerVisibility, onSelectRoute } = props;
+  const { routes, supportPoints, activeRouteId, comparedRouteIds, layerVisibility, basemapMode, onSelectRoute } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<MapEngine | null>(null);
   const viewportTimersRef = useRef<number[]>([]);
@@ -65,7 +67,6 @@ export function SuperMapMap(props: SuperMapMapProps) {
     if (!container) return;
 
     const initMap = async () => {
-      // Phase 1: Load Leaflet from CDN
       setPhase("loading");
       setPhaseMessage("加载 Leaflet 地图库...");
 
@@ -84,15 +85,17 @@ export function SuperMapMap(props: SuperMapMapProps) {
 
       if (cancelled) return;
 
-      // Phase 2: Initialize map with WMS tiles from SuperMap iServer
       setPhase("initializing");
-      setPhaseMessage("初始化 SuperMap WMS 地图...");
+      setPhaseMessage("初始化在线地图与 SuperMap DEM...");
 
       try {
         const engine = new MapEngine({
           container,
           wmsUrl: superMapConfig.wmsMapUrl,
           wmsLayerName: superMapConfig.wmsLayerName,
+          onlineTileUrl: superMapConfig.onlineBasemap.tileUrl,
+          onlineAttribution: superMapConfig.onlineBasemap.attribution,
+          defaultBasemap: basemapMode,
           center: superMapConfig.mapCenter,
           zoom: superMapConfig.mapZoom
         });
@@ -127,6 +130,12 @@ export function SuperMapMap(props: SuperMapMapProps) {
       }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!engine || phase !== "ready") return;
+    engine.setBasemap(basemapMode);
+  }, [basemapMode, phase]);
 
   useEffect(() => {
     const engine = engineRef.current;
@@ -168,16 +177,13 @@ export function SuperMapMap(props: SuperMapMapProps) {
   }
 
   return (
-    <section className="map-panel" aria-label="武汉马拉松赛道地图 — SuperMap iServer WMS">
+    <section className="map-panel" aria-label="武汉马拉松赛道地图">
       <div className="map-toolbar">
-        <span>武汉 WebGIS 赛道工作台 · SuperMap iServer WMS</span>
+        <span>武汉 WebGIS 赛道工作台 · 在线真实地图 + SuperMap DEM</span>
         <strong>{comparedRouteIds.length}/5 已加入对比</strong>
       </div>
       {phase !== "ready" && <LoadingSpinner message={phaseMessage} />}
-      <div
-        ref={containerRef}
-        className="iclient-map-container"
-      />
+      <div ref={containerRef} className="iclient-map-container" />
     </section>
   );
 }

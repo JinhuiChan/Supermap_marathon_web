@@ -1,5 +1,6 @@
-import type { MarathonRoute } from "../../domain/routeMetrics";
+import type { BasemapMode } from "../../config/supermap";
 import type { SupportPoint } from "../../data/supportPoints";
+import type { MarathonRoute } from "../../domain/routeMetrics";
 import { computeRouteStyle, findNearestRouteId, toLeafletLatLngs } from "../layers/RouteLayer";
 import { computeSupportPointStyle, formatSupportPointLabel, toLeafletLatLng } from "../layers/SupportPointLayer";
 
@@ -7,6 +8,9 @@ export interface MapEngineOptions {
   container: HTMLElement;
   wmsUrl: string;
   wmsLayerName: string;
+  onlineTileUrl: string;
+  onlineAttribution: string;
+  defaultBasemap: BasemapMode;
   center: [number, number];
   zoom: number;
 }
@@ -15,10 +19,15 @@ export class MapEngine {
   private map: unknown = null;
   private routeLayers: Map<string, unknown> = new Map();
   private supportPointLayers: unknown[] = [];
+  private basemapLayers: Partial<Record<BasemapMode, unknown>> = {};
+  private activeBasemapLayer: unknown = null;
   private onRouteClickCb: ((id: string) => void) | null = null;
   private container: HTMLElement;
   private wmsUrl: string;
   private wmsLayerName: string;
+  private onlineTileUrl: string;
+  private onlineAttribution: string;
+  private basemapMode: BasemapMode;
   private center: [number, number];
   private zoom: number;
   private destroyed = false;
@@ -33,6 +42,9 @@ export class MapEngine {
     this.container = options.container;
     this.wmsUrl = options.wmsUrl;
     this.wmsLayerName = options.wmsLayerName;
+    this.onlineTileUrl = options.onlineTileUrl;
+    this.onlineAttribution = options.onlineAttribution;
+    this.basemapMode = options.defaultBasemap;
     this.center = options.center;
     this.zoom = options.zoom;
   }
@@ -42,7 +54,7 @@ export class MapEngine {
 
     const L = (window as unknown as Record<string, unknown>).L as Record<string, unknown> | undefined;
     if (!L) {
-      this.showFallback("Leaflet 库未加载");
+      this.showFallback("Leaflet 地图库未加载");
       return;
     }
 
@@ -51,30 +63,31 @@ export class MapEngine {
     mapDiv.style.height = "100%";
     this.container.appendChild(mapDiv);
 
-    const mapOptions: Record<string, unknown> = {
+    const map = (L.map as (el: HTMLElement, opts?: Record<string, unknown>) => unknown)(mapDiv, {
       center: [this.center[1], this.center[0]],
       zoom: this.zoom,
       zoomControl: false,
       attributionControl: true
-    };
-
-    const map = (L.map as (el: HTMLElement, opts?: Record<string, unknown>) => unknown)(mapDiv, mapOptions);
+    });
     this.map = map;
 
-    // Use WMS tile layer — confirmed working with SuperMap iServer
-    const wmsLayer = (L.tileLayer as { wms: (url: string, opts: Record<string, unknown>) => unknown }).wms(
-      this.wmsUrl,
-      {
-        layers: this.wmsLayerName,
-        format: "image/png",
-        transparent: true,
-        attribution: "SuperMap iServer WMS"
-      }
-    );
-    (wmsLayer as { addTo: (m: unknown) => unknown }).addTo(map);
+    const tileLayer = L.tileLayer as ((url: string, opts?: Record<string, unknown>) => unknown) & {
+      wms: (url: string, opts: Record<string, unknown>) => unknown;
+    };
 
-    // Click → find nearest route
-    (map as { on: (event: string, cb: (e: Record<string, unknown>) => void) => void }).on("click", (e: Record<string, unknown>) => {
+    this.basemapLayers.online = tileLayer(this.onlineTileUrl, {
+      attribution: this.onlineAttribution,
+      maxZoom: 19
+    });
+    this.basemapLayers.supermapDem = tileLayer.wms(this.wmsUrl, {
+      layers: this.wmsLayerName,
+      format: "image/png",
+      transparent: false,
+      attribution: "SuperMap iServer DEM WMS"
+    });
+    this.setBasemap(this.basemapMode);
+
+    (map as { on: (event: string, cb: (e: Record<string, unknown>) => void) => void }).on("click", (e) => {
       const latlng = e.latlng as { lat: number; lng: number } | undefined;
       if (!latlng || !this.onRouteClickCb || !this.routesVisible) return;
       const clickedId = this.findNearestRoute([latlng.lng, latlng.lat]);
@@ -82,19 +95,19 @@ export class MapEngine {
     });
   }
 
-  private showFallback(message: string): void {
-    const fallbackDiv = document.createElement("div");
-    fallbackDiv.className = "map-fallback-message";
-    fallbackDiv.style.display = "flex";
-    fallbackDiv.style.alignItems = "center";
-    fallbackDiv.style.justifyContent = "center";
-    fallbackDiv.style.height = "100%";
-    fallbackDiv.style.color = "#687789";
-    fallbackDiv.style.fontSize = "14px";
-    fallbackDiv.style.padding = "2rem";
-    fallbackDiv.style.textAlign = "center";
-    fallbackDiv.textContent = message;
-    this.container.appendChild(fallbackDiv);
+  setBasemap(mode: BasemapMode): void {
+    if (this.destroyed || !this.map) return;
+    const nextLayer = this.basemapLayers[mode];
+    if (!nextLayer) return;
+
+    const mapWithLayers = this.map as { removeLayer?: (l: unknown) => void };
+    if (this.activeBasemapLayer && mapWithLayers.removeLayer) {
+      mapWithLayers.removeLayer(this.activeBasemapLayer);
+    }
+
+    (nextLayer as { addTo: (m: unknown) => unknown }).addTo(this.map);
+    this.activeBasemapLayer = nextLayer;
+    this.basemapMode = mode;
   }
 
   setRoutes(routes: MarathonRoute[]): void {
@@ -189,7 +202,24 @@ export class MapEngine {
     }
     this.routeLayers.clear();
     this.clearSupportPointLayers();
+    this.basemapLayers = {};
+    this.activeBasemapLayer = null;
     this.container.innerHTML = "";
+  }
+
+  private showFallback(message: string): void {
+    const fallbackDiv = document.createElement("div");
+    fallbackDiv.className = "map-fallback-message";
+    fallbackDiv.style.display = "flex";
+    fallbackDiv.style.alignItems = "center";
+    fallbackDiv.style.justifyContent = "center";
+    fallbackDiv.style.height = "100%";
+    fallbackDiv.style.color = "#687789";
+    fallbackDiv.style.fontSize = "14px";
+    fallbackDiv.style.padding = "2rem";
+    fallbackDiv.style.textAlign = "center";
+    fallbackDiv.textContent = message;
+    this.container.appendChild(fallbackDiv);
   }
 
   private clearRouteLayers(): void {
