@@ -121,6 +121,7 @@ export class MapEngine {
   }
 
   highlightRoute(activeRouteId: string, comparedRouteIds: string[]): void {
+    if (this.destroyed || !this.map) return;
     for (const [id, layer] of this.routeLayers) {
       const isActive = id === activeRouteId;
       const isCompared = comparedRouteIds.includes(id);
@@ -145,6 +146,7 @@ export class MapEngine {
   }
 
   onRouteClick(callback: (id: string) => void): void {
+    if (this.destroyed) return;
     this.onRouteClickCb = callback;
   }
 
