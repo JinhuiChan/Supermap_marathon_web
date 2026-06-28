@@ -1,5 +1,7 @@
 import type { MarathonRoute } from "../../domain/routeMetrics";
+import type { SupportPoint } from "../../data/supportPoints";
 import { computeRouteStyle, findNearestRouteId, toLeafletLatLngs } from "../layers/RouteLayer";
+import { computeSupportPointStyle, formatSupportPointLabel, toLeafletLatLng } from "../layers/SupportPointLayer";
 
 export interface MapEngineOptions {
   container: HTMLElement;
@@ -12,6 +14,7 @@ export interface MapEngineOptions {
 export class MapEngine {
   private map: unknown = null;
   private routeLayers: Map<string, unknown> = new Map();
+  private supportPointLayers: unknown[] = [];
   private onRouteClickCb: ((id: string) => void) | null = null;
   private container: HTMLElement;
   private wmsUrl: string;
@@ -20,6 +23,11 @@ export class MapEngine {
   private zoom: number;
   private destroyed = false;
   private routes: MarathonRoute[] = [];
+  private supportPoints: SupportPoint[] = [];
+  private activeRouteId = "";
+  private comparedRouteIds: string[] = [];
+  private routesVisible = true;
+  private supportPointsVisible = true;
 
   constructor(options: MapEngineOptions) {
     this.container = options.container;
@@ -68,7 +76,7 @@ export class MapEngine {
     // Click → find nearest route
     (map as { on: (event: string, cb: (e: Record<string, unknown>) => void) => void }).on("click", (e: Record<string, unknown>) => {
       const latlng = e.latlng as { lat: number; lng: number } | undefined;
-      if (!latlng || !this.onRouteClickCb) return;
+      if (!latlng || !this.onRouteClickCb || !this.routesVisible) return;
       const clickedId = this.findNearestRoute([latlng.lng, latlng.lat]);
       if (clickedId) this.onRouteClickCb(clickedId);
     });
@@ -99,7 +107,7 @@ export class MapEngine {
     const polyline = L.polyline as (latlngs: [number, number][], opts?: Record<string, unknown>) => unknown;
 
     for (const route of routes) {
-      const layer = polyline(toLeafletLatLngs(route.coordinates), computeRouteStyle(route, false, true));
+      const layer = polyline(toLeafletLatLngs(route.coordinates), this.computeVisibleRouteStyle(route, false, true));
       (layer as { addTo: (m: unknown) => unknown }).addTo(this.map);
       this.routeLayers.set(route.id, layer);
     }
@@ -107,14 +115,34 @@ export class MapEngine {
 
   highlightRoute(activeRouteId: string, comparedRouteIds: string[]): void {
     if (this.destroyed || !this.map) return;
+    this.activeRouteId = activeRouteId;
+    this.comparedRouteIds = comparedRouteIds;
     for (const [id, layer] of this.routeLayers) {
       const isActive = id === activeRouteId;
       const isCompared = comparedRouteIds.includes(id);
       const route = this.routes.find((item) => item.id === id);
       const leafletLayer = layer as { setStyle?: (s: Record<string, unknown>) => void };
       if (leafletLayer.setStyle && route) {
-        leafletLayer.setStyle(computeRouteStyle(route, isActive, isCompared));
+        leafletLayer.setStyle(this.computeVisibleRouteStyle(route, isActive, isCompared));
       }
+    }
+    this.renderSupportPoints();
+  }
+
+  setSupportPoints(points: SupportPoint[]): void {
+    if (this.destroyed || !this.map) return;
+    this.supportPoints = points;
+    this.renderSupportPoints();
+  }
+
+  setLayerVisibility(visibility: { routes?: boolean; supportPoints?: boolean }): void {
+    if (typeof visibility.routes === "boolean") {
+      this.routesVisible = visibility.routes;
+      this.highlightRoute(this.activeRouteId, this.comparedRouteIds);
+    }
+    if (typeof visibility.supportPoints === "boolean") {
+      this.supportPointsVisible = visibility.supportPoints;
+      this.renderSupportPoints();
     }
   }
 
@@ -160,6 +188,7 @@ export class MapEngine {
       this.map = null;
     }
     this.routeLayers.clear();
+    this.clearSupportPointLayers();
     this.container.innerHTML = "";
   }
 
@@ -171,6 +200,56 @@ export class MapEngine {
       }
     }
     this.routeLayers.clear();
+  }
+
+  private renderSupportPoints(): void {
+    if (this.destroyed || !this.map) return;
+    this.clearSupportPointLayers();
+    if (!this.supportPointsVisible) return;
+
+    const L = (window as unknown as Record<string, unknown>).L as Record<string, unknown> | undefined;
+    if (!L) return;
+
+    const circleMarker = L.circleMarker as (latlng: [number, number], opts?: Record<string, unknown>) => unknown;
+
+    for (const point of this.supportPoints) {
+      const isHighlighted = point.routeId === this.activeRouteId || this.comparedRouteIds.includes(point.routeId);
+      const layer = circleMarker(toLeafletLatLng(point), computeSupportPointStyle(point, isHighlighted));
+      const marker = layer as {
+        addTo?: (m: unknown) => unknown;
+        bindTooltip?: (label: string, opts?: Record<string, unknown>) => unknown;
+        on?: (event: string, cb: () => void) => void;
+      };
+      marker.bindTooltip?.(formatSupportPointLabel(point), {
+        direction: "top",
+        sticky: true
+      });
+      marker.on?.("click", () => this.onRouteClickCb?.(point.routeId));
+      marker.addTo?.(this.map);
+      this.supportPointLayers.push(layer);
+    }
+  }
+
+  private clearSupportPointLayers(): void {
+    for (const layer of this.supportPointLayers) {
+      if (this.map) {
+        const mapWithRemove = this.map as { removeLayer?: (l: unknown) => void };
+        if (mapWithRemove.removeLayer) mapWithRemove.removeLayer(layer);
+      }
+    }
+    this.supportPointLayers = [];
+  }
+
+  private computeVisibleRouteStyle(route: MarathonRoute, isActive: boolean, isCompared: boolean): Record<string, unknown> {
+    const style = computeRouteStyle(route, isActive, isCompared);
+    if (!this.routesVisible) {
+      return {
+        ...style,
+        opacity: 0,
+        weight: 0
+      };
+    }
+    return style;
   }
 
   private findNearestRoute(coord: [number, number]): string | null {

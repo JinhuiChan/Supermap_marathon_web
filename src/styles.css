@@ -730,3 +730,142 @@ textarea {
   font-size: 12px;
   line-height: 1.6;
 }
+
+.layer-control {
+  display: grid;
+  gap: 10px;
+}
+
+.layer-toggle {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #dce6ec;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fbfcfd;
+  cursor: pointer;
+}
+
+.layer-toggle input {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  accent-color: #23836f;
+}
+
+.layer-toggle span {
+  display: grid;
+  gap: 4px;
+}
+
+.layer-toggle strong {
+  color: #203244;
+  font-size: 14px;
+}
+
+.layer-toggle small {
+  color: #647589;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.route-analysis {
+  display: grid;
+  gap: 12px;
+}
+
+.analysis-summary {
+  border: 1px solid #c9e0d7;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f1f7f5;
+}
+
+.analysis-summary span {
+  color: #527263;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.analysis-summary strong {
+  display: block;
+  margin-top: 5px;
+  color: #173a52;
+  font-size: 18px;
+}
+
+.analysis-summary p {
+  margin: 6px 0 0;
+  color: #35584a;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.analysis-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.analysis-card {
+  min-height: 112px;
+  border: 1px solid #e3eaf0;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fbfcfd;
+}
+
+.analysis-card div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.analysis-card span {
+  color: #657589;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.analysis-card strong {
+  color: #173a52;
+  font-size: 20px;
+}
+
+.analysis-card b {
+  display: inline-flex;
+  margin-top: 4px;
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: #eef5f2;
+  color: #23836f;
+  font-size: 12px;
+}
+
+.analysis-card p,
+.analysis-list p {
+  margin: 7px 0 0;
+  color: #5f7184;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.analysis-list {
+  border: 1px solid #e3eaf0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fbfcfd;
+}
+
+.analysis-list strong {
+  color: #203244;
+  font-size: 13px;
+}
+
+.analysis-list.risk {
+  background: #fffaf2;
+  border-color: #f3ddb9;
+}

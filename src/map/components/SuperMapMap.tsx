@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { MarathonRoute } from "../../domain/routeMetrics";
+import type { SupportPoint } from "../../data/supportPoints";
 import { superMapConfig } from "../../config/supermap";
 import { loadScript, loadStylesheet } from "../core/loadScript";
 import { MapEngine } from "../core/MapEngine";
@@ -8,15 +9,22 @@ import { RouteMap } from "../../components/RouteMap";
 
 interface SuperMapMapProps {
   routes: MarathonRoute[];
+  supportPoints: SupportPoint[];
   activeRouteId: string;
   comparedRouteIds: string[];
+  layerVisibility: MapLayerVisibility;
   onSelectRoute: (id: string) => void;
+}
+
+export interface MapLayerVisibility {
+  routes: boolean;
+  supportPoints: boolean;
 }
 
 type MapPhase = "loading" | "initializing" | "ready" | "fallback";
 
 export function SuperMapMap(props: SuperMapMapProps) {
-  const { routes, activeRouteId, comparedRouteIds, onSelectRoute } = props;
+  const { routes, supportPoints, activeRouteId, comparedRouteIds, layerVisibility, onSelectRoute } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<MapEngine | null>(null);
   const viewportTimersRef = useRef<number[]>([]);
@@ -91,7 +99,9 @@ export function SuperMapMap(props: SuperMapMapProps) {
         engine.initialize();
         engine.onRouteClick((id) => onSelectRef.current(id));
         engine.setRoutes(routes);
+        engine.setSupportPoints(supportPoints);
         engine.highlightRoute(activeRouteId, comparedRouteIds);
+        engine.setLayerVisibility(layerVisibility);
         engineRef.current = engine;
 
         if (!cancelled) {
@@ -128,8 +138,20 @@ export function SuperMapMap(props: SuperMapMapProps) {
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine || phase !== "ready") return;
+    engine.setSupportPoints(supportPoints);
+  }, [supportPoints, phase]);
+
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!engine || phase !== "ready") return;
     engine.highlightRoute(activeRouteId, comparedRouteIds);
   }, [activeRouteId, comparedRouteIds, phase]);
+
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!engine || phase !== "ready") return;
+    engine.setLayerVisibility(layerVisibility);
+  }, [layerVisibility, phase]);
 
   if (phase === "fallback") {
     return (

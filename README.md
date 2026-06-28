@@ -1,16 +1,14 @@
 # Supermap_marathon_web
 
-基于 SuperMap WebGIS 的马拉松赛道智能选型与多路线对比分析系统。
+基于 SuperMap WebGIS 的武汉马拉松赛道智能选线与多路线对比分析系统。
 
 ## 当前状态
 
-本项目已经完成可演示闭环：
-
-- iDesktopX 已导入武汉 DEM、候选赛道 GeoJSON、赛事保障点 GeoJSON。
-- iDesktopX 已生成地图：`武汉马拉松赛道地图`。
-- iServer 已发布二维地图服务：`map-wuhan-marathon`。
-- 前端已切换到自有 SuperMap WMS：`武汉马拉松赛道地图`。
-- 地图加载失败时仍保留 SVG 示意图降级。
+- 已通过 SuperMap iDesktopX 导入武汉 DEM、候选赛道 GeoJSON、赛事服务点 GeoJSON。
+- 已在 SuperMap iServer 发布二维地图服务：`map-wuhan-marathon`。
+- 前端已接入自有 WMS 服务，并叠加候选赛道、补给点、医疗点、停车点和起终点。
+- 已支持路线评分、多路线对比、路线研判、图层控制和文本报告导出。
+- WMS 或 Leaflet 加载失败时，页面会自动降级到 SVG 示意图。
 
 ## 本地运行
 
@@ -19,7 +17,7 @@ npm.cmd install
 npm.cmd run dev
 ```
 
-打开本地地址：
+打开：
 
 ```text
 http://127.0.0.1:5173/
@@ -59,6 +57,16 @@ supermap-workspace/
 
 该目录已加入 `.gitignore`，不会上传到 GitHub。
 
+## 主要功能
+
+- 真实 SuperMap iServer WMS 底图加载。
+- 三条武汉候选马拉松路线可视化与点击选择。
+- 赛事服务点叠加：起终点、补给、医疗、停车。
+- 图层控制：候选赛道和赛事服务点可独立开关。
+- 单路线研判：地形友好度、通行组织、赛事保障、观赛体验。
+- 多路线对比：难度分、保障分、综合推荐分和坡度剖面对比。
+- 成果导出：生成包含 SuperMap 服务依据、推荐理由和风险提示的文本报告。
+
 ## 数据与脚本
 
 ```text
@@ -69,7 +77,7 @@ docs/idesktopx-publishing-workflow.md
 docs/demo-script.md
 ```
 
-`scripts/auto_publish.py` 用于在 iDesktopX Python 窗口中导入数据、创建地图和保存工作空间。iServer 服务发布仍通过 iDesktopX 的“在线 -> 工作空间”发布向导完成。
+`scripts/auto_publish.py` 用于在 iDesktopX Python 窗口中导入数据、创建地图和保存工作空间。iServer 服务发布通过 iDesktopX 的在线发布流程完成。
 
 ## DEM 数据
 

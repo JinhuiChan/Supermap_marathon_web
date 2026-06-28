@@ -1,20 +1,14 @@
+import type { SupportPoint } from "../data/supportPoints";
 import type { MarathonRoute } from "../domain/routeMetrics";
-import { compareRoutes } from "../domain/routeMetrics";
+import { buildDecisionReport } from "../domain/routeAnalysis";
 
 interface ExportPanelProps {
   routes: MarathonRoute[];
+  supportPoints: SupportPoint[];
 }
 
-export function ExportPanel({ routes }: ExportPanelProps) {
-  const scores = compareRoutes(routes);
-  const report = [
-    "马拉松赛道多路线对比分析报告",
-    "",
-    ...scores.map(
-      (score) =>
-        `${score.rank}. ${score.name}：推荐分 ${score.recommendationScore}，难度 ${score.difficultyScore}，保障 ${score.supportScore}，适配 ${score.runnerFit}`
-    )
-  ].join("\n");
+export function ExportPanel({ routes, supportPoints }: ExportPanelProps) {
+  const report = buildDecisionReport(routes, supportPoints);
 
   const download = () => {
     const blob = new Blob([report], { type: "text/plain;charset=utf-8" });
