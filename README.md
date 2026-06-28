@@ -34,12 +34,32 @@ npm.cmd run build
 
 | 项目 | 状态 |
 | --- | --- |
-| SuperMap iClient JavaScript | ✅ 动态加载（Leaflet，含 CDN 兜底） |
-| 底图服务 | map-world/rest（iServer 内置示例） |
+| SuperMap iServer | ✅ 运行中，WMS 底图正常 |
+| 地图引擎 | ✅ Leaflet + SuperMap iServer WMS 真实瓦片 |
+| WMS 底图服务 | ✅ map-world/wms111（SuperMap 内置世界地图） |
 | 目标二维地图服务 | 待通过 iDesktopX 发布 map-wuhan-marathon |
-| 三维场景预览面板 | ✅ 可折叠面板（iClient3D 待安装） |
+| 三维场景预览面板 | ✅ 可折叠面板（自动检测 iClient3D 可用性） |
 | 目标三维场景服务 | 待发布 3D-wuhan-marathon |
-| SVG 示意图兜底 | ✅ iClient 加载失败时自动降级 |
+| 服务状态自动检测 | ✅ 每 30 秒自动刷新 |
+| SVG 示意图兜底 | ✅ 地图加载失败时自动降级 |
+
+## iDesktopX 发布指南
+
+详细的 iDesktopX → iServer 服务发布操作步骤见：
+
+```text
+docs/idesktopx-publishing-workflow.md
+```
+
+发布完成后更新 `src/config/supermap.ts` 中的 `wmsMapUrl` 和 `wmsLayerName` 即可切换为自有服务。
+
+## 演示材料
+
+比赛演示脚本见：
+
+```text
+docs/demo-script.md
+```
 
 ## GIS 数据包
 
