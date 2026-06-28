@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { superMapConfig } from "../config/supermap";
 import {
   checkSuperMapIserver,
@@ -23,33 +23,56 @@ export function SuperMapStatusPanel() {
   const [status, setStatus] = useState<SuperMapStatus>("checking");
   const [mapStatus, setMapStatus] = useState<SuperMapResourceStatus>("checking");
   const [sceneStatus, setSceneStatus] = useState<SuperMapResourceStatus>("checking");
+  const [wmsStatus, setWmsStatus] = useState<SuperMapResourceStatus>("checking");
+  const [lastCheck, setLastCheck] = useState<string>("—");
 
-  useEffect(() => {
+  const runCheck = useCallback(() => {
     let active = true;
 
-    checkSuperMapIserver(superMapConfig.iServerBaseUrl).then((nextStatus) => {
-      if (active) setStatus(nextStatus);
+    checkSuperMapIserver(superMapConfig.iServerBaseUrl).then((s) => {
+      if (active) setStatus(s);
     });
-    checkSuperMapResource(superMapConfig.expectedMapServiceUrl).then((nextStatus) => {
-      if (active) setMapStatus(nextStatus);
+    checkSuperMapResource(superMapConfig.expectedMapServiceUrl).then((s) => {
+      if (active) setMapStatus(s);
     });
-    checkSuperMapResource(superMapConfig.expectedSceneServiceUrl).then((nextStatus) => {
-      if (active) setSceneStatus(nextStatus);
+    checkSuperMapResource(superMapConfig.expectedSceneServiceUrl).then((s) => {
+      if (active) setSceneStatus(s);
+    });
+    // Also check WMS availability (actual working tile source)
+    checkSuperMapResource(superMapConfig.wmsMapUrl).then((s) => {
+      if (active) setWmsStatus(s);
     });
 
-    return () => {
-      active = false;
-    };
+    setLastCheck(new Date().toLocaleTimeString("zh-CN"));
+
+    return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    const cleanup = runCheck();
+    const interval = setInterval(runCheck, 30000);
+    return () => {
+      cleanup?.();
+      clearInterval(interval);
+    };
+  }, [runCheck]);
+
+  const servicesReady = mapStatus === "ready" && sceneStatus === "ready";
 
   return (
     <section className="side-section supermap-status">
       <h2>SuperMap 接入</h2>
+
       <div className={`status-pill ${status}`}>
         <span>SuperMap iServer</span>
         <strong>{statusText[status]}</strong>
       </div>
+
       <div className="service-readiness" aria-label="SuperMap 服务发布状态">
+        <div className={`readiness-item ${wmsStatus}`}>
+          <span>WMS 底图服务</span>
+          <strong>{resourceText[wmsStatus]}</strong>
+        </div>
         <div className={`readiness-item ${mapStatus}`}>
           <span>二维地图服务</span>
           <strong>{resourceText[mapStatus]}</strong>
@@ -59,6 +82,19 @@ export function SuperMapStatusPanel() {
           <strong>{resourceText[sceneStatus]}</strong>
         </div>
       </div>
+
+      {servicesReady && (
+        <div className="service-ready-banner">
+          ✅ 武汉马拉松地图服务已全部就绪，地图面板已切换为真实 GIS 底图。
+        </div>
+      )}
+
+      {status === "online" && !servicesReady && (
+        <div className="service-pending-hint">
+          💡 iServer 已连接。请通过 iDesktopX 发布武汉马拉松地图和三维服务（详见 docs/idesktopx-publishing-workflow.md）。
+        </div>
+      )}
+
       <dl className="service-list">
         <div>
           <dt>版本要求</dt>
@@ -69,33 +105,33 @@ export function SuperMapStatusPanel() {
           <dd>{superMapConfig.iServerBaseUrl}</dd>
         </div>
         <div>
+          <dt>WMS 底图源</dt>
+          <dd title={superMapConfig.wmsMapUrl}>{superMapConfig.wmsLayerName} (SuperMap iServer)</dd>
+        </div>
+        <div>
           <dt>iClient JavaScript</dt>
           <dd>{superMapConfig.iClientJavaScriptUrl}</dd>
         </div>
         <div>
-          <dt>iClient3D for WebGL/WebGPU</dt>
+          <dt>iClient3D WebGL</dt>
           <dd>{superMapConfig.iClient3DUrl}</dd>
         </div>
         <div>
           <dt>武汉 DEM 数据</dt>
-          <dd>{superMapConfig.demDataPath}</dd>
+          <dd>{superMapConfig.demMetadata.name} · {superMapConfig.demMetadata.crs}</dd>
         </div>
         <div>
-          <dt>DEM 范围</dt>
+          <dt>DEM 范围 / 高程</dt>
           <dd>
-            {superMapConfig.demMetadata.name} · {superMapConfig.demMetadata.crs} · {superMapConfig.demMetadata.bounds}
-          </dd>
-        </div>
-        <div>
-          <dt>DEM 高程</dt>
-          <dd>
-            {superMapConfig.demMetadata.size} · {superMapConfig.demMetadata.elevationRange}
+            {superMapConfig.demMetadata.bounds} · {superMapConfig.demMetadata.elevationRange}
           </dd>
         </div>
       </dl>
+
       <p className="integration-note">
-        当前页面已按 SuperMap iServer 服务地址组织地图接入边界；发布武汉马拉松地图和三维地形服务后，地图面板即可切换到
-        SuperMap iClient 图层。
+        ✅ 地图面板已接入 SuperMap iServer WMS 真实底图（Leaflet + WMS）。
+        路线数据当前使用示范路线；iDesktopX 发布自有服务后状态将自动更新（每 30 秒检测）。
+        上次检测：{lastCheck}
       </p>
     </section>
   );

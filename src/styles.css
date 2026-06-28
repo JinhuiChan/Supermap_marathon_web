@@ -647,3 +647,25 @@ textarea {
   margin: 0;
   font-size: 12px;
 }
+
+/* ── Service Status Banners ── */
+.service-ready-banner {
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #effaf5;
+  border: 1px solid #bee6d2;
+  color: #14724f;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.service-pending-hint {
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fef9e7;
+  border: 1px solid #f9e79f;
+  color: #7d6608;
+  font-size: 12px;
+  line-height: 1.6;
+}
