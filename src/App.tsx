@@ -4,8 +4,9 @@ import { DataPackagePanel } from "./components/DataPackagePanel";
 import { ExportPanel } from "./components/ExportPanel";
 import { RouteDetails } from "./components/RouteDetails";
 import { RouteLibrary } from "./components/RouteLibrary";
-import { RouteMap } from "./components/RouteMap";
 import { SuperMapStatusPanel } from "./components/SuperMapStatusPanel";
+import { SuperMapMap } from "./map/components/SuperMapMap";
+import { Scene3DPanel } from "./map/components/Scene3DPanel";
 import { demoRoutes } from "./data/routes";
 
 export default function App() {
@@ -40,7 +41,7 @@ export default function App() {
         />
         <RouteDetails route={activeRoute} />
       </aside>
-      <RouteMap
+      <SuperMapMap
         routes={demoRoutes}
         activeRouteId={activeRouteId}
         comparedRouteIds={comparedRouteIds}
@@ -48,6 +49,7 @@ export default function App() {
       />
       <aside className="right-panel">
         <SuperMapStatusPanel />
+        <Scene3DPanel />
         <DataPackagePanel />
         <ComparisonPanel routes={comparedRoutes} />
         <ExportPanel routes={comparedRoutes} />
