@@ -26,8 +26,20 @@ npm.cmd run build
 
 1. 使用 SuperMap iDesktopX 处理 DEM、路网、POI 和路线数据。
 2. 使用 SuperMap iServer 发布二维地图、三维场景和空间分析服务。
-3. 前端当前使用示范路线数据，后续通过统一数据接口替换为 iServer 返回结果。
-4. 多路线对比、评分和推荐逻辑保留在前端领域模块中，便于演示和测试。
+3. ✅ 前端已接入 SuperMap iClient JavaScript (Leaflet 变体)，地图面板从 iServer 加载真实底图。
+4. 路线数据当前使用示范路线，待 iServer 服务发布后接入真实空间分析结果。
+5. 多路线对比、评分和推荐逻辑保留在前端领域模块中，便于演示和测试。
+
+## 当前地图接入状态
+
+| 项目 | 状态 |
+| --- | --- |
+| SuperMap iClient JavaScript | ✅ 动态加载（Leaflet，含 CDN 兜底） |
+| 底图服务 | map-world/rest（iServer 内置示例） |
+| 目标二维地图服务 | 待通过 iDesktopX 发布 map-wuhan-marathon |
+| 三维场景预览面板 | ✅ 可折叠面板（iClient3D 待安装） |
+| 目标三维场景服务 | 待发布 3D-wuhan-marathon |
+| SVG 示意图兜底 | ✅ iClient 加载失败时自动降级 |
 
 ## GIS 数据包
 
