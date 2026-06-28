@@ -8,8 +8,10 @@
 
 | 项目 | 当前状态 |
 | --- | --- |
-| SuperMap iServer | 已通过绿色包启动，首页可访问 |
+| SuperMap iServer | 已通过绿色包启动，首页和服务列表可访问 |
+| 云许可 | 已激活，日志显示许可检查通过 |
 | iServer 地址 | `http://127.0.0.1:8090/iserver` |
+| 服务列表 | `http://127.0.0.1:8090/iserver/services.json` |
 | iClient JavaScript | `http://127.0.0.1:8090/iserver/iClient/forJavaScript/index.html` |
 | iClient3D for WebGL/WebGPU | `http://127.0.0.1:8090/iserver/iClient/for3D/webgl/index.html` |
 | DEM 数据 | `E:\SuperMap\data\GDEM\ASTGTMV003_N30E114\ASTGTMV003_N30E114_dem.tif` |
@@ -17,14 +19,16 @@
 | DEM 范围 | 113.9999E-115.0001E, 29.9999N-31.0001N |
 | DEM 尺寸 | 3601 x 3601 |
 | DEM 高程 | -135m 至 771m |
+| 候选路线数据 | `public/data/wuhan-marathon-routes.geojson` |
+| 赛事保障点数据 | `public/data/wuhan-marathon-support-points.geojson` |
 | iServer 包目录 | `E:\SuperMap\安装包\supermap-iserver-2025u1a-windows-x64-all\supermap-iserver-2025u1a-windows-x64-all` |
 | iDesktopX 安装包目录 | `E:\SuperMap\安装包\supermap-idesktopx-2025u1-windows-x64-setup\supermap-idesktopx-2025u1-windows-x64-setup` |
 
 ## 当前发现的问题
 
-iServer 首页可以访问，但日志显示许可状态曾从通过变为未通过，并触发默认服务销毁。因此当前页面只稳定检测 iServer 首页，不依赖 `/iserver/services` 作为演示入口。
+iServer 当前已经能返回 `/iserver/services.json`，默认示例服务状态为 `OK`，云许可已激活并通过检查。
 
-需要在 SuperMap License Center 中确认试用许可或正式许可状态。许可稳定后，再发布武汉地图服务、三维服务和空间分析服务。
+当前尚未发布本项目自己的 `map-wuhan-marathon` 二维地图服务和 `3D-wuhan-marathon` 三维场景服务，因此前端仍会把这两个自有服务标记为 `待发布`。
 
 ## 前端已完成的 SuperMap 接入边界
 
@@ -49,9 +53,9 @@ docs/supermap-publish-checklist.md
 
 ## 下一步合规开发任务
 
-1. 在 SuperMap License Center 中确认 iServer 许可稳定可用。
-2. 使用 SuperMap iDesktopX 打开 DEM 数据，完成坐标系统一、坡度/高程衍生数据处理。
-3. 准备武汉路网、POI、行政边界等矢量数据。
+1. 使用 SuperMap iDesktopX 打开 DEM 数据，完成坐标系统一、坡度/高程衍生数据处理。
+2. 导入当前工程中的候选路线和赛事保障点 GeoJSON。
+3. 后续补充武汉路网、POI、行政边界等矢量数据。
 4. 在 iDesktopX 中制作武汉马拉松二维地图和 DEM 三维场景。
 5. 使用 iServer 发布以下服务：
    - 武汉马拉松二维地图服务。

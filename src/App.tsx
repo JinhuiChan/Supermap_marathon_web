@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { ComparisonPanel } from "./components/ComparisonPanel";
+import { DataPackagePanel } from "./components/DataPackagePanel";
 import { ExportPanel } from "./components/ExportPanel";
 import { RouteDetails } from "./components/RouteDetails";
 import { RouteLibrary } from "./components/RouteLibrary";
@@ -47,6 +48,7 @@ export default function App() {
       />
       <aside className="right-panel">
         <SuperMapStatusPanel />
+        <DataPackagePanel />
         <ComparisonPanel routes={comparedRoutes} />
         <ExportPanel routes={comparedRoutes} />
       </aside>

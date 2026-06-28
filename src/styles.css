@@ -342,6 +342,45 @@ textarea {
   line-height: 1.7;
 }
 
+.data-package {
+  display: grid;
+  gap: 12px;
+}
+
+.data-file-list {
+  display: grid;
+  gap: 8px;
+}
+
+.data-file-list a {
+  display: grid;
+  gap: 4px;
+  min-height: 56px;
+  border: 1px solid #dce6ec;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fbfcfd;
+  color: inherit;
+  text-decoration: none;
+}
+
+.data-file-list a:hover {
+  border-color: #23836f;
+  background: #f2fbf8;
+}
+
+.data-file-list span {
+  color: #647589;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.data-file-list strong {
+  overflow-wrap: anywhere;
+  color: #173a52;
+  font-size: 13px;
+}
+
 .comparison {
   display: grid;
   gap: 14px;

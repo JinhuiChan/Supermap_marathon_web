@@ -1,0 +1,109 @@
+{
+  "type": "FeatureCollection",
+  "name": "wuhan_marathon_candidate_routes",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "EPSG:4326"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "route_id": "river-loop",
+        "route_name": "两江四岸平缓线",
+        "length_km": 42.195,
+        "closed_loop": true,
+        "total_climb_m": 96,
+        "avg_slope_pct": 0.8,
+        "max_slope_pct": 2.7,
+        "long_steep_ratio": 0.05,
+        "sharp_turn_ratio": 0.1,
+        "narrow_road_ratio": 0.07,
+        "supply_coverage_ratio": 0.93,
+        "medical_avg_interval_km": 4.1,
+        "parking_service_score": 88,
+        "shade_coverage_ratio": 0.62,
+        "style_color": "#1f77b4"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [114.292, 30.584],
+          [114.305, 30.598],
+          [114.328, 30.61],
+          [114.35, 30.594],
+          [114.333, 30.57],
+          [114.305, 30.563],
+          [114.292, 30.584]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "route_id": "east-lake",
+        "route_name": "东湖绿道景观线",
+        "length_km": 42.195,
+        "closed_loop": true,
+        "total_climb_m": 258,
+        "avg_slope_pct": 2.1,
+        "max_slope_pct": 5.9,
+        "long_steep_ratio": 0.21,
+        "sharp_turn_ratio": 0.16,
+        "narrow_road_ratio": 0.11,
+        "supply_coverage_ratio": 0.81,
+        "medical_avg_interval_km": 5.6,
+        "parking_service_score": 78,
+        "shade_coverage_ratio": 0.76,
+        "style_color": "#2ca02c"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [114.365, 30.548],
+          [114.395, 30.56],
+          [114.43, 30.575],
+          [114.45, 30.555],
+          [114.418, 30.528],
+          [114.382, 30.532],
+          [114.365, 30.548]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "route_id": "urban-core",
+        "route_name": "城市核心保障线",
+        "length_km": 42.195,
+        "closed_loop": true,
+        "total_climb_m": 148,
+        "avg_slope_pct": 1.2,
+        "max_slope_pct": 4.1,
+        "long_steep_ratio": 0.1,
+        "sharp_turn_ratio": 0.23,
+        "narrow_road_ratio": 0.18,
+        "supply_coverage_ratio": 0.96,
+        "medical_avg_interval_km": 3.2,
+        "parking_service_score": 92,
+        "shade_coverage_ratio": 0.48,
+        "style_color": "#d62728"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [114.27, 30.59],
+          [114.292, 30.612],
+          [114.322, 30.62],
+          [114.35, 30.604],
+          [114.345, 30.576],
+          [114.31, 30.555],
+          [114.276, 30.566],
+          [114.27, 30.59]
+        ]
+      }
+    }
+  ]
+}

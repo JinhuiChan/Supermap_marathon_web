@@ -29,6 +29,15 @@ npm.cmd run build
 3. 前端当前使用示范路线数据，后续通过统一数据接口替换为 iServer 返回结果。
 4. 多路线对比、评分和推荐逻辑保留在前端领域模块中，便于演示和测试。
 
+## GIS 数据包
+
+当前已内置两份可导入 SuperMap iDesktopX 的 GeoJSON：
+
+```text
+public/data/wuhan-marathon-routes.geojson
+public/data/wuhan-marathon-support-points.geojson
+```
+
 ## 当前 SuperMap 配置
 
 前端配置文件：

@@ -15,5 +15,7 @@ describe("App", () => {
     expect(html).toContain("iClient JavaScript");
     expect(html).toContain("二维地图服务");
     expect(html).toContain("ASTGTMV003_N30E114");
+    expect(html).toContain("GIS 数据包");
+    expect(html).toContain("wuhan-marathon-routes.geojson");
   });
 });
