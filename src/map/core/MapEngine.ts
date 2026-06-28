@@ -1,10 +1,9 @@
 import type { MarathonRoute } from "../../domain/routeMetrics";
-import type { iClientBundle } from "./iClientDiscovery";
 
 export interface MapEngineOptions {
   container: HTMLElement;
-  bundle: iClientBundle;
-  baseLayerUrl: string;
+  wmsUrl: string;
+  wmsLayerName: string;
   center: [number, number];
   zoom: number;
 }
@@ -14,16 +13,16 @@ export class MapEngine {
   private routeLayers: Map<string, unknown> = new Map();
   private onRouteClickCb: ((id: string) => void) | null = null;
   private container: HTMLElement;
-  private bundle: iClientBundle;
-  private baseLayerUrl: string;
+  private wmsUrl: string;
+  private wmsLayerName: string;
   private center: [number, number];
   private zoom: number;
   private destroyed = false;
 
   constructor(options: MapEngineOptions) {
     this.container = options.container;
-    this.bundle = options.bundle;
-    this.baseLayerUrl = options.baseLayerUrl;
+    this.wmsUrl = options.wmsUrl;
+    this.wmsLayerName = options.wmsLayerName;
     this.center = options.center;
     this.zoom = options.zoom;
   }
@@ -31,24 +30,16 @@ export class MapEngine {
   initialize(): void {
     if (this.destroyed) return;
 
+    const L = (window as unknown as Record<string, unknown>).L as Record<string, unknown> | undefined;
+    if (!L) {
+      this.showFallback("Leaflet 库未加载");
+      return;
+    }
+
     const mapDiv = document.createElement("div");
     mapDiv.style.width = "100%";
     mapDiv.style.height = "100%";
     this.container.appendChild(mapDiv);
-
-    if (this.bundle.variant === "leaflet") {
-      this.initLeafletMap(mapDiv);
-    } else {
-      this.initGenericMap(mapDiv);
-    }
-  }
-
-  private initLeafletMap(container: HTMLElement): void {
-    const L = (window as unknown as Record<string, unknown>).L as Record<string, unknown> | undefined;
-    if (!L) {
-      console.warn("Leaflet (L) not found on window — iClient script may not have loaded correctly");
-      return;
-    }
 
     const mapOptions: Record<string, unknown> = {
       center: [this.center[1], this.center[0]],
@@ -56,14 +47,22 @@ export class MapEngine {
       attributionControl: true
     };
 
-    const map = (L.map as (el: string | HTMLElement, opts?: Record<string, unknown>) => unknown)(container, mapOptions);
+    const map = (L.map as (el: HTMLElement, opts?: Record<string, unknown>) => unknown)(mapDiv, mapOptions);
     this.map = map;
 
-    const tiledMapLayer = this.createLeafletTileLayer(L);
-    if (tiledMapLayer) {
-      (tiledMapLayer as { addTo: (m: unknown) => unknown }).addTo(map);
-    }
+    // Use WMS tile layer — confirmed working with SuperMap iServer
+    const wmsLayer = (L.tileLayer as { wms: (url: string, opts: Record<string, unknown>) => unknown }).wms(
+      this.wmsUrl,
+      {
+        layers: this.wmsLayerName,
+        format: "image/png",
+        transparent: true,
+        attribution: "SuperMap iServer WMS"
+      }
+    );
+    (wmsLayer as { addTo: (m: unknown) => unknown }).addTo(map);
 
+    // Click → find nearest route
     (map as { on: (event: string, cb: (e: Record<string, unknown>) => void) => void }).on("click", (e: Record<string, unknown>) => {
       const latlng = e.latlng as { lat: number; lng: number } | undefined;
       if (!latlng || !this.onRouteClickCb) return;
@@ -72,32 +71,19 @@ export class MapEngine {
     });
   }
 
-  private createLeafletTileLayer(L: Record<string, unknown>): unknown {
-    const supermap = L.supermap as Record<string, unknown> | undefined;
-    if (supermap && typeof supermap.tiledMapLayer === "function") {
-      return (supermap.tiledMapLayer as (url: string, opts?: Record<string, unknown>) => unknown)(
-        this.baseLayerUrl,
-        { noWrap: true }
-      );
-    }
-
-    const TileLayer = L.tileLayer as (urlTemplate: string, opts?: Record<string, unknown>) => unknown;
-    const tileUrl = `${this.baseLayerUrl}/tile/{z}/{y}/{x}`;
-    return TileLayer(tileUrl, {
-      attribution: "SuperMap iServer",
-      noWrap: true
-    });
-  }
-
-  private initGenericMap(container: HTMLElement): void {
+  private showFallback(message: string): void {
     const fallbackDiv = document.createElement("div");
+    fallbackDiv.className = "map-fallback-message";
     fallbackDiv.style.display = "flex";
     fallbackDiv.style.alignItems = "center";
     fallbackDiv.style.justifyContent = "center";
     fallbackDiv.style.height = "100%";
     fallbackDiv.style.color = "#687789";
-    fallbackDiv.textContent = `iClient ${this.bundle.variant} variant — map loading requires Leaflet variant.`;
-    container.appendChild(fallbackDiv);
+    fallbackDiv.style.fontSize = "14px";
+    fallbackDiv.style.padding = "2rem";
+    fallbackDiv.style.textAlign = "center";
+    fallbackDiv.textContent = message;
+    this.container.appendChild(fallbackDiv);
   }
 
   setRoutes(routes: MarathonRoute[]): void {
@@ -125,9 +111,7 @@ export class MapEngine {
     for (const [id, layer] of this.routeLayers) {
       const isActive = id === activeRouteId;
       const isCompared = comparedRouteIds.includes(id);
-      const leafletLayer = layer as {
-        setStyle?: (s: Record<string, unknown>) => void;
-      };
+      const leafletLayer = layer as { setStyle?: (s: Record<string, unknown>) => void };
       if (leafletLayer.setStyle) {
         leafletLayer.setStyle({
           weight: isActive ? 5 : isCompared ? 3.5 : 2,
@@ -137,11 +121,16 @@ export class MapEngine {
     }
   }
 
-  setCenter(center: [number, number], zoom?: number): void {
-    if (this.destroyed || !this.map) return;
-    const mapWithView = this.map as { setView?: (c: [number, number], z: number) => void };
-    if (mapWithView.setView) {
-      mapWithView.setView([center[1], center[0]], zoom ?? this.zoom);
+  fitBounds(coordinates: [number, number][]): void {
+    if (this.destroyed || !this.map || coordinates.length === 0) return;
+    const L = (window as unknown as Record<string, unknown>).L as Record<string, unknown> | undefined;
+    if (!L) return;
+
+    const latlngs = coordinates.map(([lon, lat]) => [lat, lon] as [number, number]);
+    const bounds = (L.latLngBounds as (latlngs: [number, number][]) => unknown)(latlngs);
+    const mapWithFit = this.map as { fitBounds?: (b: unknown, opts?: Record<string, unknown>) => void };
+    if (mapWithFit.fitBounds) {
+      mapWithFit.fitBounds(bounds, { padding: [30, 30] });
     }
   }
 
@@ -172,7 +161,7 @@ export class MapEngine {
   }
 
   private findNearestRoute(coord: [number, number]): string | null {
-    const threshold = 0.005;
+    const threshold = 0.008;
     let closest: string | null = null;
     let closestDist = Infinity;
 

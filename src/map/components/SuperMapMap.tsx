@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MarathonRoute } from "../../domain/routeMetrics";
 import { superMapConfig } from "../../config/supermap";
-import { discoveriClientBundle, getCDNFallback, type iClientBundle } from "../core/iClientDiscovery";
-import { loadScript, loadStylesheet, type LoadState } from "../core/loadScript";
+import { loadScript, loadStylesheet } from "../core/loadScript";
 import { MapEngine } from "../core/MapEngine";
 import { LoadingSpinner } from "./LoadingSpinner";
 import { RouteMap } from "../../components/RouteMap";
@@ -14,68 +13,52 @@ interface SuperMapMapProps {
   onSelectRoute: (id: string) => void;
 }
 
-type MapPhase = "discovering" | "loading" | "initializing" | "ready" | "fallback";
+type MapPhase = "loading" | "initializing" | "ready" | "fallback";
 
 export function SuperMapMap(props: SuperMapMapProps) {
   const { routes, activeRouteId, comparedRouteIds, onSelectRoute } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<MapEngine | null>(null);
-  const [phase, setPhase] = useState<MapPhase>("discovering");
-  const [phaseMessage, setPhaseMessage] = useState("检测 SuperMap iClient...");
+  const [phase, setPhase] = useState<MapPhase>("loading");
+  const [phaseMessage, setPhaseMessage] = useState("加载 Leaflet 地图库...");
 
   const onSelectRef = useRef(onSelectRoute);
   onSelectRef.current = onSelectRoute;
 
-  // Initialize map
   useEffect(() => {
     let cancelled = false;
     const container = containerRef.current;
     if (!container) return;
 
     const initMap = async () => {
-      // Phase 1: Discover iClient bundle
-      setPhase("discovering");
-      setPhaseMessage("检测 SuperMap iClient 库...");
-
-      let bundle: iClientBundle | null = await discoveriClientBundle(superMapConfig.iServerBaseUrl);
-
-      if (!bundle) {
-        bundle = getCDNFallback();
-        setPhaseMessage("iServer 库未找到，使用 Leaflet CDN...");
-      }
-
-      if (cancelled) return;
-
-      // Phase 2: Load script
+      // Phase 1: Load Leaflet from CDN
       setPhase("loading");
-      setPhaseMessage(`加载 ${bundle.variant} 地图库...`);
+      setPhaseMessage("加载 Leaflet 地图库...");
 
       try {
-        await loadScript(bundle.scriptUrl);
-        if (bundle.cssUrl) {
-          await loadStylesheet(bundle.cssUrl).catch(() => {
-            // CSS is optional — map works without it
-          });
+        await loadScript(superMapConfig.leafletJsUrl);
+        if (superMapConfig.leafletCssUrl) {
+          await loadStylesheet(superMapConfig.leafletCssUrl).catch(() => {});
         }
       } catch {
         if (!cancelled) {
           setPhase("fallback");
-          setPhaseMessage("地图库加载失败，使用示意图");
+          setPhaseMessage("Leaflet 加载失败，使用示意图");
         }
         return;
       }
 
       if (cancelled) return;
 
-      // Phase 3: Initialize engine
+      // Phase 2: Initialize map with WMS tiles from SuperMap iServer
       setPhase("initializing");
-      setPhaseMessage("初始化地图引擎...");
+      setPhaseMessage("初始化 SuperMap WMS 地图...");
 
       try {
         const engine = new MapEngine({
           container,
-          bundle,
-          baseLayerUrl: superMapConfig.fallbackMapService,
+          wmsUrl: superMapConfig.wmsMapUrl,
+          wmsLayerName: superMapConfig.wmsLayerName,
           center: superMapConfig.mapCenter,
           zoom: superMapConfig.mapZoom
         });
@@ -89,7 +72,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
       } catch {
         if (!cancelled) {
           setPhase("fallback");
-          setPhaseMessage("地图引擎初始化失败，使用示意图");
+          setPhaseMessage("地图初始化失败，使用示意图");
         }
       }
     };
@@ -105,7 +88,6 @@ export function SuperMapMap(props: SuperMapMapProps) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update routes when they change
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine || phase !== "ready") return;
@@ -113,13 +95,10 @@ export function SuperMapMap(props: SuperMapMapProps) {
     engine.highlightRoute(activeRouteId, comparedRouteIds);
   }, [routes, activeRouteId, comparedRouteIds, phase]);
 
-  // Fallback to SVG
   if (phase === "fallback") {
     return (
       <div className="map-panel" style={{ position: "relative" }}>
-        <div className="map-fallback-notice">
-          {phaseMessage}
-        </div>
+        <div className="map-fallback-notice">{phaseMessage}</div>
         <RouteMap
           routes={routes}
           activeRouteId={activeRouteId}
@@ -131,9 +110,9 @@ export function SuperMapMap(props: SuperMapMapProps) {
   }
 
   return (
-    <section className="map-panel" aria-label="武汉马拉松赛道地图 — SuperMap iClient">
+    <section className="map-panel" aria-label="武汉马拉松赛道地图 — SuperMap iServer WMS">
       <div className="map-toolbar">
-        <span>武汉 WebGIS 赛道工作台 · SuperMap iClient {phase === "ready" ? "Leaflet" : ""}</span>
+        <span>武汉 WebGIS 赛道工作台 · SuperMap iServer WMS</span>
         <strong>{comparedRouteIds.length}/5 已加入对比</strong>
       </div>
       {phase !== "ready" && <LoadingSpinner message={phaseMessage} />}
