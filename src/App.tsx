@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { ComparisonPanel } from "./components/ComparisonPanel";
+import { ExportPanel } from "./components/ExportPanel";
 import { RouteDetails } from "./components/RouteDetails";
 import { RouteLibrary } from "./components/RouteLibrary";
 import { RouteMap } from "./components/RouteMap";
@@ -10,6 +12,10 @@ export default function App() {
   const activeRoute = useMemo(
     () => demoRoutes.find((route) => route.id === activeRouteId) ?? demoRoutes[0],
     [activeRouteId]
+  );
+  const comparedRoutes = useMemo(
+    () => demoRoutes.filter((route) => comparedRouteIds.includes(route.id)),
+    [comparedRouteIds]
   );
 
   const toggleCompare = (id: string) => {
@@ -39,10 +45,8 @@ export default function App() {
         onSelectRoute={setActiveRouteId}
       />
       <aside className="right-panel">
-        <section className="side-section">
-          <h2>多路线对比</h2>
-          <p className="muted">下一步接入指标表格、图表和推荐结论。</p>
-        </section>
+        <ComparisonPanel routes={comparedRoutes} />
+        <ExportPanel routes={comparedRoutes} />
       </aside>
     </main>
   );
