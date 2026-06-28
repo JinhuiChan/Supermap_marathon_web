@@ -47,10 +47,15 @@ const CANDIDATES: iClientBundle[] = [
 ];
 
 export async function discoveriClientBundle(baseUrl: string): Promise<iClientBundle | null> {
+  const normalizedBase = baseUrl.replace(/\/+$/, "");
   for (const bundle of CANDIDATES) {
-    const url = `${baseUrl}${bundle.scriptUrl}`;
+    const url = `${normalizedBase}${bundle.scriptUrl}`;
     try {
-      const response = await fetch(url, { method: "HEAD", cache: "no-store" });
+      const response = await fetch(url, {
+        method: "HEAD",
+        cache: "no-store",
+        signal: AbortSignal.timeout(5000)
+      });
       if (response.ok) return bundle;
     } catch {
       continue;
@@ -62,6 +67,10 @@ export async function discoveriClientBundle(baseUrl: string): Promise<iClientBun
 /**
  * Fallback: try loading Leaflet from CDN if iServer bundle not found.
  * This covers the case where iClient is installed but at a non-standard path.
+ *
+ * Note: `baseUrl` is empty here because the script and CSS URLs are
+ * absolute CDN URLs. Consumers should check `baseUrl` before using it
+ * for resolving relative resources (workers, fonts, icons, etc.).
  */
 export function getCDNFallback(): iClientBundle {
   return {
