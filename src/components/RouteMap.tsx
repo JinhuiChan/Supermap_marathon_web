@@ -21,7 +21,7 @@ export function RouteMap({ routes, activeRouteId, comparedRouteIds, onSelectRout
   return (
     <section className="map-panel" aria-label="武汉马拉松赛道地图">
       <div className="map-toolbar">
-        <span>武汉 WebGIS 赛道工作台</span>
+        <span>武汉 WebGIS 赛道工作台 · SuperMap iServer</span>
         <strong>{comparedRouteIds.length}/5 已加入对比</strong>
       </div>
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="路线示意图">

@@ -28,3 +28,23 @@ npm.cmd run build
 2. 使用 SuperMap iServer 发布二维地图、三维场景和空间分析服务。
 3. 前端当前使用示范路线数据，后续通过统一数据接口替换为 iServer 返回结果。
 4. 多路线对比、评分和推荐逻辑保留在前端领域模块中，便于演示和测试。
+
+## 当前 SuperMap 配置
+
+前端配置文件：
+
+```text
+src/config/supermap.ts
+```
+
+当前默认连接：
+
+```text
+http://127.0.0.1:8090/iserver
+```
+
+合规推进说明见：
+
+```text
+docs/supermap-compliance.md
+```

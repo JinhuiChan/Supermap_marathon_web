@@ -11,5 +11,7 @@ describe("App", () => {
     expect(html).toContain("两江四岸平缓线");
     expect(html).toContain("推荐方案");
     expect(html).toContain("导出对比报告");
+    expect(html).toContain("SuperMap iServer");
+    expect(html).toContain("iClient JavaScript");
   });
 });

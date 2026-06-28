@@ -4,6 +4,7 @@ import { ExportPanel } from "./components/ExportPanel";
 import { RouteDetails } from "./components/RouteDetails";
 import { RouteLibrary } from "./components/RouteLibrary";
 import { RouteMap } from "./components/RouteMap";
+import { SuperMapStatusPanel } from "./components/SuperMapStatusPanel";
 import { demoRoutes } from "./data/routes";
 
 export default function App() {
@@ -45,6 +46,7 @@ export default function App() {
         onSelectRoute={setActiveRouteId}
       />
       <aside className="right-panel">
+        <SuperMapStatusPanel />
         <ComparisonPanel routes={comparedRoutes} />
         <ExportPanel routes={comparedRoutes} />
       </aside>

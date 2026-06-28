@@ -226,6 +226,86 @@ textarea {
   transition: opacity 160ms ease, stroke-width 160ms ease;
 }
 
+.supermap-status {
+  display: grid;
+  gap: 12px;
+}
+
+.status-pill {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #f4f7fa;
+  border: 1px solid #d9e3eb;
+}
+
+.status-pill span {
+  color: #526476;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.status-pill strong {
+  color: #2f4052;
+}
+
+.status-pill.online {
+  background: #effaf5;
+  border-color: #bee6d2;
+}
+
+.status-pill.online strong {
+  color: #14724f;
+}
+
+.status-pill.offline {
+  background: #fff6f3;
+  border-color: #f1cfc5;
+}
+
+.status-pill.offline strong {
+  color: #a6402c;
+}
+
+.service-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.service-list div {
+  min-width: 0;
+  border: 1px solid #e3eaf0;
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: #fbfcfd;
+}
+
+.service-list dt {
+  color: #718092;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.service-list dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  color: #223446;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.integration-note {
+  margin: 0;
+  color: #5f7184;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
 .comparison {
   display: grid;
   gap: 14px;
