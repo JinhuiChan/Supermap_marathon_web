@@ -7,7 +7,7 @@ export const superMapConfig = {
 
   // Published from iDesktopX on this machine.
   wmsMapUrl: "http://127.0.0.1:8090/iserver/services/map-wuhan-marathon/wms111/武汉马拉松赛道地图",
-  wmsLayerName: "0",
+  wmsLayerName: "0.0",
 
   // iClient references for later spatial query / 3D enhancement work.
   iClientJavaScriptUrl: "http://127.0.0.1:8090/iserver/iClient/forJavaScript/web/index.html",

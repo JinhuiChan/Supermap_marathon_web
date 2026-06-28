@@ -22,11 +22,12 @@ describe("routeAnalysis", () => {
   });
 
   it("builds a competition report with SuperMap evidence and recommendation logic", () => {
-    const report = buildDecisionReport(demoRoutes.slice(0, 2), supportPoints);
+    const report = buildDecisionReport(demoRoutes.slice(0, 3), supportPoints);
 
     expect(report).toContain("SuperMap iServer");
-    expect(report).toContain("两江四岸平缓线");
-    expect(report).toContain("东湖绿道景观线");
+    expect(report).toContain("2026武汉马拉松官方路线");
+    expect(report).toContain("两江四岸平缓备选线");
+    expect(report).toContain("东湖绿道景观备选线");
     expect(report).toContain("服务点");
     expect(report).toContain("推荐理由");
   });

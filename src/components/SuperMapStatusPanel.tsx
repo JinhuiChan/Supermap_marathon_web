@@ -89,13 +89,13 @@ export function SuperMapStatusPanel() {
 
       {servicesReady && (
         <div className="service-ready-banner">
-          ✅ 武汉马拉松地图服务已全部就绪，地图面板已切换为真实 GIS 底图。
+          武汉马拉松地图服务已就绪，页面使用 DEM WMS 底图叠加业务矢量图层。
         </div>
       )}
 
       {status === "online" && !servicesReady && (
         <div className="service-pending-hint">
-          💡 iServer 已连接。请通过 iDesktopX 发布武汉马拉松地图和三维服务（详见 docs/idesktopx-publishing-workflow.md）。
+          iServer 已连接。二维地图和三维服务可继续通过 iDesktopX 发布向导完善。
         </div>
       )}
 
@@ -110,7 +110,7 @@ export function SuperMapStatusPanel() {
         </div>
         <div>
           <dt>WMS 底图源</dt>
-          <dd title={superMapConfig.wmsMapUrl}>{superMapConfig.wmsLayerName} (SuperMap iServer)</dd>
+          <dd title={superMapConfig.wmsMapUrl}>{superMapConfig.wmsLayerName} DEM (SuperMap iServer)</dd>
         </div>
         <div>
           <dt>iClient JavaScript</dt>
@@ -122,7 +122,9 @@ export function SuperMapStatusPanel() {
         </div>
         <div>
           <dt>武汉 DEM 数据</dt>
-          <dd>{superMapConfig.demMetadata.name} · {superMapConfig.demMetadata.crs}</dd>
+          <dd>
+            {superMapConfig.demMetadata.name} · {superMapConfig.demMetadata.crs}
+          </dd>
         </div>
         <div>
           <dt>DEM 范围 / 高程</dt>
@@ -133,8 +135,7 @@ export function SuperMapStatusPanel() {
       </dl>
 
       <p className="integration-note">
-        ✅ 地图面板已接入 SuperMap iServer WMS 真实底图（Leaflet + WMS）。
-        路线数据当前使用示范路线；iDesktopX 发布自有服务后状态将自动更新（每 30 秒检测）。
+        地图面板已接入 SuperMap iServer WMS 的 DEM 子图层；2026 官方路线、备选路线和服务点由前端矢量图层叠加。
         上次检测：{lastCheck}
       </p>
     </section>

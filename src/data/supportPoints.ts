@@ -96,6 +96,54 @@ export const supportPoints: SupportPoint[] = [
     routeId: "urban-core",
     serviceLevel: "A",
     coordinate: [114.298, 30.561]
+  },
+  {
+    id: "start-wuhan-2026",
+    name: "沿江大道三阳路口起点",
+    type: "起终点",
+    routeId: "wuhan-marathon-2026",
+    serviceLevel: "A",
+    coordinate: [114.302, 30.604]
+  },
+  {
+    id: "supply-wuhan-2026-hankou",
+    name: "汉口沿江补给点",
+    type: "补给",
+    routeId: "wuhan-marathon-2026",
+    serviceLevel: "A",
+    coordinate: [114.289, 30.584]
+  },
+  {
+    id: "medical-wuhan-2026-bridge",
+    name: "长江大桥医疗保障点",
+    type: "医疗",
+    routeId: "wuhan-marathon-2026",
+    serviceLevel: "A",
+    coordinate: [114.286, 30.545]
+  },
+  {
+    id: "supply-wuhan-2026-east-lake",
+    name: "东湖绿道补给点",
+    type: "补给",
+    routeId: "wuhan-marathon-2026",
+    serviceLevel: "A",
+    coordinate: [114.407, 30.548]
+  },
+  {
+    id: "parking-wuhan-2026-qingshan",
+    name: "青山终点停车接驳点",
+    type: "停车",
+    routeId: "wuhan-marathon-2026",
+    serviceLevel: "B",
+    coordinate: [114.398, 30.623]
+  },
+  {
+    id: "finish-wuhan-2026",
+    name: "青山江滩终点",
+    type: "起终点",
+    routeId: "wuhan-marathon-2026",
+    serviceLevel: "A",
+    coordinate: [114.395, 30.635]
   }
 ];
 

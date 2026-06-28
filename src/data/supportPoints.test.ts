@@ -7,13 +7,22 @@ import {
 
 describe("supportPoints", () => {
   it("loads the Wuhan marathon service points from the published dataset", () => {
-    expect(supportPoints).toHaveLength(9);
+    expect(supportPoints.length).toBeGreaterThan(9);
     expect(supportPoints[0]).toMatchObject({
       id: "start-river-loop",
       routeId: "river-loop",
       type: "起终点",
       serviceLevel: "A"
     });
+  });
+
+  it("contains service points for the official Wuhan Marathon vector route", () => {
+    const officialPoints = getSupportPointsForRoute("wuhan-marathon-2026");
+
+    expect(officialPoints.length).toBeGreaterThanOrEqual(5);
+    expect(officialPoints.map((point) => point.type)).toContain("起终点");
+    expect(officialPoints.map((point) => point.type)).toContain("补给");
+    expect(officialPoints.map((point) => point.type)).toContain("医疗");
   });
 
   it("filters service points by route", () => {

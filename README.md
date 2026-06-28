@@ -6,7 +6,8 @@
 
 - 已通过 SuperMap iDesktopX 导入武汉 DEM、候选赛道 GeoJSON、赛事服务点 GeoJSON。
 - 已在 SuperMap iServer 发布二维地图服务：`map-wuhan-marathon`。
-- 前端已接入自有 WMS 服务，并叠加候选赛道、补给点、医疗点、停车点和起终点。
+- 前端 WMS 底图使用 DEM 子图层 `0.0`，路线由前端矢量图层控制，避免旧示范线混入底图。
+- 已叠加 2026 武汉马拉松官方路线道路级矢量、候选备选线、补给点、医疗点、停车点和起终点。
 - 已支持路线评分、多路线对比、路线研判、图层控制和文本报告导出。
 - WMS 或 Leaflet 加载失败时，页面会自动降级到 SVG 示意图。
 
@@ -60,7 +61,8 @@ supermap-workspace/
 ## 主要功能
 
 - 真实 SuperMap iServer WMS 底图加载。
-- 三条武汉候选马拉松路线可视化与点击选择。
+- 2026 武汉马拉松官方路线道路级矢量可视化与点击选择。
+- 三条规划备选马拉松路线可用于对比分析。
 - 赛事服务点叠加：起终点、补给、医疗、停车。
 - 图层控制：候选赛道和赛事服务点可独立开关。
 - 单路线研判：地形友好度、通行组织、赛事保障、观赛体验。
@@ -78,6 +80,8 @@ docs/demo-script.md
 ```
 
 `scripts/auto_publish.py` 用于在 iDesktopX Python 窗口中导入数据、创建地图和保存工作空间。iServer 服务发布通过 iDesktopX 的在线发布流程完成。
+
+当前官方路线依据公开交通管理通告的道路序列进行矢量化，属于道路级表达；如后续拿到 GPX 或实测轨迹，可直接替换 `public/data/wuhan-marathon-routes.geojson` 和 `src/data/routes.ts` 中的坐标。
 
 ## DEM 数据
 
