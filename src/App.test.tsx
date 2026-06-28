@@ -1,0 +1,13 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import App from "./App";
+
+describe("App", () => {
+  it("renders the marathon route workbench", () => {
+    const html = renderToStaticMarkup(<App />);
+
+    expect(html).toContain("候选赛道库");
+    expect(html).toContain("武汉 WebGIS 赛道工作台");
+    expect(html).toContain("两江四岸平缓线");
+  });
+});
