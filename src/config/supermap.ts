@@ -2,31 +2,26 @@ export const superMapConfig = {
   version: "SuperMap GIS 2025 Update1 / V12.0.1.0",
   iServerBaseUrl: "http://127.0.0.1:8090/iserver",
 
-  // Leaflet CDN (primary map library — loads reliably from any network)
   leafletJsUrl: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
   leafletCssUrl: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
 
-  // WMS map service (confirmed working — serves real SuperMap tiles)
-  wmsMapUrl: "http://127.0.0.1:8090/iserver/services/map-world/wms111/World",
-  wmsLayerName: "World",
+  // Published from iDesktopX on this machine.
+  wmsMapUrl: "http://127.0.0.1:8090/iserver/services/map-wuhan-marathon/wms111/武汉马拉松赛道地图",
+  wmsLayerName: "0",
 
-  // iClient references (for future SuperMap-specific features: spatial query, 3D, etc.)
+  // iClient references for later spatial query / 3D enhancement work.
   iClientJavaScriptUrl: "http://127.0.0.1:8090/iserver/iClient/forJavaScript/web/index.html",
   iClient3DUrl: "http://127.0.0.1:8090/iserver/iClient/for3D/webgl/index.html",
 
-  // Target services (to be published via iDesktopX → iServer)
-  expectedMapServiceUrl: "http://127.0.0.1:8090/iserver/services/map-wuhan-marathon/rest/maps/武汉马拉松赛道",
+  expectedMapServiceUrl: "http://127.0.0.1:8090/iserver/services/map-wuhan-marathon/rest/maps/武汉马拉松赛道地图",
   expectedSceneServiceUrl: "http://127.0.0.1:8090/iserver/services/3D-wuhan-marathon/rest/realspace",
 
-  // Fallback services (built-in iServer samples, already available)
   fallbackMapService: "http://127.0.0.1:8090/iserver/services/map-world/rest",
   fallbackSceneService: "http://127.0.0.1:8090/iserver/services/3D-CBD/rest",
 
-  // Map view defaults (Wuhan city center)
   mapCenter: [114.32, 30.58] as [number, number],
   mapZoom: 12,
 
-  // DEM data
   demDataPath: "E:\\SuperMap\\data\\GDEM\\ASTGTMV003_N30E114\\ASTGTMV003_N30E114_dem.tif",
   demMetadata: {
     name: "ASTGTMV003_N30E114",

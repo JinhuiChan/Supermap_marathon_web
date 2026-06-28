@@ -1,117 +1,210 @@
 # -*- coding: utf-8 -*-
 """
-iDesktopX 数据准备辅助脚本
-==========================
+iDesktopX data preparation script for the Wuhan marathon demo.
 
-运行位置：
-  只能在 SuperMap iDesktopX 的 Python 窗口中运行。
+Run inside SuperMap iDesktopX Python window:
+    exec(open(r"E:\SuperMap\超图\Supermap_marathon_web\scripts\auto_publish.py",
+              encoding="utf-8").read())
 
-用途：
-  1. 预检 DEM、GeoJSON、iServer 地址。
-  2. 尝试创建工作空间和导入数据。
-  3. 给出明确的手动发布地址。
-
-说明：
-  iServer 发布服务仍建议通过 iDesktopX 图形界面完成，因为不同 iDesktopX
-  安装环境中的 Python API 暴露不完全一致。脚本不会保存任何账号密码。
+The script imports local DEM and GeoJSON data into a SuperMap datasource, creates
+one map named "武汉马拉松赛道地图", and saves a workspace that can be published
+from iDesktopX or iServer Manager.
 """
+
+from __future__ import annotations
 
 import os
 import urllib.request
 
-ISERVER_URL = "http://127.0.0.1:8090/iserver"
+import iobjectspy as sm
+from iobjectspy.mapping import Map
+
+
+PROJECT_DIR = r"E:\SuperMap\超图\Supermap_marathon_web"
+WORKSPACE_DIR = os.path.join(PROJECT_DIR, "supermap-workspace")
+WORKSPACE_PATH = os.path.join(WORKSPACE_DIR, "wuhan-marathon.smwu")
+DATASOURCE_PATH = os.path.join(WORKSPACE_DIR, "wuhan-marathon.udbx")
+
 DEM_PATH = r"E:\SuperMap\data\GDEM\ASTGTMV003_N30E114\ASTGTMV003_N30E114_dem.tif"
-ROUTES_GEOJSON = r"E:\SuperMap\超图\Supermap_marathon_web\public\data\wuhan-marathon-routes.geojson"
-SUPPORT_GEOJSON = r"E:\SuperMap\超图\Supermap_marathon_web\public\data\wuhan-marathon-support-points.geojson"
-DATA_DIR = r"E:\SuperMap\超图\Supermap_marathon_web\data"
-WORKSPACE_PATH = os.path.join(DATA_DIR, "wuhan-marathon.smwu")
-UDBX_PATH = os.path.join(DATA_DIR, "wuhan-marathon.udbx")
+ROUTES_GEOJSON = os.path.join(PROJECT_DIR, "public", "data", "wuhan-marathon-routes.geojson")
+SUPPORT_GEOJSON = os.path.join(PROJECT_DIR, "public", "data", "wuhan-marathon-support-points.geojson")
+
+ISERVER_URL = "http://127.0.0.1:8090/iserver"
 MAP_NAME = "武汉马拉松赛道地图"
+SERVICE_NAME = "map-wuhan-marathon"
 
 
-def check_file(path, label):
+def check_file(path: str, label: str) -> bool:
     exists = os.path.exists(path)
     print(("[OK] " if exists else "[缺失] ") + label + ": " + path)
     return exists
 
 
-def check_iserver():
+def check_iserver() -> bool:
     try:
         with urllib.request.urlopen(ISERVER_URL + "/services.json", timeout=5) as response:
             ok = response.status == 200
-            print("[OK] iServer 服务列表可访问" if ok else "[异常] iServer 返回状态: " + str(response.status))
+            print("[OK] iServer 可访问" if ok else "[异常] iServer 返回状态: " + str(response.status))
             return ok
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - printed for iDesktopX console users.
         print("[异常] iServer 不可访问: " + str(exc))
         return False
 
 
-def get_iobjectspy():
+def reset_output_dir() -> None:
+    os.makedirs(WORKSPACE_DIR, exist_ok=True)
+
+
+def workspace_connection_info() -> sm.WorkspaceConnectionInfo:
+    return sm.WorkspaceConnectionInfo(
+        server=WORKSPACE_PATH,
+        workspace_type=sm.WorkspaceType.SMWU,
+        name="wuhan-marathon"
+    )
+
+
+def import_data(datasource):
+    print("[导入] 路线 GeoJSON")
+    route_datasets = sm.import_geojson(
+        ROUTES_GEOJSON,
+        datasource,
+        out_dataset_name="marathon_routes",
+        import_mode=sm.ImportMode.OVERWRITE,
+        source_file_charset="UTF-8"
+    )
+
+    print("[导入] 保障点 GeoJSON")
+    support_datasets = sm.import_geojson(
+        SUPPORT_GEOJSON,
+        datasource,
+        out_dataset_name="marathon_support_points",
+        import_mode=sm.ImportMode.OVERWRITE,
+        source_file_charset="UTF-8"
+    )
+
+    print("[导入] 武汉 DEM GeoTIFF")
+    dem_datasets = sm.import_tif(
+        DEM_PATH,
+        datasource,
+        out_dataset_name="wuhan_dem_30m",
+        is_import_as_grid=True,
+        is_build_pyramid=True
+    )
+
+    return route_datasets, support_datasets, dem_datasets
+
+
+def resolve_datasets(datasource, dataset_refs):
+    resolved = []
+    for dataset_ref in dataset_refs:
+        if isinstance(dataset_ref, str):
+            resolved.append(datasource.get_dataset(dataset_ref))
+        else:
+            resolved.append(dataset_ref)
+    return [dataset for dataset in resolved if dataset is not None]
+
+
+def find_existing_dataset(datasource, candidates):
+    for name in candidates:
+        try:
+            dataset = datasource.get_dataset(name)
+            if dataset is not None:
+                return dataset
+        except Exception:
+            pass
+    return None
+
+
+def get_existing_datasets(datasource):
+    routes = find_existing_dataset(datasource, ["marathon_routes_L", "marathon_routes"])
+    support = find_existing_dataset(datasource, ["marathon_support_points", "marathon_support_points_P"])
+    dem = find_existing_dataset(datasource, ["wuhan_dem_30m"])
+    if routes and support and dem:
+        print("[OK] 复用已导入的数据集")
+        return [routes], [support], [dem]
+    return None
+
+
+def make_map(workspace, datasource, datasets) -> None:
+    route_datasets, support_datasets, dem_datasets = datasets
+    route_datasets = resolve_datasets(datasource, route_datasets)
+    support_datasets = resolve_datasets(datasource, support_datasets)
+    dem_datasets = resolve_datasets(datasource, dem_datasets)
+
+    map_obj = Map()
+    map_obj.set_name(MAP_NAME)
+
+    for dataset in dem_datasets:
+        map_obj.add_dataset(dataset, is_add_to_head=False)
+    for dataset in route_datasets:
+        map_obj.add_dataset(dataset, is_add_to_head=True)
+    for dataset in support_datasets:
+        map_obj.add_dataset(dataset, is_add_to_head=True)
+
+    map_obj.view_entire()
+    if MAP_NAME in [item.get_name() for item in workspace.get_maps()]:
+        workspace.set_map(MAP_NAME, map_obj)
+    else:
+        workspace.add_map(MAP_NAME, map_obj)
+
+
+def main() -> None:
+    print("=" * 72)
+    print("武汉马拉松赛道 iDesktopX 数据准备")
+    print("=" * 72)
+
+    inputs_ok = all(
+        [
+            check_file(DEM_PATH, "武汉 DEM"),
+            check_file(ROUTES_GEOJSON, "候选路线 GeoJSON"),
+            check_file(SUPPORT_GEOJSON, "赛事保障点 GeoJSON"),
+            check_iserver(),
+        ]
+    )
+    if not inputs_ok:
+        print("[停止] 预检未通过，请先修复缺失项。")
+        raise SystemExit(1)
+
+    reset_output_dir()
+
+    workspace = sm.Workspace()
     try:
-        import iobjectspy
-        print("[OK] iObjectSpy 已加载")
-        return iobjectspy
-    except Exception as exc:
-        print("[异常] 无法加载 iObjectSpy。请确认脚本是在 iDesktopX Python 窗口中运行。")
-        print("      " + str(exc))
-        return None
+        datasource = None
+        try:
+            datasource = workspace.get_datasource("wuhan-marathon")
+        except Exception:
+            datasource = None
 
+        if datasource is None:
+            created_workspace = workspace.create(workspace_connection_info(), save_existed=False)
+            if created_workspace is not None:
+                workspace = created_workspace
+            else:
+                workspace = sm.Workspace()
 
-print("=" * 64)
-print("武汉马拉松赛道 iDesktopX 数据准备")
-print("=" * 64)
+            try:
+                datasource = workspace.create_datasource(DATASOURCE_PATH)
+            except Exception:
+                workspace = sm.Workspace()
+                datasource = workspace.create_datasource(DATASOURCE_PATH)
 
-os.makedirs(DATA_DIR, exist_ok=True)
-inputs_ok = all(
-    [
-        check_file(DEM_PATH, "武汉 DEM"),
-        check_file(ROUTES_GEOJSON, "候选路线 GeoJSON"),
-        check_file(SUPPORT_GEOJSON, "赛事保障点 GeoJSON"),
-        check_iserver()
-    ]
-)
+        datasets = get_existing_datasets(datasource) or import_data(datasource)
+        make_map(workspace, datasource, datasets)
 
-iobjectspy = get_iobjectspy()
-if not inputs_ok or iobjectspy is None:
+        workspace.save()
+        print("[OK] 工作空间已保存: " + WORKSPACE_PATH)
+        print("[OK] 数据源已保存: " + DATASOURCE_PATH)
+        print("[OK] 地图名称: " + MAP_NAME)
+    finally:
+        workspace.close()
+
     print()
-    print("预检未通过，已停止。请先修正上面的缺失项。")
-    raise SystemExit(1)
+    print("下一步发布参数：")
+    print("服务名称: " + SERVICE_NAME)
+    print("发布工作空间: " + WORKSPACE_PATH)
+    print("REST 目标: " + ISERVER_URL + "/services/" + SERVICE_NAME + "/rest/maps/" + MAP_NAME)
+    print("WMS 目标:  " + ISERVER_URL + "/services/" + SERVICE_NAME + "/wms111/" + MAP_NAME)
+    print("=" * 72)
 
-print()
-print("预检通过。开始尝试创建工作空间和导入数据。")
 
-try:
-    workspace = iobjectspy.Workspace()
-    if os.path.exists(WORKSPACE_PATH):
-        workspace.open(WORKSPACE_PATH)
-        print("[OK] 已打开工作空间: " + WORKSPACE_PATH)
-    else:
-        workspace.create(WORKSPACE_PATH)
-        print("[OK] 已创建工作空间: " + WORKSPACE_PATH)
-
-    datasource = workspace.datasources.create(UDBX_PATH)
-    print("[OK] 已创建数据源: " + UDBX_PATH)
-
-    if hasattr(iobjectspy, "DataImport"):
-        importer = iobjectspy.DataImport
-        importer.import_raster(DEM_PATH, datasource, "wuhan_dem_30m")
-        importer.import_vector(ROUTES_GEOJSON, datasource, "marathon_routes")
-        importer.import_vector(SUPPORT_GEOJSON, datasource, "marathon_support_points")
-        print("[OK] DEM、路线、保障点导入完成")
-    else:
-        print("[提示] 当前 iObjectSpy 未暴露 DataImport，请使用 iDesktopX 导入数据菜单导入三份数据。")
-
-    workspace.save()
-    print("[OK] 工作空间已保存")
-except Exception as exc:
-    print("[异常] 自动导入未完成: " + str(exc))
-    print("      请按 docs/idesktopx-publishing-workflow.md 使用图形界面导入。")
-
-print()
-print("=" * 64)
-print("下一步：在 iDesktopX 中制作地图并发布服务")
-print("地图名称: " + MAP_NAME)
-print("服务名: map-wuhan-marathon")
-print("REST: " + ISERVER_URL + "/services/map-wuhan-marathon/rest/maps/" + MAP_NAME)
-print("WMS:  " + ISERVER_URL + "/services/map-wuhan-marathon/wms111/" + MAP_NAME)
-print("=" * 64)
+main()

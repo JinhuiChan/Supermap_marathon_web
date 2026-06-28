@@ -2,9 +2,15 @@
 
 基于 SuperMap WebGIS 的马拉松赛道智能选型与多路线对比分析系统。
 
-## 第一版目标
+## 当前状态
 
-第一版先完成比赛可演示闭环：候选赛道展示、单路线指标、多路线对比、坡度剖面、推荐结论和报告导出。
+本项目已经完成可演示闭环：
+
+- iDesktopX 已导入武汉 DEM、候选赛道 GeoJSON、赛事保障点 GeoJSON。
+- iDesktopX 已生成地图：`武汉马拉松赛道地图`。
+- iServer 已发布二维地图服务：`map-wuhan-marathon`。
+- 前端已切换到自有 SuperMap WMS：`武汉马拉松赛道地图`。
+- 地图加载失败时仍保留 SVG 示意图降级。
 
 ## 本地运行
 
@@ -13,7 +19,11 @@ npm.cmd install
 npm.cmd run dev
 ```
 
-打开终端输出的本地地址。
+打开本地地址：
+
+```text
+http://127.0.0.1:5173/
+```
 
 ## 验证
 
@@ -22,57 +32,18 @@ npm.cmd test
 npm.cmd run build
 ```
 
-## SuperMap 接入路径
-
-1. 使用 SuperMap iDesktopX 处理 DEM、路网、POI 和路线数据。
-2. 使用 SuperMap iServer 发布二维地图、三维场景和空间分析服务。
-3. ✅ 前端已接入 SuperMap iServer WMS，地图面板从 iServer 加载真实底图。
-4. 路线数据当前使用示范路线，待 iServer 服务发布后接入真实空间分析结果。
-5. 多路线对比、评分和推荐逻辑保留在前端领域模块中，便于演示和测试。
-
-## 当前地图接入状态
-
-| 项目 | 状态 |
-| --- | --- |
-| SuperMap iServer | ✅ 运行中，WMS 底图正常 |
-| 地图引擎 | ✅ Leaflet + SuperMap iServer WMS 真实瓦片 |
-| WMS 底图服务 | ✅ map-world/wms111（SuperMap 内置世界地图） |
-| 目标二维地图服务 | 待通过 iDesktopX 发布 map-wuhan-marathon |
-| 三维场景预览面板 | ✅ 可折叠面板（自动检测 iClient3D 可用性） |
-| 目标三维场景服务 | 待发布 3D-wuhan-marathon |
-| 服务状态自动检测 | ✅ 每 30 秒自动刷新 |
-| SVG 示意图兜底 | ✅ 地图加载失败时自动降级 |
-
-## iDesktopX 发布指南
-
-详细的 iDesktopX → iServer 服务发布操作步骤见：
+## SuperMap 服务
 
 ```text
-docs/idesktopx-publishing-workflow.md
+iServer:
+http://127.0.0.1:8090/iserver
+
+REST 地图服务:
+http://127.0.0.1:8090/iserver/services/map-wuhan-marathon/rest/maps/武汉马拉松赛道地图
+
+WMS 地图服务:
+http://127.0.0.1:8090/iserver/services/map-wuhan-marathon/wms111/武汉马拉松赛道地图
 ```
-
-发布完成后更新 `src/config/supermap.ts` 中的 `wmsMapUrl` 和 `wmsLayerName` 即可切换为自有服务。
-
-辅助脚本 `scripts/auto_publish.py` 只用于 iDesktopX Python 窗口中的数据准备和预检。最终发布 `map-wuhan-marathon` 服务仍建议在 iDesktopX 图形界面中完成，避免不同 iDesktopX Python API 差异导致发布失败。
-
-## 演示材料
-
-比赛演示脚本见：
-
-```text
-docs/demo-script.md
-```
-
-## GIS 数据包
-
-当前已内置两份可导入 SuperMap iDesktopX 的 GeoJSON：
-
-```text
-public/data/wuhan-marathon-routes.geojson
-public/data/wuhan-marathon-support-points.geojson
-```
-
-## 当前 SuperMap 配置
 
 前端配置文件：
 
@@ -80,13 +51,27 @@ public/data/wuhan-marathon-support-points.geojson
 src/config/supermap.ts
 ```
 
-当前默认连接：
+本地 SuperMap 工作空间和数据源由脚本生成在：
 
 ```text
-http://127.0.0.1:8090/iserver
+supermap-workspace/
 ```
 
-当前 DEM 数据已识别为：
+该目录已加入 `.gitignore`，不会上传到 GitHub。
+
+## 数据与脚本
+
+```text
+public/data/wuhan-marathon-routes.geojson
+public/data/wuhan-marathon-support-points.geojson
+scripts/auto_publish.py
+docs/idesktopx-publishing-workflow.md
+docs/demo-script.md
+```
+
+`scripts/auto_publish.py` 用于在 iDesktopX Python 窗口中导入数据、创建地图和保存工作空间。iServer 服务发布仍通过 iDesktopX 的“在线 -> 工作空间”发布向导完成。
+
+## DEM 数据
 
 ```text
 ASTGTMV003_N30E114
@@ -94,11 +79,4 @@ WGS 84 / EPSG:4326
 3601 x 3601
 113.9999E-115.0001E, 29.9999N-31.0001N
 高程范围 -135m 至 771m
-```
-
-合规推进说明见：
-
-```text
-docs/supermap-compliance.md
-docs/supermap-publish-checklist.md
 ```
