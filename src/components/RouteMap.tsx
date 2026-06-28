@@ -24,7 +24,7 @@ export function RouteMap({ routes, activeRouteId, comparedRouteIds, onSelectRout
         <span>武汉 WebGIS 赛道工作台</span>
         <strong>{comparedRouteIds.length}/5 已加入对比</strong>
       </div>
-      <svg viewBox="0 0 100 100" role="img" aria-label="路线示意图">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="路线示意图">
         <rect x="0" y="0" width="100" height="100" rx="0" className="map-bg" />
         <path d="M7 48 C22 38 32 62 46 49 S74 40 92 55" className="river" />
         <path d="M14 20 L86 84 M10 74 L88 22 M24 8 L40 92 M62 5 L70 95" className="road-grid" />
