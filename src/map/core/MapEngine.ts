@@ -1,4 +1,5 @@
 import type { MarathonRoute } from "../../domain/routeMetrics";
+import { computeRouteStyle, findNearestRouteId, toLeafletLatLngs } from "../layers/RouteLayer";
 
 export interface MapEngineOptions {
   container: HTMLElement;
@@ -18,6 +19,7 @@ export class MapEngine {
   private center: [number, number];
   private zoom: number;
   private destroyed = false;
+  private routes: MarathonRoute[] = [];
 
   constructor(options: MapEngineOptions) {
     this.container = options.container;
@@ -44,6 +46,7 @@ export class MapEngine {
     const mapOptions: Record<string, unknown> = {
       center: [this.center[1], this.center[0]],
       zoom: this.zoom,
+      zoomControl: false,
       attributionControl: true
     };
 
@@ -88,6 +91,7 @@ export class MapEngine {
 
   setRoutes(routes: MarathonRoute[]): void {
     if (this.destroyed || !this.map) return;
+    this.routes = routes;
     this.clearRouteLayers();
     const L = (window as unknown as Record<string, unknown>).L as Record<string, unknown> | undefined;
     if (!L) return;
@@ -95,12 +99,7 @@ export class MapEngine {
     const polyline = L.polyline as (latlngs: [number, number][], opts?: Record<string, unknown>) => unknown;
 
     for (const route of routes) {
-      const latlngs: [number, number][] = route.coordinates.map(([lon, lat]) => [lat, lon]);
-      const layer = polyline(latlngs, {
-        color: route.color,
-        weight: 3,
-        opacity: 0.8
-      });
+      const layer = polyline(toLeafletLatLngs(route.coordinates), computeRouteStyle(route, false, true));
       (layer as { addTo: (m: unknown) => unknown }).addTo(this.map);
       this.routeLayers.set(route.id, layer);
     }
@@ -111,12 +110,10 @@ export class MapEngine {
     for (const [id, layer] of this.routeLayers) {
       const isActive = id === activeRouteId;
       const isCompared = comparedRouteIds.includes(id);
+      const route = this.routes.find((item) => item.id === id);
       const leafletLayer = layer as { setStyle?: (s: Record<string, unknown>) => void };
-      if (leafletLayer.setStyle) {
-        leafletLayer.setStyle({
-          weight: isActive ? 5 : isCompared ? 3.5 : 2,
-          opacity: isActive || isCompared ? 1 : 0.42
-        });
+      if (leafletLayer.setStyle && route) {
+        leafletLayer.setStyle(computeRouteStyle(route, isActive, isCompared));
       }
     }
   }
@@ -132,6 +129,22 @@ export class MapEngine {
     if (mapWithFit.fitBounds) {
       mapWithFit.fitBounds(bounds, { padding: [30, 30] });
     }
+  }
+
+  whenReady(callback: () => void): void {
+    if (this.destroyed || !this.map) return;
+    const mapWithReady = this.map as { whenReady?: (cb: () => void) => void };
+    if (mapWithReady.whenReady) {
+      mapWithReady.whenReady(callback);
+    } else {
+      callback();
+    }
+  }
+
+  invalidateSize(): void {
+    if (this.destroyed || !this.map) return;
+    const mapWithInvalidate = this.map as { invalidateSize?: () => void };
+    if (mapWithInvalidate.invalidateSize) mapWithInvalidate.invalidateSize();
   }
 
   onRouteClick(callback: (id: string) => void): void {
@@ -161,21 +174,6 @@ export class MapEngine {
   }
 
   private findNearestRoute(coord: [number, number]): string | null {
-    const threshold = 0.008;
-    let closest: string | null = null;
-    let closestDist = Infinity;
-
-    for (const [id, layer] of this.routeLayers) {
-      const latlngs = (layer as { getLatLngs?: () => unknown[] }).getLatLngs?.() ?? [];
-      for (const ll of latlngs) {
-        const pt = ll as { lat: number; lng: number };
-        const d = Math.hypot(coord[0] - pt.lng, coord[1] - pt.lat);
-        if (d < threshold && d < closestDist) {
-          closestDist = d;
-          closest = id;
-        }
-      }
-    }
-    return closest;
+    return findNearestRouteId(this.routes, coord);
   }
 }

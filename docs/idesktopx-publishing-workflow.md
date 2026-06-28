@@ -86,8 +86,8 @@
 | 服务 | 验证地址 |
 |------|---------|
 | iServer 首页 | `http://127.0.0.1:8090/iserver/` |
-| 二维地图 REST | `http://127.0.0.1:8090/iserver/services/map-wuhan-marathon/rest/maps/武汉马拉松赛道` |
-| 二维地图 WMS | `http://127.0.0.1:8090/iserver/services/map-wuhan-marathon/wms111/武汉马拉松赛道` |
+| 二维地图 REST | `http://127.0.0.1:8090/iserver/services/map-wuhan-marathon/rest/maps/武汉马拉松赛道地图` |
+| 二维地图 WMS | `http://127.0.0.1:8090/iserver/services/map-wuhan-marathon/wms111/武汉马拉松赛道地图` |
 | 三维场景 | `http://127.0.0.1:8090/iserver/services/3D-wuhan-marathon/rest/realspace` |
 
 ## 九、更新前端配置
@@ -96,8 +96,8 @@
 
 ```ts
 // 将 WMS 改为指向自己的服务
-wmsMapUrl: "http://127.0.0.1:8090/iserver/services/map-wuhan-marathon/wms111/武汉马拉松赛道",
-wmsLayerName: "武汉马拉松赛道",
+wmsMapUrl: "http://127.0.0.1:8090/iserver/services/map-wuhan-marathon/wms111/武汉马拉松赛道地图",
+wmsLayerName: "武汉马拉松赛道地图",
 ```
 
 然后重新构建：

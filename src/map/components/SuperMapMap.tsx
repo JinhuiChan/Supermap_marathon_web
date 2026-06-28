@@ -19,11 +19,37 @@ export function SuperMapMap(props: SuperMapMapProps) {
   const { routes, activeRouteId, comparedRouteIds, onSelectRoute } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<MapEngine | null>(null);
+  const viewportTimersRef = useRef<number[]>([]);
   const [phase, setPhase] = useState<MapPhase>("loading");
   const [phaseMessage, setPhaseMessage] = useState("加载 Leaflet 地图库...");
 
   const onSelectRef = useRef(onSelectRoute);
   onSelectRef.current = onSelectRoute;
+
+  const clearViewportTimers = () => {
+    for (const timer of viewportTimersRef.current) {
+      window.clearTimeout(timer);
+    }
+    viewportTimersRef.current = [];
+  };
+
+  const refreshViewport = (engine: MapEngine, routeSet: MarathonRoute[]) => {
+    const coordinates = routeSet.flatMap((route) => route.coordinates);
+    engine.invalidateSize();
+    engine.fitBounds(coordinates);
+  };
+
+  const scheduleViewportRefresh = (engine: MapEngine, routeSet: MarathonRoute[]) => {
+    clearViewportTimers();
+
+    const run = () => refreshViewport(engine, routeSet);
+    window.requestAnimationFrame(run);
+    viewportTimersRef.current = [
+      window.setTimeout(run, 80),
+      window.setTimeout(run, 300),
+      window.setTimeout(run, 800)
+    ];
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -68,7 +94,10 @@ export function SuperMapMap(props: SuperMapMapProps) {
         engine.highlightRoute(activeRouteId, comparedRouteIds);
         engineRef.current = engine;
 
-        if (!cancelled) setPhase("ready");
+        if (!cancelled) {
+          setPhase("ready");
+          engine.whenReady(() => scheduleViewportRefresh(engine, routes));
+        }
       } catch {
         if (!cancelled) {
           setPhase("fallback");
@@ -81,6 +110,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
 
     return () => {
       cancelled = true;
+      clearViewportTimers();
       if (engineRef.current) {
         engineRef.current.destroy();
         engineRef.current = null;
@@ -92,8 +122,14 @@ export function SuperMapMap(props: SuperMapMapProps) {
     const engine = engineRef.current;
     if (!engine || phase !== "ready") return;
     engine.setRoutes(routes);
+    scheduleViewportRefresh(engine, routes);
+  }, [routes, phase]);
+
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!engine || phase !== "ready") return;
     engine.highlightRoute(activeRouteId, comparedRouteIds);
-  }, [routes, activeRouteId, comparedRouteIds, phase]);
+  }, [activeRouteId, comparedRouteIds, phase]);
 
   if (phase === "fallback") {
     return (
@@ -119,7 +155,6 @@ export function SuperMapMap(props: SuperMapMapProps) {
       <div
         ref={containerRef}
         className="iclient-map-container"
-        style={{ display: phase === "ready" ? "block" : "none" }}
       />
     </section>
   );

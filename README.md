@@ -26,7 +26,7 @@ npm.cmd run build
 
 1. 使用 SuperMap iDesktopX 处理 DEM、路网、POI 和路线数据。
 2. 使用 SuperMap iServer 发布二维地图、三维场景和空间分析服务。
-3. ✅ 前端已接入 SuperMap iClient JavaScript (Leaflet 变体)，地图面板从 iServer 加载真实底图。
+3. ✅ 前端已接入 SuperMap iServer WMS，地图面板从 iServer 加载真实底图。
 4. 路线数据当前使用示范路线，待 iServer 服务发布后接入真实空间分析结果。
 5. 多路线对比、评分和推荐逻辑保留在前端领域模块中，便于演示和测试。
 
@@ -52,6 +52,8 @@ docs/idesktopx-publishing-workflow.md
 ```
 
 发布完成后更新 `src/config/supermap.ts` 中的 `wmsMapUrl` 和 `wmsLayerName` 即可切换为自有服务。
+
+辅助脚本 `scripts/auto_publish.py` 只用于 iDesktopX Python 窗口中的数据准备和预检。最终发布 `map-wuhan-marathon` 服务仍建议在 iDesktopX 图形界面中完成，避免不同 iDesktopX Python API 差异导致发布失败。
 
 ## 演示材料
 

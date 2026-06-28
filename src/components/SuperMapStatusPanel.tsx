@@ -3,6 +3,7 @@ import { superMapConfig } from "../config/supermap";
 import {
   checkSuperMapIserver,
   checkSuperMapResource,
+  checkSuperMapWms,
   type SuperMapResourceStatus,
   type SuperMapStatus
 } from "../services/supermapHealth";
@@ -26,34 +27,37 @@ export function SuperMapStatusPanel() {
   const [wmsStatus, setWmsStatus] = useState<SuperMapResourceStatus>("checking");
   const [lastCheck, setLastCheck] = useState<string>("—");
 
-  const runCheck = useCallback(() => {
-    let active = true;
+  const runCheck = useCallback((isActive: () => boolean) => {
+    const setIfActive = <T,>(setter: (value: T) => void, value: T) => {
+      if (isActive()) setter(value);
+    };
 
     checkSuperMapIserver(superMapConfig.iServerBaseUrl).then((s) => {
-      if (active) setStatus(s);
+      setIfActive(setStatus, s);
     });
     checkSuperMapResource(superMapConfig.expectedMapServiceUrl).then((s) => {
-      if (active) setMapStatus(s);
+      setIfActive(setMapStatus, s);
     });
     checkSuperMapResource(superMapConfig.expectedSceneServiceUrl).then((s) => {
-      if (active) setSceneStatus(s);
+      setIfActive(setSceneStatus, s);
     });
-    // Also check WMS availability (actual working tile source)
-    checkSuperMapResource(superMapConfig.wmsMapUrl).then((s) => {
-      if (active) setWmsStatus(s);
+    checkSuperMapWms(superMapConfig.wmsMapUrl).then((s) => {
+      setIfActive(setWmsStatus, s);
     });
 
-    setLastCheck(new Date().toLocaleTimeString("zh-CN"));
-
-    return () => { active = false; };
+    if (isActive()) setLastCheck(new Date().toLocaleTimeString("zh-CN"));
   }, []);
 
   useEffect(() => {
-    const cleanup = runCheck();
-    const interval = setInterval(runCheck, 30000);
+    let active = true;
+    const isActive = () => active;
+
+    runCheck(isActive);
+    const interval = window.setInterval(() => runCheck(isActive), 30000);
+
     return () => {
-      cleanup?.();
-      clearInterval(interval);
+      active = false;
+      window.clearInterval(interval);
     };
   }, [runCheck]);
 
