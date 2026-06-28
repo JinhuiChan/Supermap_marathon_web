@@ -13,6 +13,10 @@
 | iClient JavaScript | `http://127.0.0.1:8090/iserver/iClient/forJavaScript/index.html` |
 | iClient3D for WebGL/WebGPU | `http://127.0.0.1:8090/iserver/iClient/for3D/webgl/index.html` |
 | DEM 数据 | `E:\SuperMap\data\GDEM\ASTGTMV003_N30E114\ASTGTMV003_N30E114_dem.tif` |
+| DEM 坐标系 | WGS 84 / EPSG:4326 |
+| DEM 范围 | 113.9999E-115.0001E, 29.9999N-31.0001N |
+| DEM 尺寸 | 3601 x 3601 |
+| DEM 高程 | -135m 至 771m |
 | iServer 包目录 | `E:\SuperMap\安装包\supermap-iserver-2025u1a-windows-x64-all\supermap-iserver-2025u1a-windows-x64-all` |
 | iDesktopX 安装包目录 | `E:\SuperMap\安装包\supermap-idesktopx-2025u1-windows-x64-setup\supermap-idesktopx-2025u1-windows-x64-setup` |
 
@@ -37,7 +41,11 @@ http://127.0.0.1:8090/iserver/services/map-wuhan-marathon/rest/maps/武汉马拉
 http://127.0.0.1:8090/iserver/services/3D-wuhan-marathon/rest/realspace
 ```
 
-后续只需要把 iServer 中发布出的真实服务地址填入该配置文件，即可将地图面板从 SVG 示意替换为 SuperMap iClient 图层。
+后续只需要把 iServer 中发布出的真实服务地址填入该配置文件，即可将地图面板从 SVG 示意替换为 SuperMap iClient 图层。服务发布步骤见：
+
+```text
+docs/supermap-publish-checklist.md
+```
 
 ## 下一步合规开发任务
 
@@ -64,4 +72,3 @@ http://127.0.0.1:8090/iserver/services/3D-wuhan-marathon/rest/realspace
 | 作品文档 | 系统介绍、部署说明、指标模型说明 |
 | 精彩截图 | WebGIS 工作台、路线对比、导出报告截图 |
 | 演示录像 | 按“选择路线 -> 对比指标 -> 输出推荐 -> 导出报告”录制 |
-

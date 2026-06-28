@@ -13,5 +13,7 @@ describe("App", () => {
     expect(html).toContain("导出对比报告");
     expect(html).toContain("SuperMap iServer");
     expect(html).toContain("iClient JavaScript");
+    expect(html).toContain("二维地图服务");
+    expect(html).toContain("ASTGTMV003_N30E114");
   });
 });

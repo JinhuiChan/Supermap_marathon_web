@@ -43,8 +43,19 @@ src/config/supermap.ts
 http://127.0.0.1:8090/iserver
 ```
 
+当前 DEM 数据已识别为：
+
+```text
+ASTGTMV003_N30E114
+WGS 84 / EPSG:4326
+3601 x 3601
+113.9999E-115.0001E, 29.9999N-31.0001N
+高程范围 -135m 至 771m
+```
+
 合规推进说明见：
 
 ```text
 docs/supermap-compliance.md
+docs/supermap-publish-checklist.md
 ```
