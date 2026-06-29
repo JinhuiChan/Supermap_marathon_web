@@ -3,7 +3,7 @@ export type SuperMapResourceStatus = "checking" | "ready" | "pending";
 
 export async function checkSuperMapIserver(baseUrl: string, timeoutMs = 3500): Promise<SuperMapStatus> {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     await fetch(baseUrl, {
@@ -16,13 +16,13 @@ export async function checkSuperMapIserver(baseUrl: string, timeoutMs = 3500): P
   } catch {
     return "offline";
   } finally {
-    window.clearTimeout(timeout);
+    globalThis.clearTimeout(timeout);
   }
 }
 
 export async function checkSuperMapResource(url: string, timeoutMs = 3500): Promise<SuperMapResourceStatus> {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(url, {
@@ -34,6 +34,34 @@ export async function checkSuperMapResource(url: string, timeoutMs = 3500): Prom
   } catch {
     return "pending";
   } finally {
-    window.clearTimeout(timeout);
+    globalThis.clearTimeout(timeout);
+  }
+}
+
+export function buildWmsCapabilitiesUrl(wmsUrl: string): string {
+  const url = new URL(wmsUrl);
+  url.searchParams.set("SERVICE", "WMS");
+  url.searchParams.set("REQUEST", "GetCapabilities");
+  return url.toString();
+}
+
+export async function checkSuperMapWms(wmsUrl: string, timeoutMs = 5000): Promise<SuperMapResourceStatus> {
+  const controller = new AbortController();
+  const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const capabilitiesUrl = buildWmsCapabilitiesUrl(wmsUrl);
+    const response = await fetch(capabilitiesUrl, {
+      cache: "no-store",
+      signal: controller.signal
+    });
+    if (!response.ok) return "pending";
+
+    const text = await response.text();
+    return /<(WMT_MS_Capabilities|WMS_Capabilities)\b/i.test(text) ? "ready" : "pending";
+  } catch {
+    return "pending";
+  } finally {
+    globalThis.clearTimeout(timeout);
   }
 }

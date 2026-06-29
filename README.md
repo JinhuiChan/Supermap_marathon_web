@@ -1,10 +1,15 @@
 # Supermap_marathon_web
 
-基于 SuperMap WebGIS 的马拉松赛道智能选型与多路线对比分析系统。
+基于 SuperMap WebGIS 的武汉马拉松赛道智能选线与多路线对比分析系统。
 
-## 第一版目标
+## 当前状态
 
-第一版先完成比赛可演示闭环：候选赛道展示、单路线指标、多路线对比、坡度剖面、推荐结论和报告导出。
+- 已通过 SuperMap iDesktopX 导入武汉 DEM、候选赛道 GeoJSON、赛事服务点 GeoJSON。
+- 已在 SuperMap iServer 发布二维地图服务：`map-wuhan-marathon`。
+- 前端默认使用在线真实地图底图，保留 SuperMap WMS DEM 子图层 `0.0` 作为可切换底图；路线由前端矢量图层控制，避免旧示范线混入底图。
+- 已叠加 2026 武汉马拉松官方路线道路级矢量、候选备选线、补给点、医疗点、停车点和起终点。
+- 已支持路线评分、多路线对比、路线研判、图层控制和文本报告导出。
+- WMS 或 Leaflet 加载失败时，页面会自动降级到 SVG 示意图。
 
 ## 本地运行
 
@@ -13,7 +18,11 @@ npm.cmd install
 npm.cmd run dev
 ```
 
-打开终端输出的本地地址。
+打开：
+
+```text
+http://127.0.0.1:5173/
+```
 
 ## 验证
 
@@ -22,23 +31,18 @@ npm.cmd test
 npm.cmd run build
 ```
 
-## SuperMap 接入路径
-
-1. 使用 SuperMap iDesktopX 处理 DEM、路网、POI 和路线数据。
-2. 使用 SuperMap iServer 发布二维地图、三维场景和空间分析服务。
-3. 前端当前使用示范路线数据，后续通过统一数据接口替换为 iServer 返回结果。
-4. 多路线对比、评分和推荐逻辑保留在前端领域模块中，便于演示和测试。
-
-## GIS 数据包
-
-当前已内置两份可导入 SuperMap iDesktopX 的 GeoJSON：
+## SuperMap 服务
 
 ```text
-public/data/wuhan-marathon-routes.geojson
-public/data/wuhan-marathon-support-points.geojson
-```
+iServer:
+http://127.0.0.1:8090/iserver
 
-## 当前 SuperMap 配置
+REST 地图服务:
+http://127.0.0.1:8090/iserver/services/map-wuhan-marathon/rest/maps/武汉马拉松赛道地图
+
+WMS 地图服务:
+http://127.0.0.1:8090/iserver/services/map-wuhan-marathon/wms111/武汉马拉松赛道地图
+```
 
 前端配置文件：
 
@@ -46,13 +50,40 @@ public/data/wuhan-marathon-support-points.geojson
 src/config/supermap.ts
 ```
 
-当前默认连接：
+本地 SuperMap 工作空间和数据源由脚本生成在：
 
 ```text
-http://127.0.0.1:8090/iserver
+supermap-workspace/
 ```
 
-当前 DEM 数据已识别为：
+该目录已加入 `.gitignore`，不会上传到 GitHub。
+
+## 主要功能
+
+- 在线真实地图底图加载，支持一键切换到 SuperMap iServer DEM 底图。
+- 2026 武汉马拉松官方路线道路级矢量可视化与点击选择。
+- 三条规划备选马拉松路线可用于对比分析。
+- 赛事服务点叠加：起终点、补给、医疗、停车。
+- 图层控制：候选赛道和赛事服务点可独立开关。
+- 单路线研判：地形友好度、通行组织、赛事保障、观赛体验。
+- 多路线对比：难度分、保障分、综合推荐分和坡度剖面对比。
+- 成果导出：生成包含 SuperMap 服务依据、推荐理由和风险提示的文本报告。
+
+## 数据与脚本
+
+```text
+public/data/wuhan-marathon-routes.geojson
+public/data/wuhan-marathon-support-points.geojson
+scripts/auto_publish.py
+docs/idesktopx-publishing-workflow.md
+docs/demo-script.md
+```
+
+`scripts/auto_publish.py` 用于在 iDesktopX Python 窗口中导入数据、创建地图和保存工作空间。iServer 服务发布通过 iDesktopX 的在线发布流程完成。
+
+当前官方路线依据公开交通管理通告的道路序列进行矢量化，属于道路级表达；如后续拿到 GPX 或实测轨迹，可直接替换 `public/data/wuhan-marathon-routes.geojson` 和 `src/data/routes.ts` 中的坐标。
+
+## DEM 数据
 
 ```text
 ASTGTMV003_N30E114
@@ -60,11 +91,4 @@ WGS 84 / EPSG:4326
 3601 x 3601
 113.9999E-115.0001E, 29.9999N-31.0001N
 高程范围 -135m 至 771m
-```
-
-合规推进说明见：
-
-```text
-docs/supermap-compliance.md
-docs/supermap-publish-checklist.md
 ```

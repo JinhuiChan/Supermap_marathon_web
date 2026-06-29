@@ -2,15 +2,27 @@ import { useMemo, useState } from "react";
 import { ComparisonPanel } from "./components/ComparisonPanel";
 import { DataPackagePanel } from "./components/DataPackagePanel";
 import { ExportPanel } from "./components/ExportPanel";
+import { LayerControlPanel } from "./components/LayerControlPanel";
+import { RouteAnalysisPanel } from "./components/RouteAnalysisPanel";
 import { RouteDetails } from "./components/RouteDetails";
 import { RouteLibrary } from "./components/RouteLibrary";
-import { RouteMap } from "./components/RouteMap";
 import { SuperMapStatusPanel } from "./components/SuperMapStatusPanel";
+import type { BasemapMode } from "./config/supermap";
+import { superMapConfig } from "./config/supermap";
+import type { MapLayerVisibility } from "./map/components/SuperMapMap";
+import { SuperMapMap } from "./map/components/SuperMapMap";
+import { Scene3DPanel } from "./map/components/Scene3DPanel";
 import { demoRoutes } from "./data/routes";
+import { supportPoints } from "./data/supportPoints";
 
 export default function App() {
   const [activeRouteId, setActiveRouteId] = useState(demoRoutes[0].id);
   const [comparedRouteIds, setComparedRouteIds] = useState<string[]>([demoRoutes[0].id, demoRoutes[1].id]);
+  const [mapLayerVisibility, setMapLayerVisibility] = useState<MapLayerVisibility>({
+    routes: true,
+    supportPoints: true
+  });
+  const [basemapMode, setBasemapMode] = useState<BasemapMode>(superMapConfig.defaultBasemap);
   const activeRoute = useMemo(
     () => demoRoutes.find((route) => route.id === activeRouteId) ?? demoRoutes[0],
     [activeRouteId]
@@ -40,17 +52,29 @@ export default function App() {
         />
         <RouteDetails route={activeRoute} />
       </aside>
-      <RouteMap
+      <SuperMapMap
         routes={demoRoutes}
+        supportPoints={supportPoints}
         activeRouteId={activeRouteId}
         comparedRouteIds={comparedRouteIds}
+        layerVisibility={mapLayerVisibility}
+        basemapMode={basemapMode}
         onSelectRoute={setActiveRouteId}
       />
       <aside className="right-panel">
         <SuperMapStatusPanel />
+        <LayerControlPanel
+          visibility={mapLayerVisibility}
+          basemapMode={basemapMode}
+          supportPointCount={supportPoints.length}
+          onChange={setMapLayerVisibility}
+          onBasemapChange={setBasemapMode}
+        />
+        <RouteAnalysisPanel route={activeRoute} supportPoints={supportPoints} />
+        <Scene3DPanel />
         <DataPackagePanel />
         <ComparisonPanel routes={comparedRoutes} />
-        <ExportPanel routes={comparedRoutes} />
+        <ExportPanel routes={comparedRoutes} supportPoints={supportPoints} />
       </aside>
     </main>
   );
