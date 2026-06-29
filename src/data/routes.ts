@@ -1,4 +1,28 @@
-import type { MarathonRoute } from "../domain/routeMetrics";
+import type { Coordinate, MarathonRoute } from "../domain/routeMetrics";
+
+function densifyRoute(coordinates: Coordinate[], maxStepDegrees = 0.003): Coordinate[] {
+  const dense: Coordinate[] = [];
+
+  for (let index = 0; index < coordinates.length - 1; index += 1) {
+    const start = coordinates[index];
+    const end = coordinates[index + 1];
+    const segmentSteps = Math.max(
+      1,
+      Math.ceil(Math.hypot(end[0] - start[0], end[1] - start[1]) / maxStepDegrees)
+    );
+
+    for (let step = 0; step < segmentSteps; step += 1) {
+      const t = step / segmentSteps;
+      dense.push([
+        Number((start[0] + (end[0] - start[0]) * t).toFixed(6)),
+        Number((start[1] + (end[1] - start[1]) * t).toFixed(6))
+      ]);
+    }
+  }
+
+  dense.push(coordinates[coordinates.length - 1]);
+  return dense;
+}
 
 const officialWuhanMarathon2026: MarathonRoute = {
   id: "wuhan-marathon-2026",
@@ -6,7 +30,7 @@ const officialWuhanMarathon2026: MarathonRoute = {
   color: "#005bbb",
   lengthKm: 42.195,
   closedLoop: false,
-  coordinates: [
+  coordinates: densifyRoute([
     [114.302, 30.604],
     [114.298, 30.599],
     [114.294, 30.592],
@@ -35,11 +59,12 @@ const officialWuhanMarathon2026: MarathonRoute = {
     [114.46, 30.571],
     [114.45, 30.578],
     [114.434, 30.588],
+    [114.41, 30.582],
     [114.419, 30.598],
     [114.406, 30.611],
     [114.398, 30.623],
     [114.395, 30.635]
-  ],
+  ]),
   elevationProfile: [
     { km: 0, elevation: 24, slope: 0.2 },
     { km: 5, elevation: 25, slope: 0.3 },
