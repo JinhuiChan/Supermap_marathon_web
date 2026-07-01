@@ -29,7 +29,7 @@ export interface MarathonRoute {
   elevationProfile: ElevationPoint[];
   metrics: RouteMetrics;
   lineage?: {
-    source: "official-road-level" | "planning-sketch" | "simulated-graph";
+    source: "official-road-level" | "planning-sketch" | "simulated-graph" | "osm-generated";
     roadAligned: boolean;
     note: string;
   };

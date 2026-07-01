@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ComparisonPanel } from "./components/ComparisonPanel";
 import { DataPackagePanel } from "./components/DataPackagePanel";
 import { ExportPanel } from "./components/ExportPanel";
@@ -13,13 +13,15 @@ import type { MapLayerVisibility } from "./map/components/SuperMapMap";
 import { SuperMapMap } from "./map/components/SuperMapMap";
 import { Scene3DPanel } from "./map/components/Scene3DPanel";
 import { demoRoutes } from "./data/routes";
-import { getOrGenerateRoutes } from "./data/generatedRoutes";
+import { buildOsmMarathonTestRoute } from "./data/osmMarathonRoute";
 import { supportPoints } from "./data/supportPoints";
+import type { MarathonRoute } from "./domain/routeMetrics";
 
 export default function App() {
-  const allRoutes = useMemo(() => [...demoRoutes, ...getOrGenerateRoutes()], []);
+  const [osmRoutes, setOsmRoutes] = useState<MarathonRoute[]>([]);
+  const allRoutes = useMemo(() => [...demoRoutes, ...osmRoutes], [osmRoutes]);
   const [activeRouteId, setActiveRouteId] = useState(allRoutes[0].id);
-  const [comparedRouteIds, setComparedRouteIds] = useState<string[]>([allRoutes[0].id, allRoutes[1]?.id ?? allRoutes[0].id]);
+  const [comparedRouteIds, setComparedRouteIds] = useState<string[]>([allRoutes[0].id]);
   const [mapLayerVisibility, setMapLayerVisibility] = useState<MapLayerVisibility>({
     routes: true,
     supportPoints: true,
@@ -32,8 +34,38 @@ export default function App() {
   );
   const comparedRoutes = useMemo(
     () => allRoutes.filter((route) => comparedRouteIds.includes(route.id)),
-    [comparedRouteIds]
+    [allRoutes, comparedRouteIds]
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("data/local-wuhan-marathon-corridor-roads.geojson")
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      })
+      .then((geojson) => {
+        if (cancelled) return;
+        const route = buildOsmMarathonTestRoute(geojson, {
+          id: "osm-marathon-test",
+          name: "OSM road-network test marathon",
+          targetDistanceKm: 42.195,
+          startPoint: [114.302, 30.604]
+        });
+        if (!route) return;
+        setOsmRoutes([route]);
+        setActiveRouteId(route.id);
+        setComparedRouteIds([demoRoutes[0].id, route.id]);
+      })
+      .catch(() => {
+        if (!cancelled) setOsmRoutes([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const toggleCompare = (id: string) => {
     setComparedRouteIds((current) => {

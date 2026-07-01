@@ -30,7 +30,7 @@ export function RouteLibrary({
                 {route.name}
               </button>
               <span className={`route-lineage ${roadAligned ? "aligned" : "pending"}`}>
-                {roadAligned ? "已贴合道路参考线" : "待贴合真实路网"}
+                {roadAligned ? "来自道路网络" : "待贴合真实路网"}
               </span>
               <p>
                 {route.lengthKm.toFixed(3)} km · {route.closedLoop ? "闭环" : "非闭环"}

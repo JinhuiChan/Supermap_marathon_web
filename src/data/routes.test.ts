@@ -23,11 +23,15 @@ function hasPointNear(coordinates: [number, number][], target: [number, number],
 }
 
 describe("routes", () => {
+  it("keeps only the official route before OSM test routes load", () => {
+    expect(demoRoutes).toHaveLength(1);
+    expect(demoRoutes[0].id).toBe("wuhan-marathon-2026");
+  });
+
   it("uses a road-level vectorized official Wuhan Marathon route as the primary route", () => {
     const primary = demoRoutes[0];
 
-    expect(primary.id).toBe("wuhan-marathon-2026");
-    expect(primary.name).toContain("官方");
+    expect(primary.name).toContain("official");
     expect(primary.closedLoop).toBe(false);
     expect(primary.coordinates.length).toBeGreaterThan(20);
     expect(primary.coordinates[0]).toEqual([114.302, 30.604]);
@@ -41,20 +45,16 @@ describe("routes", () => {
     expect(primary.coordinates.length).toBeGreaterThan(80);
     expect(lengthKm).toBeGreaterThan(41);
     expect(lengthKm).toBeLessThan(44);
-    expect(hasPointNear(primary.coordinates, [114.263, 30.568])).toBe(true); // 江汉桥
-    expect(hasPointNear(primary.coordinates, [114.296, 30.543])).toBe(true); // 长江大桥武昌端
-    expect(hasPointNear(primary.coordinates, [114.410, 30.582])).toBe(true); // 东湖绿道
-    expect(hasPointNear(primary.coordinates, [114.463, 30.575])).toBe(true); // 飞雁路折返
+    expect(hasPointNear(primary.coordinates, [114.263, 30.568])).toBe(true);
+    expect(hasPointNear(primary.coordinates, [114.296, 30.543])).toBe(true);
+    expect(hasPointNear(primary.coordinates, [114.410, 30.582])).toBe(true);
+    expect(hasPointNear(primary.coordinates, [114.463, 30.575])).toBe(true);
   });
 
-  it("keeps planning alternatives clearly separate from the official route", () => {
-    expect(demoRoutes.slice(1).every((route) => route.name.includes("备选"))).toBe(true);
-  });
-  it("labels route data lineage so road-snapping status is visible", () => {
+  it("labels the official route as road-aligned reference data", () => {
     expect(demoRoutes[0].lineage).toMatchObject({
       source: "official-road-level",
       roadAligned: true
     });
-    expect(demoRoutes.slice(1).every((route) => route.lineage?.roadAligned === false)).toBe(true);
   });
 });
