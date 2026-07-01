@@ -6,6 +6,7 @@ import { LayerControlPanel } from "./components/LayerControlPanel";
 import { RouteAnalysisPanel } from "./components/RouteAnalysisPanel";
 import { RouteDetails } from "./components/RouteDetails";
 import { RouteLibrary } from "./components/RouteLibrary";
+import { SelectionProfilePanel } from "./components/SelectionProfilePanel";
 import { SuperMapStatusPanel } from "./components/SuperMapStatusPanel";
 import type { BasemapMode } from "./config/supermap";
 import { superMapConfig } from "./config/supermap";
@@ -15,13 +16,14 @@ import { Scene3DPanel } from "./map/components/Scene3DPanel";
 import { demoRoutes } from "./data/routes";
 import { buildOsmMarathonCandidateRoutes } from "./data/osmMarathonRoute";
 import { supportPoints } from "./data/supportPoints";
-import type { MarathonRoute } from "./domain/routeMetrics";
+import { compareRoutes, type MarathonRoute, type RouteSelectionProfile } from "./domain/routeMetrics";
 
 export default function App() {
   const [osmRoutes, setOsmRoutes] = useState<MarathonRoute[]>([]);
   const [osmRoadGeoJson, setOsmRoadGeoJson] = useState<unknown>(null);
   const [generationStatus, setGenerationStatus] = useState("正在加载 OSM 道路走廊");
   const allRoutes = useMemo(() => [...demoRoutes, ...osmRoutes], [osmRoutes]);
+  const [selectionProfile, setSelectionProfile] = useState<RouteSelectionProfile>("balanced");
   const [activeRouteId, setActiveRouteId] = useState(allRoutes[0].id);
   const [comparedRouteIds, setComparedRouteIds] = useState<string[]>([allRoutes[0].id]);
   const [mapLayerVisibility, setMapLayerVisibility] = useState<MapLayerVisibility>({
@@ -38,6 +40,12 @@ export default function App() {
     () => allRoutes.filter((route) => comparedRouteIds.includes(route.id)),
     [allRoutes, comparedRouteIds]
   );
+  const rankedRoutes = useMemo(() => {
+    const routeById = new Map(allRoutes.map((route) => [route.id, route]));
+    return compareRoutes(allRoutes, selectionProfile)
+      .map((score) => routeById.get(score.id))
+      .filter((route): route is MarathonRoute => Boolean(route));
+  }, [allRoutes, selectionProfile]);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,12 +87,26 @@ export default function App() {
       targetDistanceKm: 42.195,
       startPoint: [114.302, 30.604]
     });
+    const nextAllRoutes = [...demoRoutes, ...routes];
+    const ranked = compareRoutes(nextAllRoutes, selectionProfile);
     setOsmRoutes(routes);
     setGenerationStatus(`已生成 ${routes.length} 条 OSM 候选路线`);
-    if (routes.length > 0) {
-      setActiveRouteId(routes[0].id);
-      setComparedRouteIds([demoRoutes[0].id, ...routes.slice(0, 2).map((route) => route.id)]);
+    if (ranked.length > 0) {
+      setActiveRouteId(ranked[0].id);
+      setComparedRouteIds(ranked.slice(0, 3).map((route) => route.id));
     }
+  };
+
+  const applyRecommendation = (profile = selectionProfile) => {
+    const ranked = compareRoutes(allRoutes, profile);
+    if (ranked.length === 0) return;
+    setActiveRouteId(ranked[0].id);
+    setComparedRouteIds(ranked.slice(0, 3).map((route) => route.id));
+  };
+
+  const changeSelectionProfile = (profile: RouteSelectionProfile) => {
+    setSelectionProfile(profile);
+    applyRecommendation(profile);
   };
 
   const toggleCompare = (id: string) => {
@@ -98,8 +120,13 @@ export default function App() {
   return (
     <main className="app-shell">
       <aside className="left-panel">
+        <SelectionProfilePanel
+          activeProfile={selectionProfile}
+          onProfileChange={changeSelectionProfile}
+          onApplyRecommendation={() => applyRecommendation()}
+        />
         <RouteLibrary
-          routes={allRoutes}
+          routes={rankedRoutes}
           activeRouteId={activeRouteId}
           comparedRouteIds={comparedRouteIds}
           generationStatus={generationStatus}
@@ -131,7 +158,7 @@ export default function App() {
         <RouteAnalysisPanel route={activeRoute} supportPoints={supportPoints} />
         <Scene3DPanel />
         <DataPackagePanel />
-        <ComparisonPanel routes={comparedRoutes} />
+        <ComparisonPanel routes={comparedRoutes} selectionProfile={selectionProfile} />
         <ExportPanel routes={comparedRoutes} supportPoints={supportPoints} />
       </aside>
     </main>

@@ -7,6 +7,8 @@ describe("App", () => {
     const html = renderToStaticMarkup(<App />);
 
     expect(html).toContain("候选赛道库");
+    expect(html).toContain("智能选型目标");
+    expect(html).toContain("PB 竞速");
     expect(html).toContain("2026 Wuhan Marathon official route reference");
     expect(html).toContain("SuperMap iServer");
     expect(html).toContain("iClient JavaScript");
