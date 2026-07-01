@@ -1,6 +1,8 @@
 import { describe, expect, test } from "vitest";
 import {
   buildRoadGraphFromGeoJson,
+  filterRoadGeoJsonByBounds,
+  filterRoadGeoJsonByRouteCorridor,
   mapOsmHighwayToRoadLevel
 } from "./roadNetworkGeoJson";
 
@@ -86,5 +88,96 @@ describe("roadNetworkGeoJson", () => {
     expect(mapOsmHighwayToRoadLevel("cycleway")).toBe("greenway");
     expect(mapOsmHighwayToRoadLevel("living_street")).toBe("residential");
     expect(mapOsmHighwayToRoadLevel("unclassified")).toBe("residential");
+  });
+
+  test("filters road features to a planning bounds", () => {
+    const filtered = filterRoadGeoJsonByBounds(
+      {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            properties: { name: "inside" },
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                [114.3, 30.6],
+                [114.31, 30.61]
+              ]
+            }
+          },
+          {
+            type: "Feature",
+            properties: { name: "outside" },
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                [114.8, 30.9],
+                [114.81, 30.91]
+              ]
+            }
+          },
+          {
+            type: "Feature",
+            properties: { name: "multi" },
+            geometry: {
+              type: "MultiLineString",
+              coordinates: [
+                [
+                  [114.7, 30.9],
+                  [114.71, 30.91]
+                ],
+                [
+                  [114.32, 30.62],
+                  [114.33, 30.63]
+                ]
+              ]
+            }
+          }
+        ]
+      },
+      { minLon: 114.25, minLat: 30.55, maxLon: 114.4, maxLat: 30.65 }
+    );
+
+    expect(filtered.features.map((feature) => feature.properties?.name)).toEqual(["inside", "multi"]);
+  });
+
+  test("filters road features to a route corridor", () => {
+    const filtered = filterRoadGeoJsonByRouteCorridor(
+      {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            properties: { name: "near" },
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                [114.3, 30.6005],
+                [114.31, 30.6105]
+              ]
+            }
+          },
+          {
+            type: "Feature",
+            properties: { name: "far" },
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                [114.5, 30.8],
+                [114.51, 30.81]
+              ]
+            }
+          }
+        ]
+      },
+      [
+        [114.3, 30.6],
+        [114.31, 30.61]
+      ],
+      0.2
+    );
+
+    expect(filtered.features.map((feature) => feature.properties?.name)).toEqual(["near"]);
   });
 });

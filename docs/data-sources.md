@@ -94,6 +94,12 @@ Current local files:
   - Coverage: Wuhan central marathon planning area
   - Size: about 9.4 MB
   - Feature count at download time: 24,941 road features
+- `E:\SuperMap\data\wuhan_roads\wuhan-marathon-area-roads.geojson`
+  - Derived from the Overpass file by keeping roads inside the rough 2026 Wuhan Marathon planning bounds
+  - Feature count at extraction time: 15,777 road features
+- `E:\SuperMap\data\wuhan_roads\wuhan-marathon-corridor-roads.geojson`
+  - Derived from the area file by keeping roads within about 1.5 km of the official route polyline
+  - Feature count at extraction time: 8,453 road features
 - `E:\SuperMap\data\osm\hubei-latest-free.shp.zip`
   - Source: Geofabrik Hubei OpenStreetMap extract
   - Confirmed road layer: `gis_osm_roads_free_1.shp`
