@@ -148,3 +148,6 @@ supermap-workspace/
 # Python cache generated when checking iDesktopX helper scripts
 __pycache__/
 *.py[cod]
+
+# Test/temp data files
+test-temp/

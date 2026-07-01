@@ -13,22 +13,24 @@ import type { MapLayerVisibility } from "./map/components/SuperMapMap";
 import { SuperMapMap } from "./map/components/SuperMapMap";
 import { Scene3DPanel } from "./map/components/Scene3DPanel";
 import { demoRoutes } from "./data/routes";
+import { getOrGenerateRoutes } from "./data/generatedRoutes";
 import { supportPoints } from "./data/supportPoints";
 
 export default function App() {
-  const [activeRouteId, setActiveRouteId] = useState(demoRoutes[0].id);
-  const [comparedRouteIds, setComparedRouteIds] = useState<string[]>([demoRoutes[0].id, demoRoutes[1].id]);
+  const allRoutes = useMemo(() => [...demoRoutes, ...getOrGenerateRoutes()], []);
+  const [activeRouteId, setActiveRouteId] = useState(allRoutes[0].id);
+  const [comparedRouteIds, setComparedRouteIds] = useState<string[]>([allRoutes[0].id, allRoutes[1]?.id ?? allRoutes[0].id]);
   const [mapLayerVisibility, setMapLayerVisibility] = useState<MapLayerVisibility>({
     routes: true,
     supportPoints: true
   });
   const [basemapMode, setBasemapMode] = useState<BasemapMode>(superMapConfig.defaultBasemap);
   const activeRoute = useMemo(
-    () => demoRoutes.find((route) => route.id === activeRouteId) ?? demoRoutes[0],
+    () => allRoutes.find((route) => route.id === activeRouteId) ?? allRoutes[0],
     [activeRouteId]
   );
   const comparedRoutes = useMemo(
-    () => demoRoutes.filter((route) => comparedRouteIds.includes(route.id)),
+    () => allRoutes.filter((route) => comparedRouteIds.includes(route.id)),
     [comparedRouteIds]
   );
 
@@ -44,7 +46,7 @@ export default function App() {
     <main className="app-shell">
       <aside className="left-panel">
         <RouteLibrary
-          routes={demoRoutes}
+          routes={allRoutes}
           activeRouteId={activeRouteId}
           comparedRouteIds={comparedRouteIds}
           onSelectRoute={setActiveRouteId}
@@ -53,7 +55,7 @@ export default function App() {
         <RouteDetails route={activeRoute} />
       </aside>
       <SuperMapMap
-        routes={demoRoutes}
+        routes={allRoutes}
         supportPoints={supportPoints}
         activeRouteId={activeRouteId}
         comparedRouteIds={comparedRouteIds}
