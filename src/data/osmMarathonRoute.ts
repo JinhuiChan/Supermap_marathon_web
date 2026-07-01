@@ -10,21 +10,86 @@ interface OSMRouteOptions {
   startPoint: Coordinate;
 }
 
+interface OSMCandidateOptions {
+  targetDistanceKm: number;
+  startPoint: Coordinate;
+}
+
+type RoutePreference = "balanced" | "main-road" | "scenic";
+
+const candidateProfiles: Array<{
+  id: string;
+  name: string;
+  color: string;
+  preference: RoutePreference;
+}> = [
+  {
+    id: "osm-balanced",
+    name: "OSM 综合平衡候选线",
+    color: "#7c3aed",
+    preference: "balanced"
+  },
+  {
+    id: "osm-main-road",
+    name: "OSM 主干道优先候选线",
+    color: "#0f766e",
+    preference: "main-road"
+  },
+  {
+    id: "osm-scenic",
+    name: "OSM 景观绿道优先候选线",
+    color: "#16a34a",
+    preference: "scenic"
+  }
+];
+
 export function buildOsmMarathonTestRoute(
   geojson: unknown,
   options: OSMRouteOptions
 ): MarathonRoute | null {
   const graph = buildRoadGraphFromGeoJson(geojson);
+  return buildRouteFromGraph(graph, {
+    ...options,
+    color: "#7c3aed",
+    preference: "balanced",
+    salt: 0
+  });
+}
+
+export function buildOsmMarathonCandidateRoutes(
+  geojson: unknown,
+  options: OSMCandidateOptions
+): MarathonRoute[] {
+  const graph = buildRoadGraphFromGeoJson(geojson);
+  return candidateProfiles
+    .map((profile, index) =>
+      buildRouteFromGraph(graph, {
+        id: profile.id,
+        name: profile.name,
+        color: profile.color,
+        targetDistanceKm: options.targetDistanceKm,
+        startPoint: options.startPoint,
+        preference: profile.preference,
+        salt: index
+      })
+    )
+    .filter((route): route is MarathonRoute => route !== null);
+}
+
+function buildRouteFromGraph(
+  graph: RoadGraph,
+  options: OSMRouteOptions & { color: string; preference: RoutePreference; salt: number }
+): MarathonRoute | null {
   const startNodeId = findNearestNodeId(graph, options.startPoint);
   if (!startNodeId) return null;
 
-  const walk = walkGraphToDistance(graph, startNodeId, options.targetDistanceKm);
+  const walk = walkGraphToDistance(graph, startNodeId, options.targetDistanceKm, options.preference, options.salt);
   if (walk.coordinates.length < 2 || walk.totalKm < options.targetDistanceKm * 0.8) return null;
 
   return {
     id: options.id,
     name: options.name,
-    color: "#7c3aed",
+    color: options.color,
     lengthKm: Math.round(walk.totalKm * 1000) / 1000,
     closedLoop: haversineKm(walk.coordinates[0], walk.coordinates.at(-1) ?? walk.coordinates[0]) < 0.5,
     coordinates: walk.coordinates,
@@ -33,7 +98,7 @@ export function buildOsmMarathonTestRoute(
     lineage: {
       source: "osm-generated",
       roadAligned: true,
-      note: "从本地 OSM 道路走廊生成的测试路线，用于验证真实路网流程"
+      note: `从本地 OSM 道路走廊生成的${options.name}，用于验证真实路网候选方案`
     }
   };
 }
@@ -41,7 +106,9 @@ export function buildOsmMarathonTestRoute(
 function walkGraphToDistance(
   graph: RoadGraph,
   startNodeId: string,
-  targetDistanceKm: number
+  targetDistanceKm: number,
+  preference: RoutePreference,
+  salt: number
 ): { coordinates: Coordinate[]; edges: RoadEdge[]; totalKm: number } {
   const startNode = graph.nodes.get(startNodeId);
   if (!startNode) return { coordinates: [], edges: [], totalKm: 0 };
@@ -56,7 +123,7 @@ function walkGraphToDistance(
 
   for (let step = 0; step < 20000 && totalKm < targetDistanceKm; step++) {
     const outgoing = graph.adjacency.get(currentNodeId) ?? [];
-    const candidate = chooseNextEdge(outgoing, previousNodeId, used, recent);
+    const candidate = chooseNextEdge(outgoing, previousNodeId, used, recent, preference, salt, step);
     if (!candidate) break;
 
     const nextNode = graph.nodes.get(candidate.toNodeId);
@@ -65,7 +132,9 @@ function walkGraphToDistance(
     const remaining = targetDistanceKm - totalKm;
     if (candidate.lengthKm > remaining) {
       const currentNode = graph.nodes.get(currentNodeId);
-      if (currentNode) coordinates.push(interpolateCoordinate(currentNode.coordinate, nextNode.coordinate, remaining / candidate.lengthKm));
+      if (currentNode) {
+        coordinates.push(interpolateCoordinate(currentNode.coordinate, nextNode.coordinate, remaining / candidate.lengthKm));
+      }
       totalKm = targetDistanceKm;
       edges.push({ ...candidate, lengthKm: remaining });
       break;
@@ -91,7 +160,10 @@ function chooseNextEdge(
   outgoing: RoadEdge[],
   previousNodeId: string,
   used: Map<string, number>,
-  recent: string[]
+  recent: string[],
+  preference: RoutePreference,
+  salt: number,
+  step: number
 ): RoadEdge | null {
   if (outgoing.length === 0) return null;
   const recentSet = new Set(recent);
@@ -104,11 +176,13 @@ function chooseNextEdge(
     const lengthBonus = Math.min(edge.lengthKm, 0.5) * 8;
     return {
       edge,
-      score: roadLevelScore(edge.roadLevel) + lengthBonus - reusePenalty - recentPenalty
+      score: roadLevelScore(edge.roadLevel, preference) + lengthBonus - reusePenalty - recentPenalty
     };
   });
   scored.sort((a, b) => b.score - a.score || a.edge.id.localeCompare(b.edge.id));
-  return scored[0]?.edge ?? null;
+  const topCount = Math.min(3, scored.length);
+  const selectedIndex = topCount <= 1 ? 0 : (salt + step) % topCount;
+  return scored[selectedIndex]?.edge ?? scored[0]?.edge ?? null;
 }
 
 function findNearestNodeId(graph: RoadGraph, coordinate: Coordinate): string | null {
@@ -209,7 +283,47 @@ function average(values: number[]): number {
   return values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
-function roadLevelScore(level: RoadLevel): number {
+function roadLevelScore(level: RoadLevel, preference: RoutePreference): number {
+  if (preference === "main-road") {
+    switch (level) {
+      case "trunk":
+        return 115;
+      case "primary":
+        return 110;
+      case "secondary":
+        return 88;
+      case "tertiary":
+        return 65;
+      case "greenway":
+        return 42;
+      case "residential":
+        return 34;
+      case "service":
+        return 18;
+      default:
+        return 45;
+    }
+  }
+
+  if (preference === "scenic") {
+    switch (level) {
+      case "greenway":
+        return 118;
+      case "secondary":
+        return 82;
+      case "tertiary":
+        return 78;
+      case "primary":
+        return 68;
+      case "trunk":
+        return 58;
+      case "residential":
+        return 54;
+      default:
+        return 48;
+    }
+  }
+
   switch (level) {
     case "trunk":
       return 95;

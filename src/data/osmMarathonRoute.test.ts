@@ -1,44 +1,58 @@
 import { describe, expect, test } from "vitest";
-import { buildOsmMarathonTestRoute } from "./osmMarathonRoute";
+import { buildOsmMarathonCandidateRoutes, buildOsmMarathonTestRoute } from "./osmMarathonRoute";
+
+const smallRoadNetwork = {
+  type: "FeatureCollection",
+  features: [
+    {
+      type: "Feature",
+      properties: { highway: "primary" },
+      geometry: {
+        type: "LineString",
+        coordinates: [
+          [114.3, 30.6],
+          [114.31, 30.6],
+          [114.32, 30.6],
+          [114.33, 30.6],
+          [114.34, 30.6]
+        ]
+      }
+    },
+    {
+      type: "Feature",
+      properties: { highway: "secondary" },
+      geometry: {
+        type: "LineString",
+        coordinates: [
+          [114.34, 30.6],
+          [114.34, 30.61],
+          [114.33, 30.61],
+          [114.32, 30.61],
+          [114.31, 30.61],
+          [114.3, 30.61],
+          [114.3, 30.6]
+        ]
+      }
+    },
+    {
+      type: "Feature",
+      properties: { highway: "cycleway" },
+      geometry: {
+        type: "LineString",
+        coordinates: [
+          [114.31, 30.6],
+          [114.315, 30.605],
+          [114.32, 30.61]
+        ]
+      }
+    }
+  ]
+};
 
 describe("osmMarathonRoute", () => {
   test("builds a target-distance test route from OSM-like roads", () => {
     const route = buildOsmMarathonTestRoute(
-      {
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            properties: { highway: "primary" },
-            geometry: {
-              type: "LineString",
-              coordinates: [
-                [114.3, 30.6],
-                [114.31, 30.6],
-                [114.32, 30.6],
-                [114.33, 30.6],
-                [114.34, 30.6]
-              ]
-            }
-          },
-          {
-            type: "Feature",
-            properties: { highway: "secondary" },
-            geometry: {
-              type: "LineString",
-              coordinates: [
-                [114.34, 30.6],
-                [114.34, 30.61],
-                [114.33, 30.61],
-                [114.32, 30.61],
-                [114.31, 30.61],
-                [114.3, 30.61],
-                [114.3, 30.6]
-              ]
-            }
-          }
-        ]
-      },
+      smallRoadNetwork,
       {
         id: "test-osm",
         name: "OSM test",
@@ -52,5 +66,21 @@ describe("osmMarathonRoute", () => {
     expect(route?.lineage?.source).toBe("osm-generated");
     expect(route?.lineage?.roadAligned).toBe(true);
     expect(route?.coordinates.length).toBeGreaterThan(3);
+  });
+
+  test("builds three named candidate routes from one OSM road network", () => {
+    const routes = buildOsmMarathonCandidateRoutes(smallRoadNetwork, {
+      targetDistanceKm: 5,
+      startPoint: [114.3, 30.6]
+    });
+
+    expect(routes).toHaveLength(3);
+    expect(routes.map((route) => route.id)).toEqual([
+      "osm-balanced",
+      "osm-main-road",
+      "osm-scenic"
+    ]);
+    expect(routes.every((route) => route.lineage?.roadAligned === true)).toBe(true);
+    expect(routes.every((route) => route.lengthKm > 4.5 && route.lengthKm < 5.5)).toBe(true);
   });
 });

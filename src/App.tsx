@@ -13,12 +13,14 @@ import type { MapLayerVisibility } from "./map/components/SuperMapMap";
 import { SuperMapMap } from "./map/components/SuperMapMap";
 import { Scene3DPanel } from "./map/components/Scene3DPanel";
 import { demoRoutes } from "./data/routes";
-import { buildOsmMarathonTestRoute } from "./data/osmMarathonRoute";
+import { buildOsmMarathonCandidateRoutes } from "./data/osmMarathonRoute";
 import { supportPoints } from "./data/supportPoints";
 import type { MarathonRoute } from "./domain/routeMetrics";
 
 export default function App() {
   const [osmRoutes, setOsmRoutes] = useState<MarathonRoute[]>([]);
+  const [osmRoadGeoJson, setOsmRoadGeoJson] = useState<unknown>(null);
+  const [generationStatus, setGenerationStatus] = useState("正在加载 OSM 道路走廊");
   const allRoutes = useMemo(() => [...demoRoutes, ...osmRoutes], [osmRoutes]);
   const [activeRouteId, setActiveRouteId] = useState(allRoutes[0].id);
   const [comparedRouteIds, setComparedRouteIds] = useState<string[]>([allRoutes[0].id]);
@@ -47,25 +49,43 @@ export default function App() {
       })
       .then((geojson) => {
         if (cancelled) return;
-        const route = buildOsmMarathonTestRoute(geojson, {
-          id: "osm-marathon-test",
-          name: "OSM road-network test marathon",
+        setOsmRoadGeoJson(geojson);
+        const routes = buildOsmMarathonCandidateRoutes(geojson, {
           targetDistanceKm: 42.195,
           startPoint: [114.302, 30.604]
         });
-        if (!route) return;
-        setOsmRoutes([route]);
-        setActiveRouteId(route.id);
-        setComparedRouteIds([demoRoutes[0].id, route.id]);
+        setOsmRoutes(routes);
+        setGenerationStatus(`已生成 ${routes.length} 条 OSM 候选路线`);
+        if (routes.length > 0) {
+          setActiveRouteId(routes[0].id);
+          setComparedRouteIds([demoRoutes[0].id, ...routes.slice(0, 2).map((route) => route.id)]);
+        }
       })
       .catch(() => {
-        if (!cancelled) setOsmRoutes([]);
+        if (!cancelled) {
+          setOsmRoutes([]);
+          setGenerationStatus("未找到本地 OSM 道路数据");
+        }
       });
 
     return () => {
       cancelled = true;
     };
   }, []);
+
+  const generateOsmCandidates = () => {
+    if (!osmRoadGeoJson) return;
+    const routes = buildOsmMarathonCandidateRoutes(osmRoadGeoJson, {
+      targetDistanceKm: 42.195,
+      startPoint: [114.302, 30.604]
+    });
+    setOsmRoutes(routes);
+    setGenerationStatus(`已生成 ${routes.length} 条 OSM 候选路线`);
+    if (routes.length > 0) {
+      setActiveRouteId(routes[0].id);
+      setComparedRouteIds([demoRoutes[0].id, ...routes.slice(0, 2).map((route) => route.id)]);
+    }
+  };
 
   const toggleCompare = (id: string) => {
     setComparedRouteIds((current) => {
@@ -82,8 +102,11 @@ export default function App() {
           routes={allRoutes}
           activeRouteId={activeRouteId}
           comparedRouteIds={comparedRouteIds}
+          generationStatus={generationStatus}
+          canGenerate={Boolean(osmRoadGeoJson)}
           onSelectRoute={setActiveRouteId}
           onToggleCompare={toggleCompare}
+          onGenerateRoutes={generateOsmCandidates}
         />
         <RouteDetails route={activeRoute} />
       </aside>

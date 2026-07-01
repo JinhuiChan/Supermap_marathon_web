@@ -4,20 +4,32 @@ interface RouteLibraryProps {
   routes: MarathonRoute[];
   activeRouteId: string;
   comparedRouteIds: string[];
+  generationStatus: string;
+  canGenerate: boolean;
   onSelectRoute: (id: string) => void;
   onToggleCompare: (id: string) => void;
+  onGenerateRoutes: () => void;
 }
 
 export function RouteLibrary({
   routes,
   activeRouteId,
   comparedRouteIds,
+  generationStatus,
+  canGenerate,
   onSelectRoute,
-  onToggleCompare
+  onToggleCompare,
+  onGenerateRoutes
 }: RouteLibraryProps) {
   return (
     <section className="side-section">
       <h2>候选赛道库</h2>
+      <div className="route-generator-actions">
+        <button type="button" disabled={!canGenerate} onClick={onGenerateRoutes}>
+          生成 OSM 候选路线
+        </button>
+        <span>{generationStatus}</span>
+      </div>
       <div className="route-list">
         {routes.map((route) => {
           const selected = comparedRouteIds.includes(route.id);

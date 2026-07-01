@@ -58,6 +58,34 @@ textarea {
   gap: 10px;
 }
 
+.route-generator-actions {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.route-generator-actions button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #173a52;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.route-generator-actions button:disabled {
+  background: #9daab6;
+  cursor: not-allowed;
+}
+
+.route-generator-actions span {
+  color: #647589;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .route-card {
   display: grid;
   gap: 8px;
