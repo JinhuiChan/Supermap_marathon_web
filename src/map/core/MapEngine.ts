@@ -297,11 +297,11 @@ export class MapEngine {
     const marker = L.marker as ((latlng: [number, number], opts?: Record<string, unknown>) => unknown) | undefined;
     if (!divIcon || !marker) return [];
 
-    const markerCount = isActive ? 12 : 7;
+    const markerCount = isActive ? 12 : 4;
     return buildRouteDirectionMarkers(route, markerCount).map((direction) => {
       const icon = divIcon({
         className: "route-direction-icon",
-        html: `<span style="border-left-color:${route.color}; transform: rotate(${direction.angleDeg}deg)"></span>`,
+        html: `<span style="border-left-color:${route.color}; opacity:${isActive ? 1 : 0.45}; transform: rotate(${direction.angleDeg}deg)"></span>`,
         iconSize: [18, 18],
         iconAnchor: [9, 9]
       });

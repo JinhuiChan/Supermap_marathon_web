@@ -30,6 +30,7 @@ describe("roadNetworkGeoJson", () => {
     expect(graph.edges.size).toBe(2);
     expect([...graph.edges.values()].every((edge) => edge.roadLevel === "primary")).toBe(true);
     expect([...graph.edges.values()].every((edge) => edge.isBridge)).toBe(true);
+    expect([...graph.edges.values()].every((edge) => edge.competitionSuitable)).toBe(true);
   });
 
   test("builds separate chains from a MultiLineString", () => {
@@ -88,6 +89,34 @@ describe("roadNetworkGeoJson", () => {
     expect(mapOsmHighwayToRoadLevel("cycleway")).toBe("greenway");
     expect(mapOsmHighwayToRoadLevel("living_street")).toBe("residential");
     expect(mapOsmHighwayToRoadLevel("unclassified")).toBe("residential");
+  });
+
+  test("marks narrow local road types as unsuitable for international marathon routing", () => {
+    const graph = buildRoadGraphFromGeoJson({
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { highway: "primary" },
+          geometry: { type: "LineString", coordinates: [[114.3, 30.6], [114.31, 30.6]] }
+        },
+        {
+          type: "Feature",
+          properties: { highway: "footway" },
+          geometry: { type: "LineString", coordinates: [[114.31, 30.6], [114.32, 30.6]] }
+        },
+        {
+          type: "Feature",
+          properties: { highway: "service" },
+          geometry: { type: "LineString", coordinates: [[114.32, 30.6], [114.33, 30.6]] }
+        }
+      ]
+    });
+
+    const edges = [...graph.edges.values()];
+    expect(edges.find((edge) => edge.roadLevel === "primary")?.competitionSuitable).toBe(true);
+    expect(edges.find((edge) => edge.roadLevel === "greenway")?.competitionSuitable).toBe(false);
+    expect(edges.find((edge) => edge.roadLevel === "service")?.competitionSuitable).toBe(false);
   });
 
   test("filters road features to a planning bounds", () => {

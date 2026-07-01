@@ -19,8 +19,8 @@ export function computeRouteStyle(
 ): RouteFeatureStyle {
   return {
     color: route.color,
-    weight: isActive ? 5 : isCompared ? 3.5 : 2,
-    opacity: isActive || isCompared ? 1.0 : 0.42
+    weight: isActive ? 5 : isCompared ? 2.6 : 1.8,
+    opacity: isActive ? 1.0 : isCompared ? 0.58 : 0.28
   };
 }
 

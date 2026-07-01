@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MarathonRoute } from "../../domain/routeMetrics";
-import { buildRouteDirectionMarkers, findNearestRouteId } from "./RouteLayer";
+import { buildRouteDirectionMarkers, computeRouteStyle, findNearestRouteId } from "./RouteLayer";
 
 const route = {
   id: "river-loop",
@@ -49,5 +49,13 @@ describe("RouteLayer", () => {
     expect(markers).toHaveLength(2);
     expect(markers[0].coordinate[0]).toBeGreaterThan(114.292);
     expect(markers[0].angleDeg).toBeCloseTo(0, 0);
+  });
+
+  it("keeps compared routes visually quieter than the active route", () => {
+    const activeStyle = computeRouteStyle(route, true, true);
+    const comparedStyle = computeRouteStyle(route, false, true);
+
+    expect(comparedStyle.weight).toBeLessThan(activeStyle.weight);
+    expect(comparedStyle.opacity).toBeLessThan(activeStyle.opacity);
   });
 });

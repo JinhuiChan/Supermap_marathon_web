@@ -3,6 +3,10 @@ import { addEdge, addNode, createEmptyGraph } from "../domain/roadNetwork";
 import { haversineKm } from "../domain/roadAttributes";
 import type { RoadLevel } from "../domain/roadNetwork";
 
+function isCompetitionSuitable(level: RoadLevel): boolean {
+  return level === "trunk" || level === "primary" || level === "secondary" || level === "tertiary";
+}
+
 function makeNode(id: string, lon: number, lat: number): RoadNode {
   return { id, coordinate: [lon, lat] };
 }
@@ -28,6 +32,7 @@ function makeEdge(
     roadLevel,
     isBridge,
     isTunnel,
+    competitionSuitable: isCompetitionSuitable(roadLevel),
     baselineCost: lengthKm
   };
 }

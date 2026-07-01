@@ -24,6 +24,7 @@ export interface RoadEdge {
   roadLevel: RoadLevel;
   isBridge: boolean;
   isTunnel: boolean;
+  competitionSuitable: boolean;
   baselineCost: number;
 }
 

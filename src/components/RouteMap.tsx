@@ -40,13 +40,13 @@ export function RouteMap({ routes, activeRouteId, comparedRouteIds, onSelectRout
                 points={points}
                 fill="none"
                 stroke={route.color}
-                strokeWidth={isActive ? 2.8 : isCompared ? 2.2 : 1.3}
-                opacity={isActive || isCompared ? 1 : 0.42}
+                strokeWidth={isActive ? 2.8 : isCompared ? 1.6 : 1.1}
+                opacity={isActive ? 1 : isCompared ? 0.58 : 0.28}
                 className="route-line"
                 onClick={() => onSelectRoute(route.id)}
               />
               {(isActive || isCompared) &&
-                buildRouteDirectionMarkers(route, isActive ? 10 : 6).map((marker, index) => {
+                buildRouteDirectionMarkers(route, isActive ? 10 : 4).map((marker, index) => {
                   const [x, y] = project(marker.coordinate).split(",").map(Number);
                   return (
                     <path
@@ -54,7 +54,7 @@ export function RouteMap({ routes, activeRouteId, comparedRouteIds, onSelectRout
                       d="M -1.4 -1.2 L 1.8 0 L -1.4 1.2 Z"
                       transform={`translate(${x} ${y}) rotate(${-marker.angleDeg})`}
                       fill={route.color}
-                      opacity={0.92}
+                      opacity={isActive ? 0.92 : 0.45}
                       pointerEvents="none"
                     />
                   );

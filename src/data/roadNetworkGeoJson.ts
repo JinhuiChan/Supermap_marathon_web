@@ -64,6 +64,10 @@ export function mapOsmHighwayToRoadLevel(value: unknown): RoadLevel {
   }
 }
 
+export function isCompetitionSuitableRoadLevel(roadLevel: RoadLevel): boolean {
+  return roadLevel === "trunk" || roadLevel === "primary" || roadLevel === "secondary" || roadLevel === "tertiary";
+}
+
 export function buildRoadGraphFromGeoJson(geojson: unknown): RoadGraph {
   const graph = createEmptyGraph();
   const features = getFeatures(geojson);
@@ -239,6 +243,7 @@ function addLineToGraph(
       roadLevel,
       isBridge: isOsmTagTrue(properties.bridge),
       isTunnel: isOsmTagTrue(properties.tunnel),
+      competitionSuitable: isCompetitionSuitableRoadLevel(roadLevel),
       baselineCost: lengthKm
     });
   }

@@ -116,22 +116,76 @@ function walkGraphToDistance(
   const coordinates: Coordinate[] = [startNode.coordinate];
   const edges: RoadEdge[] = [];
   const used = new Map<string, number>();
-  const recent: string[] = [];
-  let currentNodeId = startNodeId;
-  let previousNodeId = "";
+  const visitedNodes = new Map<string, number>([[startNodeId, 1]]);
   let totalKm = 0;
 
-  for (let step = 0; step < 20000 && totalKm < targetDistanceKm; step++) {
-    const outgoing = graph.adjacency.get(currentNodeId) ?? [];
-    const candidate = chooseNextEdge(outgoing, previousNodeId, used, recent, preference, salt, step);
-    if (!candidate) break;
+  const stack: Array<{
+    nodeId: string;
+    previousNodeId: string;
+    candidates: RoadEdge[];
+    nextIndex: number;
+  }> = [
+    {
+      nodeId: startNodeId,
+      previousNodeId: "",
+      candidates: [],
+      nextIndex: 0
+    }
+  ];
+
+  for (let step = 0; step < 80000 && stack.length > 0 && totalKm < targetDistanceKm; step++) {
+    const frame = stack[stack.length - 1];
+    const remainingKm = targetDistanceKm - totalKm;
+
+    if (frame.candidates.length === 0) {
+      frame.candidates = getCandidateEdges(
+        graph,
+        graph.adjacency.get(frame.nodeId) ?? [],
+        frame.previousNodeId,
+        used,
+        visitedNodes,
+        startNode.coordinate,
+        edges.slice(-20).map((edge) => baseEdgeId(edge.id)),
+        preference,
+        salt,
+        step,
+        remainingKm
+      );
+    }
+
+    const candidate = frame.candidates[frame.nextIndex];
+    frame.nextIndex += 1;
+
+    if (!candidate) {
+      if (edges.length === 0) break;
+      stack.pop();
+      const removed = edges.pop();
+      coordinates.pop();
+      if (removed) {
+        totalKm -= removed.lengthKm;
+        const baseId = baseEdgeId(removed.id);
+        const nextCount = (used.get(baseId) ?? 1) - 1;
+        if (nextCount <= 0) {
+          used.delete(baseId);
+        } else {
+          used.set(baseId, nextCount);
+        }
+        const nextNodeCount = (visitedNodes.get(removed.toNodeId) ?? 1) - 1;
+        if (nextNodeCount <= 0) {
+          visitedNodes.delete(removed.toNodeId);
+        } else {
+          visitedNodes.set(removed.toNodeId, nextNodeCount);
+        }
+      }
+      continue;
+    }
 
     const nextNode = graph.nodes.get(candidate.toNodeId);
-    if (!nextNode) break;
+    if (!nextNode) continue;
 
     const remaining = targetDistanceKm - totalKm;
     if (candidate.lengthKm > remaining) {
-      const currentNode = graph.nodes.get(currentNodeId);
+      const currentNode = graph.nodes.get(frame.nodeId);
       if (currentNode) {
         coordinates.push(interpolateCoordinate(currentNode.coordinate, nextNode.coordinate, remaining / candidate.lengthKm));
       }
@@ -146,43 +200,92 @@ function walkGraphToDistance(
 
     const baseId = baseEdgeId(candidate.id);
     used.set(baseId, (used.get(baseId) ?? 0) + 1);
-    recent.push(baseId);
-    if (recent.length > 20) recent.shift();
+    visitedNodes.set(candidate.toNodeId, (visitedNodes.get(candidate.toNodeId) ?? 0) + 1);
 
-    previousNodeId = currentNodeId;
-    currentNodeId = candidate.toNodeId;
+    stack.push({
+      nodeId: candidate.toNodeId,
+      previousNodeId: candidate.fromNodeId,
+      candidates: [],
+      nextIndex: 0
+    });
   }
 
   return { coordinates, edges, totalKm };
 }
 
-function chooseNextEdge(
+function getCandidateEdges(
+  graph: RoadGraph,
   outgoing: RoadEdge[],
   previousNodeId: string,
   used: Map<string, number>,
+  visitedNodes: Map<string, number>,
+  startCoordinate: Coordinate,
   recent: string[],
   preference: RoutePreference,
   salt: number,
-  step: number
-): RoadEdge | null {
-  if (outgoing.length === 0) return null;
+  step: number,
+  remainingKm: number
+): RoadEdge[] {
+  if (outgoing.length === 0) return [];
   const recentSet = new Set(recent);
-  const usable = outgoing.filter((edge) => edge.toNodeId !== previousNodeId || outgoing.length === 1);
+  const usable = outgoing.filter((edge) => {
+    const baseId = baseEdgeId(edge.id);
+    const usedCount = used.get(baseId) ?? 0;
+    if (!edge.competitionSuitable) return false;
+    if (usedCount > 0) return false;
+    if ((visitedNodes.get(edge.toNodeId) ?? 0) > 0) return false;
+    return edge.toNodeId !== previousNodeId || outgoing.length === 1;
+  });
+  if (usable.length === 0) return [];
+
   const scored = usable.map((edge) => {
     const baseId = baseEdgeId(edge.id);
     const usedCount = used.get(baseId) ?? 0;
     const recentPenalty = recentSet.has(baseId) ? 100 : 0;
     const reusePenalty = usedCount * 40;
     const lengthBonus = Math.min(edge.lengthKm, 0.5) * 8;
+    const onward = getOnwardCapacity(graph, edge, used);
+    const nextNode = graph.nodes.get(edge.toNodeId);
+    const explorationBonus = nextNode ? Math.min(haversineKm(startCoordinate, nextNode.coordinate), 10) * 7 : 0;
+    const deadEndPenalty = onward.count === 0 && edge.lengthKm < remainingKm ? 180 : 0;
     return {
       edge,
-      score: roadLevelScore(edge.roadLevel, preference) + lengthBonus - reusePenalty - recentPenalty
+      score:
+        roadLevelScore(edge.roadLevel, preference) +
+        lengthBonus +
+        explorationBonus +
+        Math.min(onward.km, 2) * 12 +
+        onward.count * 18 -
+        reusePenalty -
+        recentPenalty -
+        deadEndPenalty
     };
   });
   scored.sort((a, b) => b.score - a.score || a.edge.id.localeCompare(b.edge.id));
-  const topCount = Math.min(3, scored.length);
-  const selectedIndex = topCount <= 1 ? 0 : (salt + step) % topCount;
-  return scored[selectedIndex]?.edge ?? scored[0]?.edge ?? null;
+  const topCount = Math.min(5, scored.length);
+  const head = scored.slice(0, topCount);
+  const tail = scored.slice(topCount);
+  const rotation = topCount <= 1 ? 0 : (salt + step) % topCount;
+  const rotated = [...head.slice(rotation), ...head.slice(0, rotation), ...tail];
+  return rotated.map((item) => item.edge);
+}
+
+function getOnwardCapacity(graph: RoadGraph, edge: RoadEdge, used: Map<string, number>): { count: number; km: number } {
+  const nextOutgoing = graph.adjacency.get(edge.toNodeId) ?? [];
+  let count = 0;
+  let km = 0;
+
+  for (const nextEdge of nextOutgoing) {
+    const baseId = baseEdgeId(nextEdge.id);
+    if (nextEdge.toNodeId === edge.fromNodeId) continue;
+    if (!nextEdge.competitionSuitable) continue;
+    if ((used.get(baseId) ?? 0) > 0) continue;
+    if (baseId === baseEdgeId(edge.id)) continue;
+    count += 1;
+    km += nextEdge.lengthKm;
+  }
+
+  return { count, km };
 }
 
 function findNearestNodeId(graph: RoadGraph, coordinate: Coordinate): string | null {

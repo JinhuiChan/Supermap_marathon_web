@@ -32,6 +32,7 @@ describe("roadNetwork", () => {
       roadLevel: "primary",
       isBridge: false,
       isTunnel: false,
+      competitionSuitable: true,
       baselineCost: 1.2
     });
 
@@ -62,6 +63,7 @@ describe("roadNetwork", () => {
       roadLevel: "trunk",
       isBridge: false,
       isTunnel: false,
+      competitionSuitable: true,
       baselineCost: 2.5
     });
 
