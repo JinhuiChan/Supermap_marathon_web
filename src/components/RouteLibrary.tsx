@@ -21,6 +21,7 @@ export function RouteLibrary({
       <div className="route-list">
         {routes.map((route) => {
           const selected = comparedRouteIds.includes(route.id);
+          const roadAligned = route.lineage?.roadAligned === true;
 
           return (
             <article className={`route-card ${route.id === activeRouteId ? "active" : ""}`} key={route.id}>
@@ -28,6 +29,9 @@ export function RouteLibrary({
                 <span style={{ backgroundColor: route.color }} />
                 {route.name}
               </button>
+              <span className={`route-lineage ${roadAligned ? "aligned" : "pending"}`}>
+                {roadAligned ? "已贴合道路参考线" : "待贴合真实路网"}
+              </span>
               <p>
                 {route.lengthKm.toFixed(3)} km · {route.closedLoop ? "闭环" : "非闭环"}
               </p>

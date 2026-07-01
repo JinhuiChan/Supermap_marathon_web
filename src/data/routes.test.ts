@@ -50,4 +50,11 @@ describe("routes", () => {
   it("keeps planning alternatives clearly separate from the official route", () => {
     expect(demoRoutes.slice(1).every((route) => route.name.includes("备选"))).toBe(true);
   });
+  it("labels route data lineage so road-snapping status is visible", () => {
+    expect(demoRoutes[0].lineage).toMatchObject({
+      source: "official-road-level",
+      roadAligned: true
+    });
+    expect(demoRoutes.slice(1).every((route) => route.lineage?.roadAligned === false)).toBe(true);
+  });
 });

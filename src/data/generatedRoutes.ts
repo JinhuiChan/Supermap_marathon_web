@@ -32,7 +32,14 @@ export function getOrGenerateRoutes(seed = 42): MarathonRoute[] {
     lengthToleranceKm: 5
   });
 
-  cachedRoutes = paths.map((path, i) => pathToMarathonRoute(path, graph, i));
+  cachedRoutes = paths.map((path, i) => ({
+    ...pathToMarathonRoute(path, graph, i),
+    lineage: {
+      source: "simulated-graph" as const,
+      roadAligned: false,
+      note: "模拟路网生成，尚未贴合真实 OSM 路网"
+    }
+  }));
   cachedSeed = seed;
 
   return cachedRoutes;

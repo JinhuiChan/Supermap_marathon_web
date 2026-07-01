@@ -102,6 +102,25 @@ textarea {
   line-height: 1.6;
 }
 
+.route-lineage {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.route-lineage.aligned {
+  background: #eaf8f1;
+  color: #14724f;
+}
+
+.route-lineage.pending {
+  background: #fff4dc;
+  color: #875a12;
+}
+
 .compare-toggle {
   display: inline-flex;
   align-items: center;

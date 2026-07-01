@@ -87,6 +87,11 @@ const officialWuhanMarathon2026: MarathonRoute = {
     medicalAvgIntervalKm: 3.8,
     parkingServiceScore: 86,
     shadeCoverageRatio: 0.58
+  },
+  lineage: {
+    source: "official-road-level",
+    roadAligned: true,
+    note: "公开交通管理通告道路序列矢量化，作为官方道路级参考线"
   }
 };
 
@@ -128,6 +133,11 @@ const planningRoutes: MarathonRoute[] = [
       medicalAvgIntervalKm: 4.1,
       parkingServiceScore: 88,
       shadeCoverageRatio: 0.62
+    },
+    lineage: {
+      source: "planning-sketch",
+      roadAligned: false,
+      note: "规划示意线，尚未贴合真实 OSM 路网"
     }
   },
   {
@@ -167,6 +177,11 @@ const planningRoutes: MarathonRoute[] = [
       medicalAvgIntervalKm: 5.6,
       parkingServiceScore: 78,
       shadeCoverageRatio: 0.76
+    },
+    lineage: {
+      source: "planning-sketch",
+      roadAligned: false,
+      note: "规划示意线，尚未贴合真实 OSM 路网"
     }
   },
   {
@@ -207,6 +222,11 @@ const planningRoutes: MarathonRoute[] = [
       medicalAvgIntervalKm: 3.2,
       parkingServiceScore: 92,
       shadeCoverageRatio: 0.48
+    },
+    lineage: {
+      source: "planning-sketch",
+      roadAligned: false,
+      note: "规划示意线，尚未贴合真实 OSM 路网"
     }
   }
 ];

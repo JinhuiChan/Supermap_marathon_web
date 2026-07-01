@@ -28,6 +28,11 @@ export interface MarathonRoute {
   coordinates: Coordinate[];
   elevationProfile: ElevationPoint[];
   metrics: RouteMetrics;
+  lineage?: {
+    source: "official-road-level" | "planning-sketch" | "simulated-graph";
+    roadAligned: boolean;
+    note: string;
+  };
 }
 
 export interface RouteScore {
