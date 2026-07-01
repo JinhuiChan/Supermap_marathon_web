@@ -2,7 +2,7 @@ import type { BasemapMode } from "../../config/supermap";
 import type { SupportPoint } from "../../data/supportPoints";
 import type { MarathonRoute } from "../../domain/routeMetrics";
 import { roadNetworkStyle } from "../layers/RoadNetworkLayer";
-import { computeRouteStyle, findNearestRouteId, toLeafletLatLngs } from "../layers/RouteLayer";
+import { buildRouteDirectionMarkers, computeRouteStyle, findNearestRouteId, toLeafletLatLngs } from "../layers/RouteLayer";
 import { computeSupportPointStyle, formatSupportPointLabel, toLeafletLatLng } from "../layers/SupportPointLayer";
 
 export interface MapEngineOptions {
@@ -19,6 +19,7 @@ export interface MapEngineOptions {
 export class MapEngine {
   private map: unknown = null;
   private routeLayers: Map<string, unknown> = new Map();
+  private routeDirectionLayers: Map<string, unknown[]> = new Map();
   private supportPointLayers: unknown[] = [];
   private roadNetworkLayers: unknown[] = [];
   private roadNetworkLines: [number, number][][] = [];
@@ -127,6 +128,7 @@ export class MapEngine {
       const layer = polyline(toLeafletLatLngs(route.coordinates), this.computeVisibleRouteStyle(route, false, true));
       (layer as { addTo: (m: unknown) => unknown }).addTo(this.map);
       this.routeLayers.set(route.id, layer);
+      this.routeDirectionLayers.set(route.id, this.createRouteDirectionLayers(route, false, true));
     }
   }
 
@@ -141,6 +143,7 @@ export class MapEngine {
       const leafletLayer = layer as { setStyle?: (s: Record<string, unknown>) => void };
       if (leafletLayer.setStyle && route) {
         leafletLayer.setStyle(this.computeVisibleRouteStyle(route, isActive, isCompared));
+        this.replaceRouteDirectionLayers(route, isActive, isCompared);
       }
     }
     this.renderSupportPoints();
@@ -238,6 +241,7 @@ export class MapEngine {
       this.map = null;
     }
     this.routeLayers.clear();
+    this.clearRouteDirectionLayers();
     this.clearSupportPointLayers();
     this.clearRoadNetworkLayers();
     this.basemapLayers = {};
@@ -268,6 +272,59 @@ export class MapEngine {
       }
     }
     this.routeLayers.clear();
+    this.clearRouteDirectionLayers();
+  }
+
+  private replaceRouteDirectionLayers(route: MarathonRoute, isActive: boolean, isCompared: boolean): void {
+    const existing = this.routeDirectionLayers.get(route.id) ?? [];
+    for (const layer of existing) {
+      if (this.map) {
+        const mapWithRemove = this.map as { removeLayer?: (l: unknown) => void };
+        mapWithRemove.removeLayer?.(layer);
+      }
+    }
+    this.routeDirectionLayers.set(route.id, this.createRouteDirectionLayers(route, isActive, isCompared));
+  }
+
+  private createRouteDirectionLayers(route: MarathonRoute, isActive: boolean, isCompared: boolean): unknown[] {
+    if (this.destroyed || !this.map || !this.routesVisible) return [];
+    if (!isActive && !isCompared) return [];
+
+    const L = (window as unknown as Record<string, unknown>).L as Record<string, unknown> | undefined;
+    if (!L) return [];
+
+    const divIcon = L.divIcon as ((opts: Record<string, unknown>) => unknown) | undefined;
+    const marker = L.marker as ((latlng: [number, number], opts?: Record<string, unknown>) => unknown) | undefined;
+    if (!divIcon || !marker) return [];
+
+    const markerCount = isActive ? 12 : 7;
+    return buildRouteDirectionMarkers(route, markerCount).map((direction) => {
+      const icon = divIcon({
+        className: "route-direction-icon",
+        html: `<span style="border-left-color:${route.color}; transform: rotate(${direction.angleDeg}deg)"></span>`,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9]
+      });
+      const layer = marker([direction.coordinate[1], direction.coordinate[0]], {
+        icon,
+        interactive: false,
+        keyboard: false
+      });
+      (layer as { addTo?: (m: unknown) => unknown }).addTo?.(this.map);
+      return layer;
+    });
+  }
+
+  private clearRouteDirectionLayers(): void {
+    for (const layers of this.routeDirectionLayers.values()) {
+      for (const layer of layers) {
+        if (this.map) {
+          const mapWithRemove = this.map as { removeLayer?: (l: unknown) => void };
+          mapWithRemove.removeLayer?.(layer);
+        }
+      }
+    }
+    this.routeDirectionLayers.clear();
   }
 
   private renderSupportPoints(): void {

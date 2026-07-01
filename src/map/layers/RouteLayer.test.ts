@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MarathonRoute } from "../../domain/routeMetrics";
-import { findNearestRouteId } from "./RouteLayer";
+import { buildRouteDirectionMarkers, findNearestRouteId } from "./RouteLayer";
 
 const route = {
   id: "river-loop",
@@ -30,5 +30,24 @@ const route = {
 describe("RouteLayer", () => {
   it("selects a route when clicking near the middle of a segment", () => {
     expect(findNearestRouteId([route], [114.2985, 30.591], 0.001)).toBe("river-loop");
+  });
+
+  it("builds direction markers along a route", () => {
+    const markers = buildRouteDirectionMarkers(
+      {
+        ...route,
+        coordinates: [
+          [114.292, 30.584],
+          [114.302, 30.584],
+          [114.312, 30.584],
+          [114.322, 30.584]
+        ]
+      },
+      2
+    );
+
+    expect(markers).toHaveLength(2);
+    expect(markers[0].coordinate[0]).toBeGreaterThan(114.292);
+    expect(markers[0].angleDeg).toBeCloseTo(0, 0);
   });
 });
