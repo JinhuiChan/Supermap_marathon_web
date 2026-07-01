@@ -130,6 +130,31 @@ textarea {
   line-height: 1.6;
 }
 
+.route-score-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.route-score-strip span {
+  min-width: 0;
+  border: 1px solid #dbe6ee;
+  border-radius: 6px;
+  padding: 6px 4px;
+  background: #ffffff;
+  color: #526579;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.route-score-strip strong {
+  display: block;
+  color: #173a52;
+  font-size: 15px;
+  line-height: 1.2;
+}
+
 .route-lineage {
   display: inline-flex;
   width: fit-content;
