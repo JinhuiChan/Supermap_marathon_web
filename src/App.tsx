@@ -22,7 +22,8 @@ export default function App() {
   const [comparedRouteIds, setComparedRouteIds] = useState<string[]>([allRoutes[0].id, allRoutes[1]?.id ?? allRoutes[0].id]);
   const [mapLayerVisibility, setMapLayerVisibility] = useState<MapLayerVisibility>({
     routes: true,
-    supportPoints: true
+    supportPoints: true,
+    roadNetwork: true
   });
   const [basemapMode, setBasemapMode] = useState<BasemapMode>(superMapConfig.defaultBasemap);
   const activeRoute = useMemo(
