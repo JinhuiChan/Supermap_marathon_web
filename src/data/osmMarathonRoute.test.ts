@@ -170,6 +170,36 @@ describe("osmMarathonRoute", () => {
     expect(route).toBeNull();
   });
 
+  test("rejects routes that contain an X-shaped self intersection", () => {
+    const crossingRoadNetwork = {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { highway: "primary" },
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [114.3, 30.6],
+              [114.31, 30.61],
+              [114.3, 30.61],
+              [114.31, 30.6]
+            ]
+          }
+        }
+      ]
+    };
+
+    const route = buildOsmMarathonTestRoute(crossingRoadNetwork, {
+      id: "crossing-test",
+      name: "Crossing test",
+      targetDistanceKm: 3.5,
+      startPoint: [114.3, 30.6]
+    });
+
+    expect(route).toBeNull();
+  });
+
   test("avoids short dead-end branches when a continuous arterial path is available", () => {
     const branchingRoadNetwork = {
       type: "FeatureCollection",

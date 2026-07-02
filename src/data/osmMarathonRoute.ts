@@ -90,6 +90,8 @@ function buildRouteFromGraph(
 
   const walk = walkGraphToDistance(graph, startNodeId, options.targetDistanceKm, options.preference, options.salt);
   if (walk.coordinates.length < 2 || walk.totalKm < options.targetDistanceKm * 0.8) return null;
+  const metrics = computeRouteMetrics(walk.coordinates, walk.edges, walk.totalKm);
+  if ((metrics.selfIntersectionCount ?? 0) > 0) return null;
 
   return {
     id: options.id,
@@ -99,7 +101,7 @@ function buildRouteFromGraph(
     closedLoop: haversineKm(walk.coordinates[0], walk.coordinates.at(-1) ?? walk.coordinates[0]) < 0.5,
     coordinates: walk.coordinates,
     elevationProfile: buildElevationProfile(walk.coordinates, walk.totalKm),
-    metrics: computeRouteMetrics(walk.coordinates, walk.edges, walk.totalKm),
+    metrics,
     lineage: {
       source: "osm-generated",
       roadAligned: true,
