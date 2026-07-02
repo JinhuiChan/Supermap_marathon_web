@@ -213,4 +213,34 @@ describe("osmMarathonRoute", () => {
     expect(route).not.toBeNull();
     expect(route?.lengthKm).toBeCloseTo(3, 1);
   });
+
+  test("uses nearby support POIs when computing generated route support metrics", () => {
+    const roadNearParking = {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { highway: "primary" },
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [114.295, 30.561],
+              [114.298, 30.561],
+              [114.301, 30.561]
+            ]
+          }
+        }
+      ]
+    };
+
+    const route = buildOsmMarathonTestRoute(roadNearParking, {
+      id: "poi-test",
+      name: "POI test",
+      targetDistanceKm: 0.25,
+      startPoint: [114.295, 30.561]
+    });
+
+    expect(route).not.toBeNull();
+    expect(route?.metrics.parkingServiceScore).toBeGreaterThan(90);
+  });
 });

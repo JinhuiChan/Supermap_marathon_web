@@ -1,6 +1,8 @@
-import { getElevation, haversineKm, turnAngle } from "../domain/roadAttributes";
+import { computePoiAttractiveness, getElevation, haversineKm, turnAngle } from "../domain/roadAttributes";
 import type { RoadEdge, RoadGraph, RoadLevel } from "../domain/roadNetwork";
+import type { PoiPreferences } from "../domain/poiTypes";
 import type { Coordinate, ElevationPoint, MarathonRoute, RouteMetrics } from "../domain/routeMetrics";
+import { augmentGraphWithSupportPois } from "./poiData";
 import { buildRoadGraphFromGeoJson } from "./roadNetworkGeoJson";
 
 interface OSMRouteOptions {
@@ -48,6 +50,7 @@ export function buildOsmMarathonTestRoute(
   options: OSMRouteOptions
 ): MarathonRoute | null {
   const graph = buildRoadGraphFromGeoJson(geojson);
+  augmentGraphWithSupportPois(graph);
   return buildRouteFromGraph(graph, {
     ...options,
     color: "#7c3aed",
@@ -61,6 +64,7 @@ export function buildOsmMarathonCandidateRoutes(
   options: OSMCandidateOptions
 ): MarathonRoute[] {
   const graph = buildRoadGraphFromGeoJson(geojson);
+  augmentGraphWithSupportPois(graph);
   return candidateProfiles
     .map((profile, index) =>
       buildRouteFromGraph(graph, {
@@ -248,12 +252,14 @@ function getCandidateEdges(
     const nextNode = graph.nodes.get(edge.toNodeId);
     const explorationBonus = nextNode ? Math.min(haversineKm(startCoordinate, nextNode.coordinate), 10) * 7 : 0;
     const deadEndPenalty = onward.count === 0 && edge.lengthKm < remainingKm ? 180 : 0;
+    const poiBonus = computePoiAttractiveness(edge.poiScores, poiPreferencesForRoute(preference)) * 0.18;
     return {
       edge,
       score:
         roadLevelScore(edge.roadLevel, preference) +
         lengthBonus +
         explorationBonus +
+        poiBonus +
         Math.min(onward.km, 2) * 12 +
         onward.count * 18 -
         reusePenalty -
@@ -346,6 +352,11 @@ function computeRouteMetrics(coordinates: Coordinate[], edges: RoadEdge[], total
       edge.roadLevel === "secondary" ? 0.82 :
         edge.roadLevel === "greenway" ? 0.72 : 0.62
   );
+  const hasPoiData = edges.some((edge) => edge.poiScores);
+  const poiSupplyCoverageRatio = weightedAverage(edges, totalKm, (edge) => edge.poiScores?.supply ?? 0);
+  const poiMedicalCoverageRatio = weightedAverage(edges, totalKm, (edge) => edge.poiScores?.medical ?? 0);
+  const poiTransitCoverageRatio = weightedAverage(edges, totalKm, (edge) => edge.poiScores?.transit ?? 0);
+  const poiParkCoverageRatio = weightedAverage(edges, totalKm, (edge) => edge.poiScores?.park ?? 0);
 
   return {
     totalClimbM: Math.round(totalClimbM),
@@ -354,10 +365,10 @@ function computeRouteMetrics(coordinates: Coordinate[], edges: RoadEdge[], total
     longSteepRatio: Math.round((slopes.filter((slope) => slope > 3).length / Math.max(1, slopes.length)) * 100) / 100,
     sharpTurnRatio,
     narrowRoadRatio: Math.round((narrowKm / Math.max(totalKm, 1)) * 100) / 100,
-    supplyCoverageRatio: Math.round(supplyCoverageRatio * 100) / 100,
-    medicalAvgIntervalKm: 4.8,
-    parkingServiceScore: 82,
-    shadeCoverageRatio: 0.55
+    supplyCoverageRatio: Math.round(Math.max(supplyCoverageRatio, poiSupplyCoverageRatio) * 100) / 100,
+    medicalAvgIntervalKm: hasPoiData ? Math.round(Math.max(2.5, 6.5 - poiMedicalCoverageRatio * 4) * 10) / 10 : 4.8,
+    parkingServiceScore: Math.round(Math.max(82, poiTransitCoverageRatio * 100)),
+    shadeCoverageRatio: Math.round(Math.max(0.55, poiParkCoverageRatio) * 100) / 100
   };
 }
 
@@ -447,6 +458,12 @@ function roadLevelScore(level: RoadLevel, preference: RoutePreference): number {
     default:
       return 50;
   }
+}
+
+function poiPreferencesForRoute(preference: RoutePreference): PoiPreferences {
+  if (preference === "scenic") return { theme: "scenic" };
+  if (preference === "main-road") return { theme: "transit-accessible" };
+  return { theme: "balanced" };
 }
 
 function baseEdgeId(edgeId: string): string {

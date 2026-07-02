@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getElevation, haversineKm, qualityMultiplier, slopePercent, turnAngle } from "./roadAttributes";
+import { computePoiAttractiveness, getElevation, haversineKm, qualityMultiplier, slopePercent, turnAngle } from "./roadAttributes";
 
 describe("roadAttributes", () => {
   describe("haversineKm", () => {
@@ -79,6 +79,21 @@ describe("roadAttributes", () => {
       const b: [number, number] = [114.31, 30.6];
       const c: [number, number] = [114.31, 30.61]; // north turn
       expect(turnAngle(a, b, c)).toBeCloseTo(90, -1);
+    });
+  });
+
+  describe("computePoiAttractiveness", () => {
+    it("weights POI scores by selection theme", () => {
+      const scenic = computePoiAttractiveness(
+        { scenic: 1, medical: 0, transit: 0, park: 1, supply: 0 },
+        { theme: "scenic" }
+      );
+      const safe = computePoiAttractiveness(
+        { scenic: 1, medical: 0, transit: 0, park: 1, supply: 0 },
+        { theme: "safe" }
+      );
+
+      expect(scenic).toBeGreaterThan(safe);
     });
   });
 });
