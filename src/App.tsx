@@ -117,7 +117,13 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
 
   const toggleCompare = (id: string) => {
     setComparedRouteIds((current) => {
-      if (current.includes(id)) return current.filter((item) => item !== id);
+      if (current.includes(id)) {
+        const next = current.filter((item) => item !== id);
+        if (id === activeRouteId && next.length > 0) {
+          setActiveRouteId(next[0]);
+        }
+        return next;
+      }
       if (current.length >= 5) return current;
       return [...current, id];
     });
@@ -126,25 +132,21 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
   return (
     <main className="app-shell">
       <aside className="left-panel">
-        {mapLayerVisibility.routes && (
-          <>
-            <SelectionProfilePanel
-              activeProfile={selectionProfile}
-              onProfileChange={changeSelectionProfile}
-              onApplyRecommendation={() => applyRecommendation()}
-            />
-            <RouteLibrary
-              routes={rankedRoutes}
-              activeRouteId={activeRouteId}
-              comparedRouteIds={comparedRouteIds}
-              generationStatus={generationStatus}
-              canGenerate={Boolean(osmRoadGeoJson)}
-              onSelectRoute={setActiveRouteId}
-              onToggleCompare={toggleCompare}
-              onGenerateRoutes={generateOsmCandidates}
-            />
-          </>
-        )}
+        <SelectionProfilePanel
+          activeProfile={selectionProfile}
+          onProfileChange={changeSelectionProfile}
+          onApplyRecommendation={() => applyRecommendation()}
+        />
+        <RouteLibrary
+          routes={rankedRoutes}
+          activeRouteId={activeRouteId}
+          comparedRouteIds={comparedRouteIds}
+          generationStatus={generationStatus}
+          canGenerate={Boolean(osmRoadGeoJson)}
+          onSelectRoute={setActiveRouteId}
+          onToggleCompare={toggleCompare}
+          onGenerateRoutes={generateOsmCandidates}
+        />
         <RouteDetails route={activeRoute} />
       </aside>
       <SuperMapMap

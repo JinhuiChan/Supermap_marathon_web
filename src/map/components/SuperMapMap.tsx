@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { BasemapMode } from "../../config/supermap";
 import { superMapConfig } from "../../config/supermap";
 import type { SupportPoint } from "../../data/supportPoints";
@@ -27,8 +27,22 @@ export interface MapLayerVisibility {
 
 type MapPhase = "loading" | "initializing" | "ready" | "fallback";
 
+export function getVisibleMapRoutes(
+  routes: MarathonRoute[],
+  comparedRouteIds: string[],
+  routesVisible = true
+) {
+  if (!routesVisible) return [];
+  const visibleIds = new Set(comparedRouteIds);
+  return routes.filter((route) => visibleIds.has(route.id));
+}
+
 export function SuperMapMap(props: SuperMapMapProps) {
   const { routes, supportPoints, activeRouteId, comparedRouteIds, layerVisibility, basemapMode, onSelectRoute } = props;
+  const visibleRoutes = useMemo(
+    () => getVisibleMapRoutes(routes, comparedRouteIds, layerVisibility.routes),
+    [routes, comparedRouteIds, layerVisibility.routes]
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<MapEngine | null>(null);
   const viewportTimersRef = useRef<number[]>([]);
@@ -129,7 +143,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
         });
         engine.initialize();
         engine.onRouteClick((id) => onSelectRef.current(id));
-        engine.setRoutes(routes);
+        engine.setRoutes(visibleRoutes);
         engine.setSupportPoints(supportPoints);
         engine.setRoadNetwork(roadNetworkLines);
         engine.highlightRoute(activeRouteId, comparedRouteIds);
@@ -138,7 +152,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
 
         if (!cancelled) {
           setPhase("ready");
-          engine.whenReady(() => scheduleViewportRefresh(engine, routes));
+          engine.whenReady(() => scheduleViewportRefresh(engine, visibleRoutes));
         }
       } catch {
         if (!cancelled) {
@@ -169,9 +183,9 @@ export function SuperMapMap(props: SuperMapMapProps) {
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine || phase !== "ready") return;
-    engine.setRoutes(routes);
-    scheduleViewportRefresh(engine, routes);
-  }, [routes, phase]);
+    engine.setRoutes(visibleRoutes);
+    scheduleViewportRefresh(engine, visibleRoutes);
+  }, [visibleRoutes, phase]);
 
   useEffect(() => {
     const engine = engineRef.current;
@@ -202,7 +216,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
       <div className="map-panel" style={{ position: "relative" }}>
         <div className="map-fallback-notice">{phaseMessage}</div>
         <RouteMap
-          routes={routes}
+          routes={visibleRoutes}
           activeRouteId={activeRouteId}
           comparedRouteIds={comparedRouteIds}
           onSelectRoute={onSelectRoute}
