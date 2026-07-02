@@ -13,9 +13,11 @@ describe("routeAnalysis", () => {
     expect(analysis.dimensionCards.map((card) => card.id)).toEqual([
       "terrain",
       "passage",
+      "venue",
       "support",
       "experience"
     ]);
+    expect(analysis.dimensionCards.find((card) => card.id === "venue")?.score).toBeGreaterThan(0);
     expect(analysis.dimensionCards.find((card) => card.id === "passage")?.score).toBeGreaterThan(70);
     expect(analysis.highlights.length).toBeGreaterThan(0);
   });

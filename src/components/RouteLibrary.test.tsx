@@ -18,6 +18,7 @@ const route: MarathonRoute = {
     longSteepRatio: 0.08,
     sharpTurnRatio: 0.12,
     narrowRoadRatio: 0.06,
+    competitionReadinessScore: 91,
     supplyCoverageRatio: 0.88,
     medicalAvgIntervalKm: 4.8,
     parkingServiceScore: 82,
@@ -31,7 +32,7 @@ const route: MarathonRoute = {
 };
 
 describe("RouteLibrary", () => {
-  test("shows generation controls and route scores", () => {
+  test("shows generation controls, route scores, and venue readiness", () => {
     const html = renderToStaticMarkup(
       <RouteLibrary
         routes={[route]}
@@ -49,5 +50,7 @@ describe("RouteLibrary", () => {
     expect(html).toContain("已生成 3 条 OSM 候选路线");
     expect(html).toContain("推荐");
     expect(html).toContain("难度");
+    expect(html).toContain("办赛");
+    expect(html).toContain("91");
   });
 });

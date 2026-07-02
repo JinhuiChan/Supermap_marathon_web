@@ -13,6 +13,11 @@ export interface RouteMetrics {
   longSteepRatio: number;
   sharpTurnRatio: number;
   narrowRoadRatio: number;
+  competitionReadinessScore?: number;
+  mainRoadRatio?: number;
+  unsuitableRoadRatio?: number;
+  repeatedRoadRatio?: number;
+  selfIntersectionCount?: number;
   supplyCoverageRatio: number;
   medicalAvgIntervalKm: number;
   parkingServiceScore: number;
@@ -78,8 +83,14 @@ export function scoreRoute(route: MarathonRoute): RouteScore {
     clamp(100 - m.medicalAvgIntervalKm * 8) * 0.34 +
     clamp(m.parkingServiceScore) * 0.16 +
     clamp(m.shadeCoverageRatio * 100) * 0.12;
-  const difficultyScore = clamp(terrain * 0.58 + passage * 0.22 + (100 - support) * 0.2);
-  const recommendationScore = clamp(100 - difficultyScore * 0.72 + support * 0.28);
+  const venueReadiness = clamp(m.competitionReadinessScore ?? ((100 - passage) * 0.55 + support * 0.45));
+  const difficultyScore = clamp(
+    terrain * 0.52 +
+      passage * 0.18 +
+      (100 - support) * 0.16 +
+      (100 - venueReadiness) * 0.14
+  );
+  const recommendationScore = clamp((100 - difficultyScore) * 0.55 + support * 0.25 + venueReadiness * 0.2);
 
   return {
     id: route.id,

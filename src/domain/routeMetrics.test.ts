@@ -101,4 +101,34 @@ describe("routeMetrics", () => {
       "supported-rolling"
     );
   });
+
+  it("penalizes routes with poor venue readiness even when terrain looks easy", () => {
+    const venueReadyRoute = {
+      ...easyRoute,
+      id: "venue-ready",
+      metrics: {
+        ...easyRoute.metrics,
+        competitionReadinessScore: 92,
+        mainRoadRatio: 0.86,
+        unsuitableRoadRatio: 0.02,
+        repeatedRoadRatio: 0,
+        selfIntersectionCount: 0
+      }
+    };
+    const tangledRoute = {
+      ...easyRoute,
+      id: "tangled",
+      metrics: {
+        ...easyRoute.metrics,
+        competitionReadinessScore: 42,
+        mainRoadRatio: 0.3,
+        unsuitableRoadRatio: 0.28,
+        repeatedRoadRatio: 0.2,
+        selfIntersectionCount: 3
+      }
+    };
+
+    expect(compareRoutes([tangledRoute, venueReadyRoute])[0].id).toBe("venue-ready");
+    expect(scoreRoute(tangledRoute).recommendationScore).toBeLessThan(scoreRoute(venueReadyRoute).recommendationScore);
+  });
 });

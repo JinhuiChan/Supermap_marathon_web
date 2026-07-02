@@ -1,4 +1,5 @@
 import { computePoiAttractiveness, getElevation, haversineKm, turnAngle } from "../domain/roadAttributes";
+import { summarizeMarathonSuitability } from "../domain/competitionSuitability";
 import type { RoadEdge, RoadGraph, RoadLevel } from "../domain/roadNetwork";
 import type { PoiPreferences } from "../domain/poiTypes";
 import type { Coordinate, ElevationPoint, MarathonRoute, RouteMetrics } from "../domain/routeMetrics";
@@ -149,6 +150,7 @@ function walkGraphToDistance(
         used,
         visitedNodes,
         startNode.coordinate,
+        coordinates,
         edges.slice(-20).map((edge) => baseEdgeId(edge.id)),
         preference,
         salt,
@@ -224,6 +226,7 @@ function getCandidateEdges(
   used: Map<string, number>,
   visitedNodes: Map<string, number>,
   startCoordinate: Coordinate,
+  currentCoordinates: Coordinate[],
   recent: string[],
   preference: RoutePreference,
   salt: number,
@@ -252,6 +255,7 @@ function getCandidateEdges(
     const nextNode = graph.nodes.get(edge.toNodeId);
     const explorationBonus = nextNode ? Math.min(haversineKm(startCoordinate, nextNode.coordinate), 10) * 7 : 0;
     const deadEndPenalty = onward.count === 0 && edge.lengthKm < remainingKm ? 180 : 0;
+    const intersectionPenalty = wouldIntersectExistingRoute(graph, edge, currentCoordinates) ? 260 : 0;
     const poiBonus = computePoiAttractiveness(edge.poiScores, poiPreferencesForRoute(preference)) * 0.18;
     return {
       edge,
@@ -264,6 +268,7 @@ function getCandidateEdges(
         onward.count * 18 -
         reusePenalty -
         recentPenalty -
+        intersectionPenalty -
         deadEndPenalty
     };
   });
@@ -292,6 +297,42 @@ function getOnwardCapacity(graph: RoadGraph, edge: RoadEdge, used: Map<string, n
   }
 
   return { count, km };
+}
+
+function wouldIntersectExistingRoute(graph: RoadGraph, edge: RoadEdge, coordinates: Coordinate[]): boolean {
+  if (coordinates.length < 3) return false;
+  const from = graph.nodes.get(edge.fromNodeId)?.coordinate;
+  const to = graph.nodes.get(edge.toNodeId)?.coordinate;
+  if (!from || !to) return false;
+
+  for (let index = 0; index < coordinates.length - 2; index++) {
+    const a = coordinates[index];
+    const b = coordinates[index + 1];
+    if (segmentsShareEndpoint(a, b, from, to)) continue;
+    if (segmentsIntersect(a, b, from, to)) return true;
+  }
+
+  return false;
+}
+
+function segmentsIntersect(a: Coordinate, b: Coordinate, c: Coordinate, d: Coordinate): boolean {
+  const o1 = orientation(a, b, c);
+  const o2 = orientation(a, b, d);
+  const o3 = orientation(c, d, a);
+  const o4 = orientation(c, d, b);
+  return o1 * o2 < 0 && o3 * o4 < 0;
+}
+
+function orientation(a: Coordinate, b: Coordinate, c: Coordinate): number {
+  return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+}
+
+function segmentsShareEndpoint(a: Coordinate, b: Coordinate, c: Coordinate, d: Coordinate): boolean {
+  return sameCoordinate(a, c) || sameCoordinate(a, d) || sameCoordinate(b, c) || sameCoordinate(b, d);
+}
+
+function sameCoordinate(a: Coordinate, b: Coordinate): boolean {
+  return Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9;
 }
 
 function findNearestNodeId(graph: RoadGraph, coordinate: Coordinate): string | null {
@@ -343,6 +384,7 @@ function computeRouteMetrics(coordinates: Coordinate[], edges: RoadEdge[], total
 
   const slopes = elevationProfile.slice(1).map((point) => Math.abs(point.slope));
   const sharpTurnRatio = computeSharpTurnRatio(coordinates);
+  const suitability = summarizeMarathonSuitability(coordinates, edges, totalKm);
   const narrowKm = edges
     .filter((edge) => edge.roadLevel === "service" || edge.roadLevel === "track")
     .reduce((sum, edge) => sum + edge.lengthKm, 0);
@@ -365,6 +407,11 @@ function computeRouteMetrics(coordinates: Coordinate[], edges: RoadEdge[], total
     longSteepRatio: Math.round((slopes.filter((slope) => slope > 3).length / Math.max(1, slopes.length)) * 100) / 100,
     sharpTurnRatio,
     narrowRoadRatio: Math.round((narrowKm / Math.max(totalKm, 1)) * 100) / 100,
+    competitionReadinessScore: suitability.score,
+    mainRoadRatio: suitability.mainRoadRatio,
+    unsuitableRoadRatio: suitability.unsuitableRoadRatio,
+    repeatedRoadRatio: suitability.repeatedRoadRatio,
+    selfIntersectionCount: suitability.selfIntersectionCount,
     supplyCoverageRatio: Math.round(Math.max(supplyCoverageRatio, poiSupplyCoverageRatio) * 100) / 100,
     medicalAvgIntervalKm: hasPoiData ? Math.round(Math.max(2.5, 6.5 - poiMedicalCoverageRatio * 4) * 10) / 10 : 4.8,
     parkingServiceScore: Math.round(Math.max(82, poiTransitCoverageRatio * 100)),

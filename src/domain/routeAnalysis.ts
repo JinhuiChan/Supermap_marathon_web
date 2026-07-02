@@ -3,7 +3,7 @@ import { compareRoutes, scoreRoute } from "./routeMetrics";
 import type { SupportPoint } from "../data/supportPoints";
 import { getSupportPointSummary, getSupportPointsForRoute } from "../data/supportPoints";
 
-export type AnalysisDimensionId = "terrain" | "passage" | "support" | "experience";
+export type AnalysisDimensionId = "terrain" | "passage" | "venue" | "support" | "experience";
 
 export interface AnalysisDimensionCard {
   id: AnalysisDimensionId;
@@ -48,6 +48,12 @@ function getPassageScore(route: MarathonRoute) {
   return Math.round(clamp(100 - (m.sharpTurnRatio * 100 * 0.45 + m.narrowRoadRatio * 100 * 0.55)));
 }
 
+function getVenueReadinessScore(route: MarathonRoute) {
+  const m = route.metrics;
+  if (typeof m.competitionReadinessScore === "number") return m.competitionReadinessScore;
+  return Math.round(clamp(getPassageScore(route) * 0.55 + scoreRoute(route).supportScore * 0.45));
+}
+
 function getExperienceScore(route: MarathonRoute) {
   const m = route.metrics;
   return Math.round(clamp(m.shadeCoverageRatio * 70 + (route.closedLoop ? 20 : 8) + 10));
@@ -63,8 +69,12 @@ export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): Rout
 
   const terrainScore = getTerrainScore(route);
   const passageScore = getPassageScore(route);
+  const venueReadinessScore = getVenueReadinessScore(route);
   const supportScore = routeScore.supportScore;
   const experienceScore = getExperienceScore(route);
+  const mainRoadRatio = route.metrics.mainRoadRatio ?? 0.68;
+  const unsuitableRoadRatio = route.metrics.unsuitableRoadRatio ?? route.metrics.narrowRoadRatio;
+  const selfIntersectionCount = route.metrics.selfIntersectionCount ?? 0;
 
   const dimensionCards: AnalysisDimensionCard[] = [
     {
@@ -80,6 +90,13 @@ export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): Rout
       score: passageScore,
       level: getLevel(passageScore),
       evidence: `急弯占比 ${percent(route.metrics.sharpTurnRatio)}，窄路占比 ${percent(route.metrics.narrowRoadRatio)}`
+    },
+    {
+      id: "venue",
+      label: "办赛条件",
+      score: venueReadinessScore,
+      level: getLevel(venueReadinessScore),
+      evidence: `主干路 ${percent(mainRoadRatio)}，不适宜道路 ${percent(unsuitableRoadRatio)}，交织 ${selfIntersectionCount} 处`
     },
     {
       id: "support",
@@ -99,11 +116,18 @@ export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): Rout
 
   const highlights = [
     `推荐分 ${routeScore.recommendationScore}，适配 ${routeScore.runnerFit}`,
+    `办赛条件 ${venueReadinessScore} 分，主干路占比 ${percent(mainRoadRatio)}`,
     `补给覆盖 ${percent(route.metrics.supplyCoverageRatio)}，沿线服务点 ${routePoints.length} 个`,
     parkingCount > 0 ? `停车保障点 ${parkingCount} 个，利于赛前集散` : "可通过临时接驳补足停车保障"
   ];
 
   const risks = [
+    unsuitableRoadRatio > 0.12
+      ? "存在较多不适宜承办大规模赛事的窄路或低等级道路，建议替换为主次干道"
+      : "道路等级整体满足候选赛道初筛要求",
+    selfIntersectionCount > 0
+      ? `路线存在 ${selfIntersectionCount} 处交织/自交，建议重算或设置避让点`
+      : "路线几何形态未发现明显自交",
     route.metrics.medicalAvgIntervalKm > 6 ? "医疗点平均间距偏大，建议增设移动医疗组" : "医疗间距处于可控范围",
     route.metrics.longSteepRatio > 0.2 ? "长距离爬坡占比较高，需要分段配速提示" : "长坡压力较小，利于大众跑者完赛"
   ];
