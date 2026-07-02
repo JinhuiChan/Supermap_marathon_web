@@ -50,4 +50,21 @@ describe("competitionSuitability", () => {
     expect(summary.repeatedRoadRatio).toBeCloseTo(0.33, 2);
     expect(summary.score).toBeLessThan(85);
   });
+
+  it("detects short local double-backs even without self intersection", () => {
+    const summary = summarizeMarathonSuitability(
+      [
+        [114.3, 30.6],
+        [114.315, 30.6],
+        [114.3008, 30.6002],
+        [114.316, 30.6002]
+      ],
+      [edge("a", "primary", 1), edge("b", "primary", 1), edge("c", "primary", 1)],
+      3
+    );
+
+    expect(summary.selfIntersectionCount).toBe(0);
+    expect(summary.localBacktrackCount).toBeGreaterThan(0);
+    expect(summary.score).toBeLessThan(95);
+  });
 });

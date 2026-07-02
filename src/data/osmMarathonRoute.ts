@@ -91,7 +91,7 @@ function buildRouteFromGraph(
   const walk = walkGraphToDistance(graph, startNodeId, options.targetDistanceKm, options.preference, options.salt);
   if (walk.coordinates.length < 2 || walk.totalKm < options.targetDistanceKm * 0.8) return null;
   const metrics = computeRouteMetrics(walk.coordinates, walk.edges, walk.totalKm);
-  if ((metrics.selfIntersectionCount ?? 0) > 0) return null;
+  if (!isAcceptableGeneratedRoute(metrics)) return null;
 
   return {
     id: options.id,
@@ -108,6 +108,14 @@ function buildRouteFromGraph(
       note: `从本地 OSM 道路走廊生成的${options.name}，用于验证真实路网候选方案`
     }
   };
+}
+
+function isAcceptableGeneratedRoute(metrics: RouteMetrics): boolean {
+  if ((metrics.selfIntersectionCount ?? 0) > 0) return false;
+  if (metrics.sharpTurnRatio > 0.45) return false;
+  if ((metrics.repeatedRoadRatio ?? 0) > 0) return false;
+  if ((metrics.localBacktrackCount ?? 0) > 0) return false;
+  return true;
 }
 
 function walkGraphToDistance(
@@ -414,6 +422,7 @@ function computeRouteMetrics(coordinates: Coordinate[], edges: RoadEdge[], total
     unsuitableRoadRatio: suitability.unsuitableRoadRatio,
     repeatedRoadRatio: suitability.repeatedRoadRatio,
     selfIntersectionCount: suitability.selfIntersectionCount,
+    localBacktrackCount: suitability.localBacktrackCount,
     supplyCoverageRatio: Math.round(Math.max(supplyCoverageRatio, poiSupplyCoverageRatio) * 100) / 100,
     medicalAvgIntervalKm: hasPoiData ? Math.round(Math.max(2.5, 6.5 - poiMedicalCoverageRatio * 4) * 10) / 10 : 4.8,
     parkingServiceScore: Math.round(Math.max(82, poiTransitCoverageRatio * 100)),

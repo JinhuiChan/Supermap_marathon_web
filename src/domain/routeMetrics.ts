@@ -18,6 +18,7 @@ export interface RouteMetrics {
   unsuitableRoadRatio?: number;
   repeatedRoadRatio?: number;
   selfIntersectionCount?: number;
+  localBacktrackCount?: number;
   supplyCoverageRatio: number;
   medicalAvgIntervalKm: number;
   parkingServiceScore: number;

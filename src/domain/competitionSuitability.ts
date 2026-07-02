@@ -1,5 +1,6 @@
 import type { RoadEdge, RoadLevel } from "./roadNetwork";
 import type { Coordinate } from "./routeMetrics";
+import { haversineKm } from "./roadAttributes";
 
 export interface MarathonSuitabilitySummary {
   score: number;
@@ -7,6 +8,7 @@ export interface MarathonSuitabilitySummary {
   unsuitableRoadRatio: number;
   repeatedRoadRatio: number;
   selfIntersectionCount: number;
+  localBacktrackCount: number;
   tunnelRatio: number;
 }
 
@@ -31,6 +33,7 @@ export function summarizeMarathonSuitability(
     .reduce((sum, edge) => sum + edge.lengthKm, 0);
   const repeatedRoadKm = computeRepeatedRoadKm(edges);
   const selfIntersectionCount = countSelfIntersections(coordinates);
+  const localBacktrackCount = countLocalBacktracks(coordinates);
 
   const mainRoadRatio = roundRatio(mainRoadKm / denominator);
   const unsuitableRoadRatio = roundRatio(unsuitableKm / denominator);
@@ -44,6 +47,7 @@ export function summarizeMarathonSuitability(
         unsuitableRoadRatio * 60 -
         repeatedRoadRatio * 35 -
         Math.min(selfIntersectionCount, 5) * 8 -
+        Math.min(localBacktrackCount, 5) * 10 -
         tunnelRatio * 15
     )
   );
@@ -54,6 +58,7 @@ export function summarizeMarathonSuitability(
     unsuitableRoadRatio,
     repeatedRoadRatio,
     selfIntersectionCount,
+    localBacktrackCount,
     tunnelRatio
   };
 }
@@ -86,6 +91,27 @@ function countSelfIntersections(coordinates: Coordinate[]): number {
         continue;
       }
       if (segmentsIntersect(coordinates[first], coordinates[first + 1], coordinates[second], coordinates[second + 1])) {
+        count += 1;
+      }
+    }
+  }
+
+  return count;
+}
+
+function countLocalBacktracks(coordinates: Coordinate[]): number {
+  if (coordinates.length < 4) return 0;
+  let count = 0;
+  const closed = sameCoordinate(coordinates[0], coordinates[coordinates.length - 1]);
+
+  for (let first = 0; first < coordinates.length - 2; first++) {
+    let walkedKm = 0;
+    for (let second = first + 1; second < coordinates.length; second++) {
+      walkedKm += haversineKm(coordinates[second - 1], coordinates[second]);
+      if (second < first + 2) continue;
+      if (closed && first === 0 && second === coordinates.length - 1) continue;
+      if (walkedKm < 0.8) continue;
+      if (haversineKm(coordinates[first], coordinates[second]) < 0.25) {
         count += 1;
       }
     }

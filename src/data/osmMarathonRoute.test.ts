@@ -200,6 +200,67 @@ describe("osmMarathonRoute", () => {
     expect(route).toBeNull();
   });
 
+  test("rejects routes with repeated sharp zigzag turns", () => {
+    const zigzagRoadNetwork = {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { highway: "primary" },
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [114.3, 30.6],
+              [114.31, 30.61],
+              [114.302, 30.601],
+              [114.312, 30.611],
+              [114.304, 30.602]
+            ]
+          }
+        }
+      ]
+    };
+
+    const route = buildOsmMarathonTestRoute(zigzagRoadNetwork, {
+      id: "zigzag-test",
+      name: "Zigzag test",
+      targetDistanceKm: 5,
+      startPoint: [114.3, 30.6]
+    });
+
+    expect(route).toBeNull();
+  });
+
+  test("rejects routes that quickly double back to the same local area", () => {
+    const localLoopRoadNetwork = {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { highway: "primary" },
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [114.3, 30.6],
+              [114.31, 30.6],
+              [114.3008, 30.6002],
+              [114.311, 30.6002]
+            ]
+          }
+        }
+      ]
+    };
+
+    const route = buildOsmMarathonTestRoute(localLoopRoadNetwork, {
+      id: "double-back-test",
+      name: "Double back test",
+      targetDistanceKm: 3,
+      startPoint: [114.3, 30.6]
+    });
+
+    expect(route).toBeNull();
+  });
+
   test("avoids short dead-end branches when a continuous arterial path is available", () => {
     const branchingRoadNetwork = {
       type: "FeatureCollection",
