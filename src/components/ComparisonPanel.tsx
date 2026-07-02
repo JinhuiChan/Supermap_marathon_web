@@ -1,12 +1,13 @@
-import type { MarathonRoute } from "../domain/routeMetrics";
+import type { MarathonRoute, RouteSelectionProfile } from "../domain/routeMetrics";
 import { compareRoutes } from "../domain/routeMetrics";
 
 interface ComparisonPanelProps {
   routes: MarathonRoute[];
+  selectionProfile?: RouteSelectionProfile;
 }
 
-export function ComparisonPanel({ routes }: ComparisonPanelProps) {
-  const scores = compareRoutes(routes);
+export function ComparisonPanel({ routes, selectionProfile = "balanced" }: ComparisonPanelProps) {
+  const scores = compareRoutes(routes, selectionProfile);
   const winner = scores[0];
 
   if (routes.length < 2) {
@@ -25,7 +26,7 @@ export function ComparisonPanel({ routes }: ComparisonPanelProps) {
         <span>推荐方案</span>
         <strong>{winner.name}</strong>
         <p>
-          推荐分 {winner.recommendationScore}，适配：{winner.runnerFit}
+          目标分 {winner.profileScore}，推荐分 {winner.recommendationScore}，适配：{winner.runnerFit}
         </p>
       </div>
       <table className="compare-table">
@@ -35,7 +36,7 @@ export function ComparisonPanel({ routes }: ComparisonPanelProps) {
             <th>路线</th>
             <th>难度</th>
             <th>保障</th>
-            <th>推荐</th>
+            <th>目标</th>
           </tr>
         </thead>
         <tbody>
@@ -45,7 +46,7 @@ export function ComparisonPanel({ routes }: ComparisonPanelProps) {
               <td>{score.name}</td>
               <td>{score.difficultyScore}</td>
               <td>{score.supportScore}</td>
-              <td>{score.recommendationScore}</td>
+              <td>{score.profileScore}</td>
             </tr>
           ))}
         </tbody>
@@ -55,9 +56,9 @@ export function ComparisonPanel({ routes }: ComparisonPanelProps) {
           <div className="bar-row" key={score.id}>
             <span>{score.name}</span>
             <div>
-              <i style={{ width: `${score.recommendationScore}%` }} />
+              <i style={{ width: `${score.profileScore}%` }} />
             </div>
-            <b>{score.recommendationScore}</b>
+            <b>{score.profileScore}</b>
           </div>
         ))}
       </div>

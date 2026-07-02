@@ -55,6 +55,13 @@ export function LayerControlPanel({
         </span>
       </label>
       <label className="layer-toggle">
+        <input type="checkbox" checked={visibility.roadNetwork} onChange={() => updateLayer("roadNetwork")} />
+        <span>
+          <strong>汉马道路走廊</strong>
+          <small>显示官方路线周边真实 OSM 道路网络</small>
+        </span>
+      </label>
+      <label className="layer-toggle">
         <input type="checkbox" checked={visibility.supportPoints} onChange={() => updateLayer("supportPoints")} />
         <span>
           <strong>赛事服务点</strong>

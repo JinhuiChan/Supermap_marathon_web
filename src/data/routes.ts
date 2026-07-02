@@ -26,7 +26,7 @@ function densifyRoute(coordinates: Coordinate[], maxStepDegrees = 0.003): Coordi
 
 const officialWuhanMarathon2026: MarathonRoute = {
   id: "wuhan-marathon-2026",
-  name: "2026武汉马拉松官方路线（道路级矢量）",
+  name: "2026 Wuhan Marathon official route reference",
   color: "#005bbb",
   lengthKm: 42.195,
   closedLoop: false,
@@ -87,128 +87,12 @@ const officialWuhanMarathon2026: MarathonRoute = {
     medicalAvgIntervalKm: 3.8,
     parkingServiceScore: 86,
     shadeCoverageRatio: 0.58
+  },
+  lineage: {
+    source: "official-road-level",
+    roadAligned: true,
+    note: "Official road-level reference digitized from public traffic-control route text."
   }
 };
 
-const planningRoutes: MarathonRoute[] = [
-  {
-    id: "river-loop",
-    name: "两江四岸平缓备选线",
-    color: "#1f77b4",
-    lengthKm: 42.195,
-    closedLoop: true,
-    coordinates: [
-      [114.292, 30.584],
-      [114.305, 30.598],
-      [114.328, 30.61],
-      [114.35, 30.594],
-      [114.333, 30.57],
-      [114.305, 30.563],
-      [114.292, 30.584]
-    ],
-    elevationProfile: [
-      { km: 0, elevation: 24, slope: 0.2 },
-      { km: 5, elevation: 26, slope: 0.4 },
-      { km: 10, elevation: 28, slope: 0.3 },
-      { km: 15, elevation: 30, slope: 0.6 },
-      { km: 20, elevation: 27, slope: -0.4 },
-      { km: 25, elevation: 25, slope: -0.2 },
-      { km: 30, elevation: 29, slope: 0.5 },
-      { km: 35, elevation: 27, slope: -0.3 },
-      { km: 42.195, elevation: 24, slope: -0.2 }
-    ],
-    metrics: {
-      totalClimbM: 96,
-      avgSlopePercent: 0.8,
-      maxSlopePercent: 2.7,
-      longSteepRatio: 0.05,
-      sharpTurnRatio: 0.1,
-      narrowRoadRatio: 0.07,
-      supplyCoverageRatio: 0.93,
-      medicalAvgIntervalKm: 4.1,
-      parkingServiceScore: 88,
-      shadeCoverageRatio: 0.62
-    }
-  },
-  {
-    id: "east-lake",
-    name: "东湖绿道景观备选线",
-    color: "#2ca02c",
-    lengthKm: 42.195,
-    closedLoop: true,
-    coordinates: [
-      [114.365, 30.548],
-      [114.395, 30.56],
-      [114.43, 30.575],
-      [114.45, 30.555],
-      [114.418, 30.528],
-      [114.382, 30.532],
-      [114.365, 30.548]
-    ],
-    elevationProfile: [
-      { km: 0, elevation: 32, slope: 0.3 },
-      { km: 5, elevation: 45, slope: 1.8 },
-      { km: 10, elevation: 66, slope: 2.4 },
-      { km: 15, elevation: 51, slope: -1.6 },
-      { km: 20, elevation: 58, slope: 1.2 },
-      { km: 25, elevation: 72, slope: 2.1 },
-      { km: 30, elevation: 47, slope: -2.3 },
-      { km: 35, elevation: 40, slope: -1.1 },
-      { km: 42.195, elevation: 32, slope: -0.5 }
-    ],
-    metrics: {
-      totalClimbM: 258,
-      avgSlopePercent: 2.1,
-      maxSlopePercent: 5.9,
-      longSteepRatio: 0.21,
-      sharpTurnRatio: 0.16,
-      narrowRoadRatio: 0.11,
-      supplyCoverageRatio: 0.81,
-      medicalAvgIntervalKm: 5.6,
-      parkingServiceScore: 78,
-      shadeCoverageRatio: 0.76
-    }
-  },
-  {
-    id: "urban-core",
-    name: "城市核心保障备选线",
-    color: "#d62728",
-    lengthKm: 42.195,
-    closedLoop: true,
-    coordinates: [
-      [114.27, 30.59],
-      [114.292, 30.612],
-      [114.322, 30.62],
-      [114.35, 30.604],
-      [114.345, 30.576],
-      [114.31, 30.555],
-      [114.276, 30.566],
-      [114.27, 30.59]
-    ],
-    elevationProfile: [
-      { km: 0, elevation: 26, slope: 0.2 },
-      { km: 5, elevation: 29, slope: 0.5 },
-      { km: 10, elevation: 37, slope: 1.2 },
-      { km: 15, elevation: 35, slope: -0.3 },
-      { km: 20, elevation: 42, slope: 1.3 },
-      { km: 25, elevation: 39, slope: -0.6 },
-      { km: 30, elevation: 31, slope: -0.7 },
-      { km: 35, elevation: 28, slope: -0.4 },
-      { km: 42.195, elevation: 26, slope: -0.2 }
-    ],
-    metrics: {
-      totalClimbM: 148,
-      avgSlopePercent: 1.2,
-      maxSlopePercent: 4.1,
-      longSteepRatio: 0.1,
-      sharpTurnRatio: 0.23,
-      narrowRoadRatio: 0.18,
-      supplyCoverageRatio: 0.96,
-      medicalAvgIntervalKm: 3.2,
-      parkingServiceScore: 92,
-      shadeCoverageRatio: 0.48
-    }
-  }
-];
-
-export const demoRoutes: MarathonRoute[] = [officialWuhanMarathon2026, ...planningRoutes];
+export const demoRoutes: MarathonRoute[] = [officialWuhanMarathon2026];

@@ -82,3 +82,27 @@ out skel qt;
 - **DEM 高程数据**：`test-temp/ASTGTMV003_N30E114_dem.tif`（ASTER GDEMV3，30m 分辨率，覆盖 E114°~E115°, N30°~N31°）
 - **示范路线数据**：`public/data/wuhan-marathon-routes.geojson`（3 条候选路线）
 - **示范服务点数据**：`public/data/wuhan-marathon-support-points.geojson`（15 个服务点）
+
+# Local Road Network Data
+
+The real Wuhan road network data is stored outside GitHub.
+
+Current local files:
+
+- `E:\SuperMap\data\wuhan_roads\wuhan-roads-overpass.geojson`
+  - Source: OpenStreetMap via Overpass API
+  - Coverage: Wuhan central marathon planning area
+  - Size: about 9.4 MB
+  - Feature count at download time: 24,941 road features
+- `E:\SuperMap\data\wuhan_roads\wuhan-marathon-area-roads.geojson`
+  - Derived from the Overpass file by keeping roads inside the rough 2026 Wuhan Marathon planning bounds
+  - Feature count at extraction time: 15,777 road features
+- `E:\SuperMap\data\wuhan_roads\wuhan-marathon-corridor-roads.geojson`
+  - Derived from the area file by keeping roads within about 1.5 km of the official route polyline
+  - Feature count at extraction time: 8,453 road features
+- `E:\SuperMap\data\osm\hubei-latest-free.shp.zip`
+  - Source: Geofabrik Hubei OpenStreetMap extract
+  - Confirmed road layer: `gis_osm_roads_free_1.shp`
+  - Size: about 123 MB
+
+These files should not be committed. If the browser app needs to test a local copy, place it under `public/data/local-*`; that pattern is ignored by Git.

@@ -1,7 +1,8 @@
 import type { BasemapMode } from "../../config/supermap";
 import type { SupportPoint } from "../../data/supportPoints";
 import type { MarathonRoute } from "../../domain/routeMetrics";
-import { computeRouteStyle, findNearestRouteId, toLeafletLatLngs } from "../layers/RouteLayer";
+import { roadNetworkStyle } from "../layers/RoadNetworkLayer";
+import { buildRouteDirectionMarkers, computeRouteStyle, findNearestRouteId, toLeafletLatLngs } from "../layers/RouteLayer";
 import { computeSupportPointStyle, formatSupportPointLabel, toLeafletLatLng } from "../layers/SupportPointLayer";
 
 export interface MapEngineOptions {
@@ -18,7 +19,10 @@ export interface MapEngineOptions {
 export class MapEngine {
   private map: unknown = null;
   private routeLayers: Map<string, unknown> = new Map();
+  private routeDirectionLayers: Map<string, unknown[]> = new Map();
   private supportPointLayers: unknown[] = [];
+  private roadNetworkLayers: unknown[] = [];
+  private roadNetworkLines: [number, number][][] = [];
   private basemapLayers: Partial<Record<BasemapMode, unknown>> = {};
   private activeBasemapLayer: unknown = null;
   private onRouteClickCb: ((id: string) => void) | null = null;
@@ -37,6 +41,7 @@ export class MapEngine {
   private comparedRouteIds: string[] = [];
   private routesVisible = true;
   private supportPointsVisible = true;
+  private roadNetworkVisible = true;
 
   constructor(options: MapEngineOptions) {
     this.container = options.container;
@@ -123,6 +128,7 @@ export class MapEngine {
       const layer = polyline(toLeafletLatLngs(route.coordinates), this.computeVisibleRouteStyle(route, false, true));
       (layer as { addTo: (m: unknown) => unknown }).addTo(this.map);
       this.routeLayers.set(route.id, layer);
+      this.routeDirectionLayers.set(route.id, this.createRouteDirectionLayers(route, false, true));
     }
   }
 
@@ -137,6 +143,7 @@ export class MapEngine {
       const leafletLayer = layer as { setStyle?: (s: Record<string, unknown>) => void };
       if (leafletLayer.setStyle && route) {
         leafletLayer.setStyle(this.computeVisibleRouteStyle(route, isActive, isCompared));
+        this.replaceRouteDirectionLayers(route, isActive, isCompared);
       }
     }
     this.renderSupportPoints();
@@ -148,7 +155,36 @@ export class MapEngine {
     this.renderSupportPoints();
   }
 
-  setLayerVisibility(visibility: { routes?: boolean; supportPoints?: boolean }): void {
+  setRoadNetwork(lines: [number, number][][]): void {
+    if (this.destroyed || !this.map) return;
+    this.roadNetworkLines = lines;
+    this.renderRoadNetwork();
+  }
+
+  private renderRoadNetwork(): void {
+    if (this.destroyed || !this.map) return;
+    this.clearRoadNetworkLayers();
+    if (!this.roadNetworkVisible) return;
+
+    const L = (window as unknown as Record<string, unknown>).L as Record<string, unknown> | undefined;
+    if (!L) return;
+
+    const polyline = L.polyline as (latlngs: [number, number][], opts?: Record<string, unknown>) => unknown;
+    const style = roadNetworkStyle();
+
+    for (const line of this.roadNetworkLines) {
+      const layer = polyline(line, style);
+      const orderedLayer = layer as {
+        addTo: (m: unknown) => unknown;
+        bringToBack?: () => unknown;
+      };
+      orderedLayer.addTo(this.map);
+      orderedLayer.bringToBack?.();
+      this.roadNetworkLayers.push(layer);
+    }
+  }
+
+  setLayerVisibility(visibility: { routes?: boolean; supportPoints?: boolean; roadNetwork?: boolean }): void {
     if (typeof visibility.routes === "boolean") {
       this.routesVisible = visibility.routes;
       this.highlightRoute(this.activeRouteId, this.comparedRouteIds);
@@ -156,6 +192,10 @@ export class MapEngine {
     if (typeof visibility.supportPoints === "boolean") {
       this.supportPointsVisible = visibility.supportPoints;
       this.renderSupportPoints();
+    }
+    if (typeof visibility.roadNetwork === "boolean") {
+      this.roadNetworkVisible = visibility.roadNetwork;
+      this.renderRoadNetwork();
     }
   }
 
@@ -201,7 +241,9 @@ export class MapEngine {
       this.map = null;
     }
     this.routeLayers.clear();
+    this.clearRouteDirectionLayers();
     this.clearSupportPointLayers();
+    this.clearRoadNetworkLayers();
     this.basemapLayers = {};
     this.activeBasemapLayer = null;
     this.container.innerHTML = "";
@@ -230,6 +272,59 @@ export class MapEngine {
       }
     }
     this.routeLayers.clear();
+    this.clearRouteDirectionLayers();
+  }
+
+  private replaceRouteDirectionLayers(route: MarathonRoute, isActive: boolean, isCompared: boolean): void {
+    const existing = this.routeDirectionLayers.get(route.id) ?? [];
+    for (const layer of existing) {
+      if (this.map) {
+        const mapWithRemove = this.map as { removeLayer?: (l: unknown) => void };
+        mapWithRemove.removeLayer?.(layer);
+      }
+    }
+    this.routeDirectionLayers.set(route.id, this.createRouteDirectionLayers(route, isActive, isCompared));
+  }
+
+  private createRouteDirectionLayers(route: MarathonRoute, isActive: boolean, isCompared: boolean): unknown[] {
+    if (this.destroyed || !this.map || !this.routesVisible) return [];
+    if (!isActive && !isCompared) return [];
+
+    const L = (window as unknown as Record<string, unknown>).L as Record<string, unknown> | undefined;
+    if (!L) return [];
+
+    const divIcon = L.divIcon as ((opts: Record<string, unknown>) => unknown) | undefined;
+    const marker = L.marker as ((latlng: [number, number], opts?: Record<string, unknown>) => unknown) | undefined;
+    if (!divIcon || !marker) return [];
+
+    const markerCount = isActive ? 12 : 4;
+    return buildRouteDirectionMarkers(route, markerCount).map((direction) => {
+      const icon = divIcon({
+        className: "route-direction-icon",
+        html: `<span style="border-left-color:${route.color}; opacity:${isActive ? 1 : 0.45}; transform: rotate(${direction.angleDeg}deg)"></span>`,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9]
+      });
+      const layer = marker([direction.coordinate[1], direction.coordinate[0]], {
+        icon,
+        interactive: false,
+        keyboard: false
+      });
+      (layer as { addTo?: (m: unknown) => unknown }).addTo?.(this.map);
+      return layer;
+    });
+  }
+
+  private clearRouteDirectionLayers(): void {
+    for (const layers of this.routeDirectionLayers.values()) {
+      for (const layer of layers) {
+        if (this.map) {
+          const mapWithRemove = this.map as { removeLayer?: (l: unknown) => void };
+          mapWithRemove.removeLayer?.(layer);
+        }
+      }
+    }
+    this.routeDirectionLayers.clear();
   }
 
   private renderSupportPoints(): void {
@@ -268,6 +363,16 @@ export class MapEngine {
       }
     }
     this.supportPointLayers = [];
+  }
+
+  private clearRoadNetworkLayers(): void {
+    for (const layer of this.roadNetworkLayers) {
+      if (this.map) {
+        const mapWithRemove = this.map as { removeLayer?: (l: unknown) => void };
+        if (mapWithRemove.removeLayer) mapWithRemove.removeLayer(layer);
+      }
+    }
+    this.roadNetworkLayers = [];
   }
 
   private computeVisibleRouteStyle(route: MarathonRoute, isActive: boolean, isCompared: boolean): Record<string, unknown> {

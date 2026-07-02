@@ -1,5 +1,7 @@
 import type { Coordinate } from "./routeMetrics";
 import type { RoadLevel } from "./roadNetwork";
+import type { PoiPreferences, PoiScore } from "./poiTypes";
+import { resolvePoiWeights } from "./poiTypes";
 
 // ---- Haversine distance (km) ----
 
@@ -90,4 +92,22 @@ export function turnAngle(a: Coordinate, b: Coordinate, c: Coordinate): number {
   if (mag1 < 1e-12 || mag2 < 1e-12) return 0;
   const cos = Math.max(-1, Math.min(1, dot / (mag1 * mag2)));
   return (Math.acos(cos) * 180) / Math.PI;
+}
+
+export function computePoiAttractiveness(
+  poiScores: PoiScore | undefined,
+  preferences: PoiPreferences | undefined
+): number {
+  if (!poiScores || !preferences) return 0;
+
+  const weights = resolvePoiWeights(preferences);
+  const weighted =
+    poiScores.scenic * weights.scenic +
+    poiScores.medical * weights.medical +
+    poiScores.transit * weights.transit +
+    poiScores.park * weights.park +
+    poiScores.supply * weights.supply;
+  const maxWeighted = weights.scenic + weights.medical + weights.transit + weights.park + weights.supply;
+
+  return maxWeighted > 0 ? (weighted / maxWeighted) * 100 : 0;
 }

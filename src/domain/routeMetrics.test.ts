@@ -60,4 +60,75 @@ describe("routeMetrics", () => {
     expect(result[0].id).toBe("easy");
     expect(result[0].rank).toBe(1);
   });
+
+  it("reranks routes for different selection profiles", () => {
+    const flatLowSupportRoute = {
+      ...easyRoute,
+      id: "flat-low-support",
+      name: "平缓低保障线",
+      metrics: {
+        ...easyRoute.metrics,
+        totalClimbM: 60,
+        avgSlopePercent: 0.5,
+        maxSlopePercent: 1.8,
+        supplyCoverageRatio: 0.32,
+        medicalAvgIntervalKm: 9.5,
+        parkingServiceScore: 35,
+        shadeCoverageRatio: 0.24
+      }
+    };
+    const supportedRollingRoute = {
+      ...easyRoute,
+      id: "supported-rolling",
+      name: "保障完善起伏线",
+      metrics: {
+        ...easyRoute.metrics,
+        totalClimbM: 220,
+        avgSlopePercent: 2.4,
+        maxSlopePercent: 5.8,
+        longSteepRatio: 0.16,
+        supplyCoverageRatio: 0.98,
+        medicalAvgIntervalKm: 2.4,
+        parkingServiceScore: 95,
+        shadeCoverageRatio: 0.72
+      }
+    };
+
+    expect(compareRoutes([supportedRollingRoute, flatLowSupportRoute], "pb-friendly")[0].id).toBe(
+      "flat-low-support"
+    );
+    expect(compareRoutes([supportedRollingRoute, flatLowSupportRoute], "support-first")[0].id).toBe(
+      "supported-rolling"
+    );
+  });
+
+  it("penalizes routes with poor venue readiness even when terrain looks easy", () => {
+    const venueReadyRoute = {
+      ...easyRoute,
+      id: "venue-ready",
+      metrics: {
+        ...easyRoute.metrics,
+        competitionReadinessScore: 92,
+        mainRoadRatio: 0.86,
+        unsuitableRoadRatio: 0.02,
+        repeatedRoadRatio: 0,
+        selfIntersectionCount: 0
+      }
+    };
+    const tangledRoute = {
+      ...easyRoute,
+      id: "tangled",
+      metrics: {
+        ...easyRoute.metrics,
+        competitionReadinessScore: 42,
+        mainRoadRatio: 0.3,
+        unsuitableRoadRatio: 0.28,
+        repeatedRoadRatio: 0.2,
+        selfIntersectionCount: 3
+      }
+    };
+
+    expect(compareRoutes([tangledRoute, venueReadyRoute])[0].id).toBe("venue-ready");
+    expect(scoreRoute(tangledRoute).recommendationScore).toBeLessThan(scoreRoute(venueReadyRoute).recommendationScore);
+  });
 });
