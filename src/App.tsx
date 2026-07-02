@@ -18,7 +18,11 @@ import { buildOsmMarathonCandidateRoutes } from "./data/osmMarathonRoute";
 import { supportPoints } from "./data/supportPoints";
 import { compareRoutes, type MarathonRoute, type RouteSelectionProfile } from "./domain/routeMetrics";
 
-export default function App() {
+interface AppProps {
+  initialLayerVisibility?: MapLayerVisibility;
+}
+
+export default function App({ initialLayerVisibility }: AppProps = {}) {
   const [osmRoutes, setOsmRoutes] = useState<MarathonRoute[]>([]);
   const [osmRoadGeoJson, setOsmRoadGeoJson] = useState<unknown>(null);
   const [generationStatus, setGenerationStatus] = useState("正在加载 OSM 道路走廊");
@@ -26,11 +30,13 @@ export default function App() {
   const [selectionProfile, setSelectionProfile] = useState<RouteSelectionProfile>("balanced");
   const [activeRouteId, setActiveRouteId] = useState(allRoutes[0].id);
   const [comparedRouteIds, setComparedRouteIds] = useState<string[]>([allRoutes[0].id]);
-  const [mapLayerVisibility, setMapLayerVisibility] = useState<MapLayerVisibility>({
-    routes: true,
-    supportPoints: true,
-    roadNetwork: true
-  });
+  const [mapLayerVisibility, setMapLayerVisibility] = useState<MapLayerVisibility>(
+    initialLayerVisibility ?? {
+      routes: true,
+      supportPoints: true,
+      roadNetwork: true
+    }
+  );
   const [basemapMode, setBasemapMode] = useState<BasemapMode>(superMapConfig.defaultBasemap);
   const activeRoute = useMemo(
     () => allRoutes.find((route) => route.id === activeRouteId) ?? allRoutes[0],
@@ -120,21 +126,25 @@ export default function App() {
   return (
     <main className="app-shell">
       <aside className="left-panel">
-        <SelectionProfilePanel
-          activeProfile={selectionProfile}
-          onProfileChange={changeSelectionProfile}
-          onApplyRecommendation={() => applyRecommendation()}
-        />
-        <RouteLibrary
-          routes={rankedRoutes}
-          activeRouteId={activeRouteId}
-          comparedRouteIds={comparedRouteIds}
-          generationStatus={generationStatus}
-          canGenerate={Boolean(osmRoadGeoJson)}
-          onSelectRoute={setActiveRouteId}
-          onToggleCompare={toggleCompare}
-          onGenerateRoutes={generateOsmCandidates}
-        />
+        {mapLayerVisibility.routes && (
+          <>
+            <SelectionProfilePanel
+              activeProfile={selectionProfile}
+              onProfileChange={changeSelectionProfile}
+              onApplyRecommendation={() => applyRecommendation()}
+            />
+            <RouteLibrary
+              routes={rankedRoutes}
+              activeRouteId={activeRouteId}
+              comparedRouteIds={comparedRouteIds}
+              generationStatus={generationStatus}
+              canGenerate={Boolean(osmRoadGeoJson)}
+              onSelectRoute={setActiveRouteId}
+              onToggleCompare={toggleCompare}
+              onGenerateRoutes={generateOsmCandidates}
+            />
+          </>
+        )}
         <RouteDetails route={activeRoute} />
       </aside>
       <SuperMapMap
