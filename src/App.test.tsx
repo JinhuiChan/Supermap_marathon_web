@@ -6,8 +6,13 @@ describe("App", () => {
   it("renders the marathon route workbench", () => {
     const html = renderToStaticMarkup(<App />);
 
-    expect(html).toContain("selection-profile-panel");
-    expect(html).toContain("route-generator-actions");
+    expect(html).toContain("gis-mode-nav");
+    expect(html).toContain("智能选型");
+    expect(html).toContain("赛道分析");
+    expect(html).toContain("空间约束");
+    expect(html).toContain("POI 服务权重");
+    expect(html).toContain("阻力因子");
+    expect(html).toContain("候选方案抽屉");
     expect(html).toContain("2026 Wuhan Marathon official route reference");
     expect(html).toContain("SuperMap iServer");
     expect(html).toContain("iClient JavaScript");
@@ -21,7 +26,7 @@ describe("App", () => {
       <App initialLayerVisibility={{ routes: false, supportPoints: true, roadNetwork: true }} />
     );
 
-    expect(html).toContain("selection-profile-panel");
-    expect(html).toContain("route-generator-actions");
+    expect(html).toContain("gis-selection-panel");
+    expect(html).toContain("候选方案抽屉");
   });
 });

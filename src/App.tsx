@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { ComparisonPanel } from "./components/ComparisonPanel";
+import { CandidateRouteDrawer } from "./components/CandidateRouteDrawer";
 import { DataPackagePanel } from "./components/DataPackagePanel";
 import { ExportPanel } from "./components/ExportPanel";
+import { GisModeNav, type GisWorkspaceMode } from "./components/GisModeNav";
+import { GisSelectionPanel, defaultGisPlanningSettings, type GisPlanningSettings } from "./components/GisSelectionPanel";
 import { LayerControlPanel } from "./components/LayerControlPanel";
 import { RouteAnalysisPanel } from "./components/RouteAnalysisPanel";
 import { RouteDetails } from "./components/RouteDetails";
-import { RouteLibrary } from "./components/RouteLibrary";
-import { SelectionProfilePanel } from "./components/SelectionProfilePanel";
 import { SuperMapStatusPanel } from "./components/SuperMapStatusPanel";
 import type { BasemapMode } from "./config/supermap";
 import { superMapConfig } from "./config/supermap";
@@ -23,6 +24,8 @@ interface AppProps {
 }
 
 export default function App({ initialLayerVisibility }: AppProps = {}) {
+  const [workspaceMode, setWorkspaceMode] = useState<GisWorkspaceMode>("selection");
+  const [planningSettings, setPlanningSettings] = useState<GisPlanningSettings>(defaultGisPlanningSettings);
   const [osmRoutes, setOsmRoutes] = useState<MarathonRoute[]>([]);
   const [osmRoadGeoJson, setOsmRoadGeoJson] = useState<unknown>(null);
   const [generationStatus, setGenerationStatus] = useState("正在加载 OSM 道路走廊");
@@ -115,6 +118,22 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
     applyRecommendation(profile);
   };
 
+  const changePlanningWeight = (group: "poiWeights" | "impedanceWeights", key: string, value: number) => {
+    setPlanningSettings((current) => ({
+      ...current,
+      [group]: {
+        ...current[group],
+        [key]: value
+      }
+    }));
+  };
+
+  const analyzeRoute = (id: string) => {
+    setActiveRouteId(id);
+    setComparedRouteIds((current) => (current.includes(id) ? current : [...current.slice(-4), id]));
+    setWorkspaceMode("analysis");
+  };
+
   const toggleCompare = (id: string) => {
     setComparedRouteIds((current) => {
       if (current.includes(id)) {
@@ -130,49 +149,80 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
   };
 
   return (
-    <main className="app-shell">
-      <aside className="left-panel">
-        <SelectionProfilePanel
-          activeProfile={selectionProfile}
-          onProfileChange={changeSelectionProfile}
-          onApplyRecommendation={() => applyRecommendation()}
-        />
-        <RouteLibrary
-          routes={rankedRoutes}
+    <main className={`app-shell gis-tool-shell ${workspaceMode}`}>
+      <header className="gis-app-header">
+        <div className="gis-brand">
+          <span>SuperMap WebGIS</span>
+          <strong>武汉马拉松赛道空间选线平台</strong>
+        </div>
+        <GisModeNav mode={workspaceMode} onModeChange={setWorkspaceMode} />
+        <button type="button" className="gis-header-action" onClick={() => applyRecommendation()}>
+          采用当前推荐
+        </button>
+      </header>
+
+      <section className="gis-map-stage">
+        <SuperMapMap
+          routes={allRoutes}
+          supportPoints={supportPoints}
           activeRouteId={activeRouteId}
           comparedRouteIds={comparedRouteIds}
-          generationStatus={generationStatus}
-          canGenerate={Boolean(osmRoadGeoJson)}
-          onSelectRoute={setActiveRouteId}
-          onToggleCompare={toggleCompare}
-          onGenerateRoutes={generateOsmCandidates}
-        />
-        <RouteDetails route={activeRoute} />
-      </aside>
-      <SuperMapMap
-        routes={allRoutes}
-        supportPoints={supportPoints}
-        activeRouteId={activeRouteId}
-        comparedRouteIds={comparedRouteIds}
-        layerVisibility={mapLayerVisibility}
-        basemapMode={basemapMode}
-        onSelectRoute={setActiveRouteId}
-      />
-      <aside className="right-panel">
-        <SuperMapStatusPanel />
-        <LayerControlPanel
-          visibility={mapLayerVisibility}
+          layerVisibility={mapLayerVisibility}
           basemapMode={basemapMode}
-          supportPointCount={supportPoints.length}
-          onChange={setMapLayerVisibility}
-          onBasemapChange={setBasemapMode}
+          onSelectRoute={setActiveRouteId}
         />
-        <RouteAnalysisPanel route={activeRoute} supportPoints={supportPoints} />
-        <Scene3DPanel />
-        <DataPackagePanel />
-        <ComparisonPanel routes={comparedRoutes} selectionProfile={selectionProfile} />
-        <ExportPanel routes={comparedRoutes} supportPoints={supportPoints} />
-      </aside>
+
+        {workspaceMode === "selection" && (
+          <>
+            <GisSelectionPanel
+              activeProfile={selectionProfile}
+              settings={planningSettings}
+              canGenerate={Boolean(osmRoadGeoJson)}
+              onProfileChange={changeSelectionProfile}
+              onWeightChange={changePlanningWeight}
+              onGenerateRoutes={generateOsmCandidates}
+            />
+            <CandidateRouteDrawer
+              routes={rankedRoutes}
+              activeRouteId={activeRouteId}
+              comparedRouteIds={comparedRouteIds}
+              generationStatus={generationStatus}
+              onSelectRoute={setActiveRouteId}
+              onToggleCompare={toggleCompare}
+              onAnalyzeRoute={analyzeRoute}
+            />
+          </>
+        )}
+
+        {workspaceMode === "analysis" && (
+          <aside className="gis-analysis-dock" aria-label="赛道分析面板">
+            <button type="button" className="back-to-selection" onClick={() => setWorkspaceMode("selection")}>
+              返回智能选型
+            </button>
+            <RouteDetails route={activeRoute} />
+            <RouteAnalysisPanel route={activeRoute} supportPoints={supportPoints} />
+            <ComparisonPanel routes={comparedRoutes} selectionProfile={selectionProfile} />
+            <ExportPanel routes={comparedRoutes} supportPoints={supportPoints} />
+          </aside>
+        )}
+
+        <aside className="gis-utility-dock" aria-label="GIS 图层与服务">
+          <SuperMapStatusPanel />
+          <LayerControlPanel
+            visibility={mapLayerVisibility}
+            basemapMode={basemapMode}
+            supportPointCount={supportPoints.length}
+            onChange={setMapLayerVisibility}
+            onBasemapChange={setBasemapMode}
+          />
+          <DataPackagePanel />
+          {workspaceMode === "analysis" && (
+            <>
+              <Scene3DPanel />
+            </>
+          )}
+        </aside>
+      </section>
     </main>
   );
 }
