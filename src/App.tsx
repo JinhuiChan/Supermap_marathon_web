@@ -173,7 +173,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
         />
 
         {workspaceMode === "selection" && (
-          <>
+          <aside className="gis-selection-dock" aria-label="智能选型工作区">
             <GisSelectionPanel
               activeProfile={selectionProfile}
               settings={planningSettings}
@@ -191,7 +191,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
               onToggleCompare={toggleCompare}
               onAnalyzeRoute={analyzeRoute}
             />
-          </>
+          </aside>
         )}
 
         {workspaceMode === "analysis" && (

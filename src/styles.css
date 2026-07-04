@@ -1147,74 +1147,80 @@ textarea {
 }
 
 .gis-map-stage {
-  position: relative;
+  display: grid;
+  grid-template-columns: minmax(340px, 390px) minmax(420px, 1fr) 320px;
+  grid-template-areas: "left map right";
+  gap: 12px;
+  height: calc(100vh - 64px);
   min-height: 0;
+  padding: 12px;
   overflow: hidden;
 }
 
 .gis-map-stage > .map-panel {
-  height: calc(100vh - 64px);
-  min-height: calc(100vh - 64px);
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
+  grid-area: map;
+  height: 100%;
+  min-height: 0;
+  border: 1px solid #d5dee6;
+  border-radius: 8px;
+  box-shadow: 0 14px 32px rgba(24, 39, 54, 0.1);
 }
 
 .gis-map-stage .map-toolbar {
-  left: 376px;
-  right: 356px;
+  left: 14px;
+  right: 14px;
+}
+
+.gis-selection-dock,
+.gis-analysis-dock,
+.gis-utility-dock {
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.gis-selection-dock {
+  grid-template-rows: minmax(0, 1fr) minmax(220px, 0.46fr);
+}
+
+.gis-selection-dock,
+.gis-analysis-dock {
+  grid-area: left;
+}
+
+.gis-utility-dock {
+  grid-area: right;
 }
 
 .gis-selection-panel,
-.candidate-route-drawer,
-.gis-analysis-dock,
-.gis-utility-dock {
-  position: absolute;
-  z-index: 950;
-  overflow: auto;
+.candidate-route-drawer {
   border: 1px solid rgba(215, 225, 232, 0.94);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 18px 40px rgba(23, 39, 54, 0.16);
-  backdrop-filter: blur(10px);
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(23, 39, 54, 0.08);
 }
 
 .gis-selection-panel {
-  top: 78px;
-  left: 14px;
-  bottom: 18px;
-  width: 344px;
+  min-height: 0;
+  overflow: auto;
   padding: 14px;
 }
 
 .candidate-route-drawer {
-  left: 374px;
-  right: 360px;
-  bottom: 18px;
-  max-height: 34vh;
+  min-height: 0;
+  overflow: auto;
   padding: 12px;
 }
 
 .gis-analysis-dock {
-  top: 78px;
-  left: 14px;
-  bottom: 18px;
-  width: min(430px, calc(100vw - 28px));
-  display: grid;
-  align-content: start;
-  gap: 12px;
-  padding: 12px;
+  padding-right: 2px;
 }
 
 .gis-utility-dock {
-  top: 78px;
-  right: 14px;
-  bottom: 18px;
-  width: 330px;
-  display: grid;
-  align-content: start;
-  gap: 12px;
-  padding: 12px;
+  padding-left: 2px;
 }
 
 .gis-panel-heading {
@@ -1393,10 +1399,8 @@ textarea {
 
 .drawer-route-list {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(280px, 330px);
+  grid-template-columns: 1fr;
   gap: 10px;
-  overflow-x: auto;
   padding-bottom: 4px;
 }
 
@@ -1491,24 +1495,18 @@ textarea {
 }
 
 @media (max-width: 1180px) {
+  .gis-map-stage {
+    grid-template-columns: 360px minmax(420px, 1fr);
+    grid-template-areas: "left map";
+  }
+
   .gis-map-stage .map-toolbar {
     left: 14px;
     right: 14px;
-    top: 72px;
-  }
-
-  .gis-selection-panel,
-  .gis-analysis-dock {
-    width: 330px;
   }
 
   .gis-utility-dock {
     display: none;
-  }
-
-  .candidate-route-drawer {
-    left: 360px;
-    right: 14px;
   }
 }
 
@@ -1526,21 +1524,39 @@ textarea {
     min-width: 0;
   }
 
+  .gis-map-stage {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "map"
+      "left"
+      "right";
+    height: auto;
+    overflow: auto;
+  }
+
   .gis-map-stage > .map-panel {
     height: 520px;
     min-height: 520px;
   }
 
-  .gis-selection-panel,
-  .candidate-route-drawer,
-  .gis-analysis-dock {
-    position: static;
-    width: auto;
-    max-height: none;
-    margin: 10px;
+  .gis-selection-dock,
+  .gis-analysis-dock,
+  .gis-utility-dock {
+    height: auto;
+    overflow: visible;
   }
 
-  .gis-map-stage {
-    overflow: auto;
+  .gis-selection-dock {
+    grid-template-rows: none;
+  }
+
+  .gis-selection-panel,
+  .candidate-route-drawer {
+    overflow: visible;
+  }
+
+  .gis-utility-dock {
+    display: grid;
   }
 }
