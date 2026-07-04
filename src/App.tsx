@@ -44,6 +44,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
   const [osmRoutes, setOsmRoutes] = useState<MarathonRoute[]>([]);
   const [osmRoadGeoJson, setOsmRoadGeoJson] = useState<unknown>(null);
   const [generationStatus, setGenerationStatus] = useState("正在加载 OSM 道路网络");
+  const [isGeneratingRoutes, setIsGeneratingRoutes] = useState(false);
   const [selectionProfile, setSelectionProfile] = useState<RouteSelectionProfile>("balanced");
   const [activeRouteId, setActiveRouteId] = useState("");
   const [comparedRouteIds, setComparedRouteIds] = useState<string[]>([]);
@@ -104,26 +105,39 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
   };
 
   const generateOsmCandidates = () => {
-    if (!osmRoadGeoJson || !planningStartPoint || !planningEndPoint) return;
+    if (!osmRoadGeoJson || !planningStartPoint || !planningEndPoint || isGeneratingRoutes) return;
 
     setGenerationStatus("正在执行路网拓扑搜索与阻力因子评价");
-    const routes = buildOsmMarathonCandidateRoutes(osmRoadGeoJson, {
-      targetDistanceKm: planningSettings.targetDistanceKm,
-      startPoint: planningStartPoint,
-      endPoint: planningEndPoint
-    });
-    const ranked = compareRoutes(routes, selectionProfile);
+    setIsGeneratingRoutes(true);
 
-    setOsmRoutes(routes);
-    setGenerationStatus(routes.length > 0 ? `已生成 ${routes.length} 条道路网络候选路线` : "未生成可用候选路线，请调整起终点或约束条件");
+    window.setTimeout(() => {
+      try {
+        const routes = buildOsmMarathonCandidateRoutes(osmRoadGeoJson, {
+          targetDistanceKm: planningSettings.targetDistanceKm,
+          startPoint: planningStartPoint,
+          endPoint: planningEndPoint
+        });
+        const ranked = compareRoutes(routes, selectionProfile);
 
-    if (ranked.length > 0) {
-      setActiveRouteId(ranked[0].id);
-      setComparedRouteIds(ranked.slice(0, 3).map((route) => route.id));
-    } else {
-      setActiveRouteId("");
-      setComparedRouteIds([]);
-    }
+        setOsmRoutes(routes);
+        setGenerationStatus(routes.length > 0 ? `已生成 ${routes.length} 条道路网络候选路线` : "未生成可用候选路线，请调整起终点或约束条件");
+
+        if (ranked.length > 0) {
+          setActiveRouteId(ranked[0].id);
+          setComparedRouteIds(ranked.slice(0, 3).map((route) => route.id));
+        } else {
+          setActiveRouteId("");
+          setComparedRouteIds([]);
+        }
+      } catch {
+        setOsmRoutes([]);
+        setActiveRouteId("");
+        setComparedRouteIds([]);
+        setGenerationStatus("路网选线模型运行失败，请检查道路网络或起终点位置");
+      } finally {
+        setIsGeneratingRoutes(false);
+      }
+    }, 50);
   };
 
   const applyRecommendation = (profile = selectionProfile) => {
@@ -229,6 +243,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
               startPoint={planningStartPoint}
               endPoint={planningEndPoint}
               activePointTool={activePointTool}
+              isGenerating={isGeneratingRoutes}
               onProfileChange={changeSelectionProfile}
               onWeightChange={changePlanningWeight}
               onPointToolChange={setActivePointTool}

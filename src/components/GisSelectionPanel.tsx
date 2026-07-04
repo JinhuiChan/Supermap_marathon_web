@@ -22,6 +22,7 @@ interface GisSelectionPanelProps {
   startPoint: Coordinate | null;
   endPoint: Coordinate | null;
   activePointTool: PlanningPointTool | null;
+  isGenerating?: boolean;
   onProfileChange: (profile: RouteSelectionProfile) => void;
   onWeightChange: (group: "poiWeights" | "impedanceWeights", key: string, value: number) => void;
   onPointToolChange: (tool: PlanningPointTool | null) => void;
@@ -82,6 +83,7 @@ export function GisSelectionPanel({
   startPoint,
   endPoint,
   activePointTool,
+  isGenerating = false,
   onProfileChange,
   onWeightChange,
   onPointToolChange,
@@ -194,8 +196,8 @@ export function GisSelectionPanel({
         onChange={(key, value) => onWeightChange("impedanceWeights", key, value)}
       />
 
-      <button type="button" className="gis-generate-button" disabled={!canGenerate} onClick={onGenerateRoutes}>
-        运行路网选线模型
+      <button type="button" className="gis-generate-button" disabled={!canGenerate || isGenerating} onClick={onGenerateRoutes}>
+        {isGenerating ? "正在计算路网候选..." : "运行路网选线模型"}
       </button>
     </aside>
   );
