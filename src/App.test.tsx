@@ -10,10 +10,15 @@ describe("App", () => {
     expect(html).toContain("智能选型");
     expect(html).toContain("赛道分析");
     expect(html).toContain("空间约束");
+    expect(html).toContain("选择起点");
+    expect(html).toContain("选择终点");
+    expect(html).toContain("起点：未设置");
+    expect(html).toContain("终点：未设置");
+    expect(html).toContain("请先在地图上设置起点和终点");
     expect(html).toContain("POI 服务权重");
     expect(html).toContain("阻力因子");
-    expect(html).toContain("候选方案抽屉");
-    expect(html).toContain("2026 Wuhan Marathon official route reference");
+    expect(html).toContain("候选方案");
+    expect(html).not.toContain("2026 Wuhan Marathon official route reference");
     expect(html).toContain("SuperMap iServer");
     expect(html).toContain("iClient JavaScript");
     expect(html).toContain("ASTGTMV003_N30E114");
@@ -27,6 +32,7 @@ describe("App", () => {
     );
 
     expect(html).toContain("gis-selection-panel");
-    expect(html).toContain("候选方案抽屉");
+    expect(html).toContain("选择起点");
+    expect(html).toContain("请先在地图上设置起点和终点");
   });
 });

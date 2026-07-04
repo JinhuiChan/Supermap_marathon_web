@@ -1,5 +1,6 @@
 import type { BasemapMode } from "../../config/supermap";
 import type { SupportPoint } from "../../data/supportPoints";
+import type { Coordinate } from "../../domain/routeMetrics";
 import type { MarathonRoute } from "../../domain/routeMetrics";
 import { roadNetworkStyle } from "../layers/RoadNetworkLayer";
 import { buildRouteDirectionMarkers, computeRouteStyle, findNearestRouteId, toLeafletLatLngs } from "../layers/RouteLayer";
@@ -22,10 +23,12 @@ export class MapEngine {
   private routeDirectionLayers: Map<string, unknown[]> = new Map();
   private supportPointLayers: unknown[] = [];
   private roadNetworkLayers: unknown[] = [];
+  private planningPointLayers: unknown[] = [];
   private roadNetworkLines: [number, number][][] = [];
   private basemapLayers: Partial<Record<BasemapMode, unknown>> = {};
   private activeBasemapLayer: unknown = null;
   private onRouteClickCb: ((id: string) => void) | null = null;
+  private onMapClickCb: ((coordinate: Coordinate) => void) | null = null;
   private container: HTMLElement;
   private wmsUrl: string;
   private wmsLayerName: string;
@@ -42,6 +45,8 @@ export class MapEngine {
   private routesVisible = true;
   private supportPointsVisible = true;
   private roadNetworkVisible = true;
+  private planningStartPoint: Coordinate | null = null;
+  private planningEndPoint: Coordinate | null = null;
 
   constructor(options: MapEngineOptions) {
     this.container = options.container;
@@ -94,7 +99,12 @@ export class MapEngine {
 
     (map as { on: (event: string, cb: (e: Record<string, unknown>) => void) => void }).on("click", (e) => {
       const latlng = e.latlng as { lat: number; lng: number } | undefined;
-      if (!latlng || !this.onRouteClickCb || !this.routesVisible) return;
+      if (!latlng) return;
+      if (this.onMapClickCb) {
+        this.onMapClickCb([latlng.lng, latlng.lat]);
+        return;
+      }
+      if (!this.onRouteClickCb || !this.routesVisible) return;
       const clickedId = this.findNearestRoute([latlng.lng, latlng.lat]);
       if (clickedId) this.onRouteClickCb(clickedId);
     });
@@ -159,6 +169,13 @@ export class MapEngine {
     if (this.destroyed || !this.map) return;
     this.roadNetworkLines = lines;
     this.renderRoadNetwork();
+  }
+
+  setPlanningPoints(startPoint: Coordinate | null, endPoint: Coordinate | null): void {
+    if (this.destroyed || !this.map) return;
+    this.planningStartPoint = startPoint;
+    this.planningEndPoint = endPoint;
+    this.renderPlanningPoints();
   }
 
   private renderRoadNetwork(): void {
@@ -233,6 +250,11 @@ export class MapEngine {
     this.onRouteClickCb = callback;
   }
 
+  onMapClick(callback: ((coordinate: Coordinate) => void) | null): void {
+    if (this.destroyed) return;
+    this.onMapClickCb = callback;
+  }
+
   destroy(): void {
     this.destroyed = true;
     if (this.map) {
@@ -244,6 +266,7 @@ export class MapEngine {
     this.clearRouteDirectionLayers();
     this.clearSupportPointLayers();
     this.clearRoadNetworkLayers();
+    this.clearPlanningPointLayers();
     this.basemapLayers = {};
     this.activeBasemapLayer = null;
     this.container.innerHTML = "";
@@ -363,6 +386,56 @@ export class MapEngine {
       }
     }
     this.supportPointLayers = [];
+  }
+
+  private renderPlanningPoints(): void {
+    if (this.destroyed || !this.map) return;
+    this.clearPlanningPointLayers();
+
+    const L = (window as unknown as Record<string, unknown>).L as Record<string, unknown> | undefined;
+    if (!L) return;
+
+    const marker = L.marker as ((latlng: [number, number], opts?: Record<string, unknown>) => unknown) | undefined;
+    const divIcon = L.divIcon as ((opts: Record<string, unknown>) => unknown) | undefined;
+    if (!marker || !divIcon) return;
+
+    const points: Array<{ role: "start" | "end"; label: string; coordinate: Coordinate | null }> = [
+      { role: "start", label: "起点", coordinate: this.planningStartPoint },
+      { role: "end", label: "终点", coordinate: this.planningEndPoint }
+    ];
+
+    for (const point of points) {
+      if (!point.coordinate) continue;
+      const icon = divIcon({
+        className: `planning-point-marker ${point.role}`,
+        html: `<span>${point.role === "start" ? "起" : "终"}</span>`,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17]
+      });
+      const layer = marker([point.coordinate[1], point.coordinate[0]], {
+        icon,
+        keyboard: false
+      });
+      const leafletMarker = layer as {
+        addTo?: (m: unknown) => unknown;
+        bindTooltip?: (label: string, opts?: Record<string, unknown>) => unknown;
+      };
+      leafletMarker.bindTooltip?.(`${point.label} ${point.coordinate[0].toFixed(5)}, ${point.coordinate[1].toFixed(5)}`, {
+        direction: "top"
+      });
+      leafletMarker.addTo?.(this.map);
+      this.planningPointLayers.push(layer);
+    }
+  }
+
+  private clearPlanningPointLayers(): void {
+    for (const layer of this.planningPointLayers) {
+      if (this.map) {
+        const mapWithRemove = this.map as { removeLayer?: (l: unknown) => void };
+        mapWithRemove.removeLayer?.(layer);
+      }
+    }
+    this.planningPointLayers = [];
   }
 
   private clearRoadNetworkLayers(): void {

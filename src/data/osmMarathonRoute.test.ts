@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { buildOsmMarathonCandidateRoutes, buildOsmMarathonTestRoute } from "./osmMarathonRoute";
+import { haversineKm } from "../domain/roadAttributes";
 
 const smallRoadNetwork = {
   type: "FeatureCollection",
@@ -82,6 +83,19 @@ describe("osmMarathonRoute", () => {
     ]);
     expect(routes.every((route) => route.lineage?.roadAligned === true)).toBe(true);
     expect(routes.every((route) => route.lengthKm > 4.5 && route.lengthKm < 5.5)).toBe(true);
+  });
+
+  test("builds candidate routes between user-selected start and finish points", () => {
+    const endPoint: [number, number] = [114.3, 30.61];
+    const routes = buildOsmMarathonCandidateRoutes(smallRoadNetwork, {
+      targetDistanceKm: 3.5,
+      startPoint: [114.3, 30.6],
+      endPoint
+    });
+
+    expect(routes.length).toBeGreaterThan(0);
+    expect(routes[0].id).toContain("user-osm");
+    expect(haversineKm(routes[0].coordinates.at(-1) ?? [0, 0], endPoint)).toBeLessThan(0.2);
   });
 
   test("prefers marathon-suitable arterial roads over narrow local roads", () => {

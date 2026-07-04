@@ -3,6 +3,9 @@ import { summarizeMarathonSuitability } from "../domain/competitionSuitability";
 import type { RoadEdge, RoadGraph, RoadLevel } from "../domain/roadNetwork";
 import type { PoiPreferences } from "../domain/poiTypes";
 import type { Coordinate, ElevationPoint, MarathonRoute, RouteMetrics } from "../domain/routeMetrics";
+import { generateRoutes } from "../domain/routeGenerator";
+import { pathToMarathonRoute } from "../domain/routeReconstruct";
+import type { RouteConstraints } from "../domain/routeConstraints";
 import { augmentGraphWithSupportPois } from "./poiData";
 import { buildRoadGraphFromGeoJson } from "./roadNetworkGeoJson";
 
@@ -16,6 +19,7 @@ interface OSMRouteOptions {
 interface OSMCandidateOptions {
   targetDistanceKm: number;
   startPoint: Coordinate;
+  endPoint?: Coordinate;
 }
 
 type RoutePreference = "balanced" | "main-road" | "scenic";
@@ -66,6 +70,9 @@ export function buildOsmMarathonCandidateRoutes(
 ): MarathonRoute[] {
   const graph = buildRoadGraphFromGeoJson(geojson);
   augmentGraphWithSupportPois(graph);
+  if (options.endPoint) {
+    return buildUserConstrainedRoutes(graph, { ...options, endPoint: options.endPoint });
+  }
   return candidateProfiles
     .map((profile, index) =>
       buildRouteFromGraph(graph, {
@@ -79,6 +86,94 @@ export function buildOsmMarathonCandidateRoutes(
       })
     )
     .filter((route): route is MarathonRoute => route !== null);
+}
+
+function buildUserConstrainedRoutes(graph: RoadGraph, options: OSMCandidateOptions & { endPoint: Coordinate }): MarathonRoute[] {
+  const constraints: RouteConstraints = {
+    startPoint: options.startPoint,
+    endPoint: options.endPoint,
+    mustPassPoints: [],
+    avoidZones: [],
+    targetDistanceKm: options.targetDistanceKm
+  };
+  const paths = generateRoutes(graph, constraints, {
+    count: 3,
+    seed: 2026,
+    maxIterations: 80,
+    lengthToleranceKm: Math.max(0.8, Math.min(5, options.targetDistanceKm * 0.18))
+  });
+
+  const candidatePaths = paths.length > 0 ? paths : buildShortestConnectorPath(graph, constraints);
+
+  return candidatePaths.map((path, index) => ({
+    ...pathToMarathonRoute(path, graph, index),
+    id: `user-osm-${index + 1}`,
+    name: paths.length > 0 ? `用户选点候选路线 ${index + 1}` : "起终点道路通达校核线",
+    color: candidateProfiles[index % candidateProfiles.length].color,
+    lineage: {
+      source: "osm-generated" as const,
+      roadAligned: true,
+      note: paths.length > 0
+        ? "基于用户在 Web 地图设置的起点、终点和本地 OSM 道路网络生成"
+        : "未命中目标里程候选时，基于道路网络返回的起终点最短通达校核线"
+    }
+  }));
+}
+
+function buildShortestConnectorPath(graph: RoadGraph, constraints: RouteConstraints) {
+  const startNodeId = findNearestNodeId(graph, constraints.startPoint);
+  const endNodeId = findNearestNodeId(graph, constraints.endPoint);
+  if (!startNodeId || !endNodeId) return [];
+
+  const distances = new Map<string, number>([[startNodeId, 0]]);
+  const previous = new Map<string, { nodeId: string; edgeId: string }>();
+  const unsettled = new Set<string>([startNodeId]);
+
+  while (unsettled.size > 0) {
+    let current = "";
+    let currentDistance = Number.POSITIVE_INFINITY;
+    for (const nodeId of unsettled) {
+      const distance = distances.get(nodeId) ?? Number.POSITIVE_INFINITY;
+      if (distance < currentDistance) {
+        current = nodeId;
+        currentDistance = distance;
+      }
+    }
+
+    if (!current) break;
+    unsettled.delete(current);
+    if (current === endNodeId) break;
+
+    for (const edge of graph.adjacency.get(current) ?? []) {
+      if (!edge.competitionSuitable) continue;
+      const nextDistance = currentDistance + edge.lengthKm;
+      if (nextDistance < (distances.get(edge.toNodeId) ?? Number.POSITIVE_INFINITY)) {
+        distances.set(edge.toNodeId, nextDistance);
+        previous.set(edge.toNodeId, { nodeId: current, edgeId: edge.id });
+        unsettled.add(edge.toNodeId);
+      }
+    }
+  }
+
+  if (!previous.has(endNodeId) && startNodeId !== endNodeId) return [];
+
+  const nodeIds: string[] = [endNodeId];
+  const edgeIds: string[] = [];
+  let cursor = endNodeId;
+  while (cursor !== startNodeId) {
+    const step = previous.get(cursor);
+    if (!step) return [];
+    edgeIds.unshift(step.edgeId);
+    nodeIds.unshift(step.nodeId);
+    cursor = step.nodeId;
+  }
+
+  const totalLengthKm = edgeIds.reduce((sum, edgeId) => sum + (graph.edges.get(edgeId)?.lengthKm ?? 0), 0);
+  return [{
+    nodeIds,
+    edgeIds,
+    totalLengthKm: Math.round(totalLengthKm * 1000) / 1000
+  }];
 }
 
 function buildRouteFromGraph(

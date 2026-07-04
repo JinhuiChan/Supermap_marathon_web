@@ -1,4 +1,7 @@
 import { routeSelectionProfiles, type RouteSelectionProfile } from "../domain/routeMetrics";
+import type { Coordinate } from "../domain/routeMetrics";
+
+export type PlanningPointTool = "start" | "end";
 
 export interface GisPlanningSettings {
   targetDistanceKm: number;
@@ -16,8 +19,13 @@ interface GisSelectionPanelProps {
   activeProfile: RouteSelectionProfile;
   settings: GisPlanningSettings;
   canGenerate: boolean;
+  startPoint: Coordinate | null;
+  endPoint: Coordinate | null;
+  activePointTool: PlanningPointTool | null;
   onProfileChange: (profile: RouteSelectionProfile) => void;
   onWeightChange: (group: "poiWeights" | "impedanceWeights", key: string, value: number) => void;
+  onPointToolChange: (tool: PlanningPointTool | null) => void;
+  onClearPlanningPoints: () => void;
   onGenerateRoutes: () => void;
 }
 
@@ -71,8 +79,13 @@ export function GisSelectionPanel({
   activeProfile,
   settings,
   canGenerate,
+  startPoint,
+  endPoint,
+  activePointTool,
   onProfileChange,
   onWeightChange,
+  onPointToolChange,
+  onClearPlanningPoints,
   onGenerateRoutes
 }: GisSelectionPanelProps) {
   return (
@@ -102,6 +115,44 @@ export function GisSelectionPanel({
       </section>
 
       <section className="gis-tool-group">
+        <h3>起终点交互选点</h3>
+        <div className="gis-point-tool-grid">
+          <button
+            type="button"
+            className={activePointTool === "start" ? "active" : ""}
+            aria-pressed={activePointTool === "start"}
+            onClick={() => onPointToolChange(activePointTool === "start" ? null : "start")}
+          >
+            选择起点
+          </button>
+          <button
+            type="button"
+            className={activePointTool === "end" ? "active" : ""}
+            aria-pressed={activePointTool === "end"}
+            onClick={() => onPointToolChange(activePointTool === "end" ? null : "end")}
+          >
+            选择终点
+          </button>
+        </div>
+        <dl className="gis-point-summary">
+          <div>
+            <dt>起点</dt>
+            <dd>起点：{formatCoordinateLabel(startPoint)}</dd>
+          </div>
+          <div>
+            <dt>终点</dt>
+            <dd>终点：{formatCoordinateLabel(endPoint)}</dd>
+          </div>
+        </dl>
+        <p className="gis-tool-hint">
+          {activePointTool ? "请在地图上点击道路附近位置，系统会吸附到最近路网节点。" : "先选择起点和终点，再运行路网选线模型。"}
+        </p>
+        <button type="button" className="gis-clear-points-button" onClick={onClearPlanningPoints}>
+          清空起终点
+        </button>
+      </section>
+
+      <section className="gis-tool-group">
         <h3>空间约束</h3>
         <dl className="gis-constraint-list">
           <div>
@@ -114,7 +165,7 @@ export function GisSelectionPanel({
           </div>
           <div>
             <dt>起终点约束</dt>
-            <dd>{settings.constraints.startFinish}</dd>
+            <dd>{startPoint && endPoint ? "Web 地图交互指定，路网节点吸附" : settings.constraints.startFinish}</dd>
           </div>
         </dl>
         <div className="gis-chip-row" aria-label="必经控制点">
@@ -144,10 +195,15 @@ export function GisSelectionPanel({
       />
 
       <button type="button" className="gis-generate-button" disabled={!canGenerate} onClick={onGenerateRoutes}>
-        运行空间选线模型
+        运行路网选线模型
       </button>
     </aside>
   );
+}
+
+function formatCoordinateLabel(coordinate: Coordinate | null): string {
+  if (!coordinate) return "未设置";
+  return `${coordinate[0].toFixed(5)}, ${coordinate[1].toFixed(5)}`;
 }
 
 function WeightGroup({

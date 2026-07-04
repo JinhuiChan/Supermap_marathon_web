@@ -767,6 +767,29 @@ textarea {
   transform-origin: 50% 50%;
 }
 
+.planning-point-marker {
+  width: 34px !important;
+  height: 34px !important;
+}
+
+.planning-point-marker span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  background: #0f5ca8;
+  box-shadow: 0 8px 18px rgba(15, 38, 58, 0.28);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.planning-point-marker.end span {
+  background: #c2410c;
+}
+
 .leaflet-control-attribution {
   position: absolute;
   right: 0;
@@ -1301,6 +1324,66 @@ textarea {
   line-height: 1.35;
 }
 
+.gis-point-tool-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.gis-point-tool-grid button,
+.gis-clear-points-button {
+  min-height: 38px;
+  border: 1px solid #dbe5ee;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #173a52;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.gis-point-tool-grid button.active {
+  border-color: #0f5ca8;
+  background: #eaf3ff;
+  color: #0f5ca8;
+}
+
+.gis-point-summary {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+}
+
+.gis-point-summary div {
+  border: 1px solid #e3eaf0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fbfcfd;
+}
+
+.gis-point-summary dt {
+  color: #6f7f90;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.gis-point-summary dd {
+  margin: 4px 0 0;
+  color: #203244;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.gis-tool-hint {
+  margin: 0;
+  color: #5f7184;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.gis-clear-points-button {
+  background: #f7fafc;
+}
+
 .gis-constraint-list {
   display: grid;
   gap: 7px;
@@ -1372,6 +1455,9 @@ textarea {
 }
 
 .gis-generate-button {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   width: 100%;
   min-height: 42px;
   margin-top: 14px;
@@ -1402,6 +1488,26 @@ textarea {
   grid-template-columns: 1fr;
   gap: 10px;
   padding-bottom: 4px;
+}
+
+.drawer-empty-state {
+  border: 1px dashed #cbd8e2;
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8fbfd;
+}
+
+.drawer-empty-state strong {
+  display: block;
+  color: #173a52;
+  font-size: 14px;
+}
+
+.drawer-empty-state p {
+  margin: 8px 0 0;
+  color: #607284;
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 .drawer-route-card {

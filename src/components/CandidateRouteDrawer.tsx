@@ -22,10 +22,16 @@ export function CandidateRouteDrawer({
   return (
     <aside className="candidate-route-drawer" aria-label="候选方案抽屉">
       <div className="drawer-heading">
-        <span>候选方案抽屉</span>
+        <span>候选方案</span>
         <strong>{generationStatus}</strong>
       </div>
       <div className="drawer-route-list">
+        {routes.length === 0 && (
+          <div className="drawer-empty-state">
+            <strong>请先在地图上设置起点和终点</strong>
+            <p>系统会基于武汉道路网络、道路等级、POI 服务权重和阻力因子生成候选赛道。</p>
+          </div>
+        )}
         {routes.map((route) => {
           const score = scoreRoute(route);
           const selected = comparedRouteIds.includes(route.id);

@@ -3,21 +3,33 @@ import { ComparisonPanel } from "./components/ComparisonPanel";
 import { CandidateRouteDrawer } from "./components/CandidateRouteDrawer";
 import { DataPackagePanel } from "./components/DataPackagePanel";
 import { ExportPanel } from "./components/ExportPanel";
-import { GisModeNav, type GisWorkspaceMode } from "./components/GisModeNav";
-import { GisSelectionPanel, defaultGisPlanningSettings, type GisPlanningSettings } from "./components/GisSelectionPanel";
+import {
+  GisModeNav,
+  type GisWorkspaceMode
+} from "./components/GisModeNav";
+import {
+  GisSelectionPanel,
+  defaultGisPlanningSettings,
+  type GisPlanningSettings,
+  type PlanningPointTool
+} from "./components/GisSelectionPanel";
 import { LayerControlPanel } from "./components/LayerControlPanel";
 import { RouteAnalysisPanel } from "./components/RouteAnalysisPanel";
 import { RouteDetails } from "./components/RouteDetails";
 import { SuperMapStatusPanel } from "./components/SuperMapStatusPanel";
 import type { BasemapMode } from "./config/supermap";
 import { superMapConfig } from "./config/supermap";
+import { buildOsmMarathonCandidateRoutes } from "./data/osmMarathonRoute";
+import { supportPoints } from "./data/supportPoints";
+import {
+  compareRoutes,
+  type Coordinate,
+  type MarathonRoute,
+  type RouteSelectionProfile
+} from "./domain/routeMetrics";
 import type { MapLayerVisibility } from "./map/components/SuperMapMap";
 import { SuperMapMap } from "./map/components/SuperMapMap";
 import { Scene3DPanel } from "./map/components/Scene3DPanel";
-import { demoRoutes } from "./data/routes";
-import { buildOsmMarathonCandidateRoutes } from "./data/osmMarathonRoute";
-import { supportPoints } from "./data/supportPoints";
-import { compareRoutes, type MarathonRoute, type RouteSelectionProfile } from "./domain/routeMetrics";
 
 interface AppProps {
   initialLayerVisibility?: MapLayerVisibility;
@@ -26,13 +38,15 @@ interface AppProps {
 export default function App({ initialLayerVisibility }: AppProps = {}) {
   const [workspaceMode, setWorkspaceMode] = useState<GisWorkspaceMode>("selection");
   const [planningSettings, setPlanningSettings] = useState<GisPlanningSettings>(defaultGisPlanningSettings);
+  const [planningStartPoint, setPlanningStartPoint] = useState<Coordinate | null>(null);
+  const [planningEndPoint, setPlanningEndPoint] = useState<Coordinate | null>(null);
+  const [activePointTool, setActivePointTool] = useState<PlanningPointTool | null>(null);
   const [osmRoutes, setOsmRoutes] = useState<MarathonRoute[]>([]);
   const [osmRoadGeoJson, setOsmRoadGeoJson] = useState<unknown>(null);
-  const [generationStatus, setGenerationStatus] = useState("正在加载 OSM 道路走廊");
-  const allRoutes = useMemo(() => [...demoRoutes, ...osmRoutes], [osmRoutes]);
+  const [generationStatus, setGenerationStatus] = useState("正在加载 OSM 道路网络");
   const [selectionProfile, setSelectionProfile] = useState<RouteSelectionProfile>("balanced");
-  const [activeRouteId, setActiveRouteId] = useState(allRoutes[0].id);
-  const [comparedRouteIds, setComparedRouteIds] = useState<string[]>([allRoutes[0].id]);
+  const [activeRouteId, setActiveRouteId] = useState("");
+  const [comparedRouteIds, setComparedRouteIds] = useState<string[]>([]);
   const [mapLayerVisibility, setMapLayerVisibility] = useState<MapLayerVisibility>(
     initialLayerVisibility ?? {
       routes: true,
@@ -41,9 +55,11 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
     }
   );
   const [basemapMode, setBasemapMode] = useState<BasemapMode>(superMapConfig.defaultBasemap);
+
+  const allRoutes = useMemo(() => osmRoutes, [osmRoutes]);
   const activeRoute = useMemo(
-    () => allRoutes.find((route) => route.id === activeRouteId) ?? allRoutes[0],
-    [activeRouteId]
+    () => allRoutes.find((route) => route.id === activeRouteId) ?? allRoutes[0] ?? null,
+    [allRoutes, activeRouteId]
   );
   const comparedRoutes = useMemo(
     () => allRoutes.filter((route) => comparedRouteIds.includes(route.id)),
@@ -67,21 +83,12 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
       .then((geojson) => {
         if (cancelled) return;
         setOsmRoadGeoJson(geojson);
-        const routes = buildOsmMarathonCandidateRoutes(geojson, {
-          targetDistanceKm: 42.195,
-          startPoint: [114.302, 30.604]
-        });
-        setOsmRoutes(routes);
-        setGenerationStatus(`已生成 ${routes.length} 条 OSM 候选路线`);
-        if (routes.length > 0) {
-          setActiveRouteId(routes[0].id);
-          setComparedRouteIds([demoRoutes[0].id, ...routes.slice(0, 2).map((route) => route.id)]);
-        }
+        setGenerationStatus("道路网络已加载，请先在地图上设置起点和终点");
       })
       .catch(() => {
         if (!cancelled) {
           setOsmRoutes([]);
-          setGenerationStatus("未找到本地 OSM 道路数据");
+          setGenerationStatus("未找到本地 OSM 道路网络数据");
         }
       });
 
@@ -90,19 +97,32 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
     };
   }, []);
 
+  const clearGeneratedRoutes = () => {
+    setOsmRoutes([]);
+    setActiveRouteId("");
+    setComparedRouteIds([]);
+  };
+
   const generateOsmCandidates = () => {
-    if (!osmRoadGeoJson) return;
+    if (!osmRoadGeoJson || !planningStartPoint || !planningEndPoint) return;
+
+    setGenerationStatus("正在执行路网拓扑搜索与阻力因子评价");
     const routes = buildOsmMarathonCandidateRoutes(osmRoadGeoJson, {
-      targetDistanceKm: 42.195,
-      startPoint: [114.302, 30.604]
+      targetDistanceKm: planningSettings.targetDistanceKm,
+      startPoint: planningStartPoint,
+      endPoint: planningEndPoint
     });
-    const nextAllRoutes = [...demoRoutes, ...routes];
-    const ranked = compareRoutes(nextAllRoutes, selectionProfile);
+    const ranked = compareRoutes(routes, selectionProfile);
+
     setOsmRoutes(routes);
-    setGenerationStatus(`已生成 ${routes.length} 条 OSM 候选路线`);
+    setGenerationStatus(routes.length > 0 ? `已生成 ${routes.length} 条道路网络候选路线` : "未生成可用候选路线，请调整起终点或约束条件");
+
     if (ranked.length > 0) {
       setActiveRouteId(ranked[0].id);
       setComparedRouteIds(ranked.slice(0, 3).map((route) => route.id));
+    } else {
+      setActiveRouteId("");
+      setComparedRouteIds([]);
     }
   };
 
@@ -128,6 +148,30 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
     }));
   };
 
+  const handleMapCoordinateSelect = (coordinate: Coordinate) => {
+    if (activePointTool === "start") {
+      setPlanningStartPoint(coordinate);
+      setGenerationStatus(planningEndPoint ? "起点已更新，可运行路网选线模型" : "起点已设置，请继续设置终点");
+    }
+
+    if (activePointTool === "end") {
+      setPlanningEndPoint(coordinate);
+      setGenerationStatus(planningStartPoint ? "终点已更新，可运行路网选线模型" : "终点已设置，请继续设置起点");
+    }
+
+    clearGeneratedRoutes();
+    setActivePointTool(null);
+    setWorkspaceMode("selection");
+  };
+
+  const clearPlanningPoints = () => {
+    setPlanningStartPoint(null);
+    setPlanningEndPoint(null);
+    setActivePointTool(null);
+    clearGeneratedRoutes();
+    setGenerationStatus(osmRoadGeoJson ? "请先在地图上设置起点和终点" : "正在加载 OSM 道路网络");
+  };
+
   const analyzeRoute = (id: string) => {
     setActiveRouteId(id);
     setComparedRouteIds((current) => (current.includes(id) ? current : [...current.slice(-4), id]));
@@ -138,8 +182,8 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
     setComparedRouteIds((current) => {
       if (current.includes(id)) {
         const next = current.filter((item) => item !== id);
-        if (id === activeRouteId && next.length > 0) {
-          setActiveRouteId(next[0]);
+        if (id === activeRouteId) {
+          setActiveRouteId(next[0] ?? "");
         }
         return next;
       }
@@ -156,7 +200,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
           <strong>武汉马拉松赛道空间选线平台</strong>
         </div>
         <GisModeNav mode={workspaceMode} onModeChange={setWorkspaceMode} />
-        <button type="button" className="gis-header-action" onClick={() => applyRecommendation()}>
+        <button type="button" className="gis-header-action" disabled={allRoutes.length === 0} onClick={() => applyRecommendation()}>
           采用当前推荐
         </button>
       </header>
@@ -169,7 +213,11 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
           comparedRouteIds={comparedRouteIds}
           layerVisibility={mapLayerVisibility}
           basemapMode={basemapMode}
+          planningStartPoint={planningStartPoint}
+          planningEndPoint={planningEndPoint}
+          activePointTool={activePointTool}
           onSelectRoute={setActiveRouteId}
+          onMapCoordinateSelect={handleMapCoordinateSelect}
         />
 
         {workspaceMode === "selection" && (
@@ -177,9 +225,14 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
             <GisSelectionPanel
               activeProfile={selectionProfile}
               settings={planningSettings}
-              canGenerate={Boolean(osmRoadGeoJson)}
+              canGenerate={Boolean(osmRoadGeoJson && planningStartPoint && planningEndPoint)}
+              startPoint={planningStartPoint}
+              endPoint={planningEndPoint}
+              activePointTool={activePointTool}
               onProfileChange={changeSelectionProfile}
               onWeightChange={changePlanningWeight}
+              onPointToolChange={setActivePointTool}
+              onClearPlanningPoints={clearPlanningPoints}
               onGenerateRoutes={generateOsmCandidates}
             />
             <CandidateRouteDrawer
@@ -199,10 +252,19 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
             <button type="button" className="back-to-selection" onClick={() => setWorkspaceMode("selection")}>
               返回智能选型
             </button>
-            <RouteDetails route={activeRoute} />
-            <RouteAnalysisPanel route={activeRoute} supportPoints={supportPoints} />
-            <ComparisonPanel routes={comparedRoutes} selectionProfile={selectionProfile} />
-            <ExportPanel routes={comparedRoutes} supportPoints={supportPoints} />
+            {activeRoute ? (
+              <>
+                <RouteDetails route={activeRoute} />
+                <RouteAnalysisPanel route={activeRoute} supportPoints={supportPoints} />
+                <ComparisonPanel routes={comparedRoutes} selectionProfile={selectionProfile} />
+                <ExportPanel routes={comparedRoutes} supportPoints={supportPoints} />
+              </>
+            ) : (
+              <section className="side-section empty-analysis">
+                <h2>尚未生成赛道</h2>
+                <p className="muted">请返回智能选型，在地图上设置起点和终点后运行路网选线模型。</p>
+              </section>
+            )}
           </aside>
         )}
 
@@ -216,11 +278,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
             onBasemapChange={setBasemapMode}
           />
           <DataPackagePanel />
-          {workspaceMode === "analysis" && (
-            <>
-              <Scene3DPanel />
-            </>
-          )}
+          {workspaceMode === "analysis" && <Scene3DPanel />}
         </aside>
       </section>
     </main>

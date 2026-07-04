@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { BasemapMode } from "../../config/supermap";
 import { superMapConfig } from "../../config/supermap";
 import type { SupportPoint } from "../../data/supportPoints";
+import type { Coordinate } from "../../domain/routeMetrics";
 import type { MarathonRoute } from "../../domain/routeMetrics";
 import { RouteMap } from "../../components/RouteMap";
 import { loadScript, loadStylesheet } from "../core/loadScript";
@@ -16,7 +17,11 @@ interface SuperMapMapProps {
   comparedRouteIds: string[];
   layerVisibility: MapLayerVisibility;
   basemapMode: BasemapMode;
+  planningStartPoint?: Coordinate | null;
+  planningEndPoint?: Coordinate | null;
+  activePointTool?: "start" | "end" | null;
   onSelectRoute: (id: string) => void;
+  onMapCoordinateSelect?: (coordinate: Coordinate) => void;
 }
 
 export interface MapLayerVisibility {
@@ -38,7 +43,19 @@ export function getVisibleMapRoutes(
 }
 
 export function SuperMapMap(props: SuperMapMapProps) {
-  const { routes, supportPoints, activeRouteId, comparedRouteIds, layerVisibility, basemapMode, onSelectRoute } = props;
+  const {
+    routes,
+    supportPoints,
+    activeRouteId,
+    comparedRouteIds,
+    layerVisibility,
+    basemapMode,
+    planningStartPoint = null,
+    planningEndPoint = null,
+    activePointTool = null,
+    onSelectRoute,
+    onMapCoordinateSelect
+  } = props;
   const visibleRoutes = useMemo(
     () => getVisibleMapRoutes(routes, comparedRouteIds, layerVisibility.routes),
     [routes, comparedRouteIds, layerVisibility.routes]
@@ -53,6 +70,8 @@ export function SuperMapMap(props: SuperMapMapProps) {
 
   const onSelectRef = useRef(onSelectRoute);
   onSelectRef.current = onSelectRoute;
+  const onMapCoordinateSelectRef = useRef(onMapCoordinateSelect);
+  onMapCoordinateSelectRef.current = onMapCoordinateSelect;
 
   const clearViewportTimers = () => {
     for (const timer of viewportTimersRef.current) {
@@ -143,9 +162,11 @@ export function SuperMapMap(props: SuperMapMapProps) {
         });
         engine.initialize();
         engine.onRouteClick((id) => onSelectRef.current(id));
+        engine.onMapClick(activePointTool ? (coordinate) => onMapCoordinateSelectRef.current?.(coordinate) : null);
         engine.setRoutes(visibleRoutes);
         engine.setSupportPoints(supportPoints);
         engine.setRoadNetwork(roadNetworkLines);
+        engine.setPlanningPoints(planningStartPoint, planningEndPoint);
         engine.highlightRoute(activeRouteId, comparedRouteIds);
         engine.setLayerVisibility(layerVisibility);
         engineRef.current = engine;
@@ -211,6 +232,18 @@ export function SuperMapMap(props: SuperMapMapProps) {
     engine.setRoadNetwork(roadNetworkLines);
   }, [roadNetworkLines, phase]);
 
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!engine || phase !== "ready") return;
+    engine.setPlanningPoints(planningStartPoint, planningEndPoint);
+  }, [planningStartPoint, planningEndPoint, phase]);
+
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!engine || phase !== "ready") return;
+    engine.onMapClick(activePointTool ? (coordinate) => onMapCoordinateSelectRef.current?.(coordinate) : null);
+  }, [activePointTool, phase]);
+
   if (phase === "fallback") {
     return (
       <div className="map-panel" style={{ position: "relative" }}>
@@ -228,7 +261,13 @@ export function SuperMapMap(props: SuperMapMapProps) {
   return (
     <section className="map-panel" aria-label="武汉马拉松赛道地图">
       <div className="map-toolbar">
-        <span>武汉 WebGIS 赛道工作台 · 在线真实地图 + SuperMap DEM</span>
+        <span>
+          {activePointTool === "start"
+            ? "点击地图设置马拉松起点 · 路网节点吸附"
+            : activePointTool === "end"
+              ? "点击地图设置马拉松终点 · 路网节点吸附"
+              : "武汉 WebGIS 赛道工作台 · 在线真实地图 + SuperMap DEM"}
+        </span>
         <strong>{comparedRouteIds.length}/5 已加入对比</strong>
       </div>
       <div className="road-network-status">{roadNetworkStatus}</div>
