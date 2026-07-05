@@ -7,7 +7,7 @@ import type { MarathonRoute } from "../../domain/routeMetrics";
 import { RouteMap } from "../../components/RouteMap";
 import { loadScript, loadStylesheet } from "../core/loadScript";
 import { MapEngine } from "../core/MapEngine";
-import { extractRoadNetworkLines } from "../layers/RoadNetworkLayer";
+import { extractRoadNetworkFeatures, type RoadNetworkFeature } from "../layers/RoadNetworkLayer";
 import { LoadingSpinner } from "./LoadingSpinner";
 
 interface SuperMapMapProps {
@@ -63,7 +63,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<MapEngine | null>(null);
   const viewportTimersRef = useRef<number[]>([]);
-  const [roadNetworkLines, setRoadNetworkLines] = useState<[number, number][][]>([]);
+  const [roadNetworkFeatures, setRoadNetworkFeatures] = useState<RoadNetworkFeature[]>([]);
   const [roadNetworkStatus, setRoadNetworkStatus] = useState("汉马道路走廊：加载中");
   const [phase, setPhase] = useState<MapPhase>("loading");
   const [phaseMessage, setPhaseMessage] = useState("加载 Leaflet 地图库...");
@@ -101,17 +101,17 @@ export function SuperMapMap(props: SuperMapMapProps) {
   useEffect(() => {
     let cancelled = false;
 
-    fetch("data/local-wuhan-marathon-corridor-roads.geojson")
+    fetch(superMapConfig.displayRoadNetworkGeoJsonUrl)
       .then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json();
       })
       .then((geojson) => {
         if (cancelled) return;
-        const lines = extractRoadNetworkLines(geojson);
-        setRoadNetworkLines(lines);
-        setRoadNetworkStatus(`汉马道路走廊：已加载 ${lines.length} 条`);
-        engineRef.current?.setRoadNetwork(lines);
+        const roads = extractRoadNetworkFeatures(geojson);
+        setRoadNetworkFeatures(roads);
+        setRoadNetworkStatus(`汉马道路走廊：已加载 ${roads.length} 条`);
+        engineRef.current?.setRoadNetwork(roads);
       })
       .catch(() => {
         if (!cancelled) setRoadNetworkStatus("汉马道路走廊：未找到本地数据");
@@ -147,7 +147,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
       if (cancelled) return;
 
       setPhase("initializing");
-      setPhaseMessage("初始化在线地图与 SuperMap DEM...");
+      setPhaseMessage("初始化 iDesktop 发布图...");
 
       try {
         const engine = new MapEngine({
@@ -165,7 +165,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
         engine.onMapClick(activePointTool ? (coordinate) => onMapCoordinateSelectRef.current?.(coordinate) : null);
         engine.setRoutes(visibleRoutes);
         engine.setSupportPoints(supportPoints);
-        engine.setRoadNetwork(roadNetworkLines);
+        engine.setRoadNetwork(roadNetworkFeatures);
         engine.setPlanningPoints(planningStartPoint, planningEndPoint);
         engine.highlightRoute(activeRouteId, comparedRouteIds);
         engine.setLayerVisibility(layerVisibility);
@@ -229,8 +229,8 @@ export function SuperMapMap(props: SuperMapMapProps) {
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine || phase !== "ready") return;
-    engine.setRoadNetwork(roadNetworkLines);
-  }, [roadNetworkLines, phase]);
+    engine.setRoadNetwork(roadNetworkFeatures);
+  }, [roadNetworkFeatures, phase]);
 
   useEffect(() => {
     const engine = engineRef.current;
@@ -266,7 +266,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
             ? "点击地图设置马拉松起点 · 路网节点吸附"
             : activePointTool === "end"
               ? "点击地图设置马拉松终点 · 路网节点吸附"
-              : "武汉 WebGIS 赛道工作台 · 在线真实地图 + SuperMap DEM"}
+              : "武汉 WebGIS 赛道工作台 · iDesktop 发布图 + 业务矢量图层"}
         </span>
         <strong>{comparedRouteIds.length}/5 已加入对比</strong>
       </div>

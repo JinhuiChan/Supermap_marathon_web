@@ -153,7 +153,7 @@ export function buildDecisionReport(routes: MarathonRoute[], points: SupportPoin
   const lines = [
     "武汉马拉松赛道智能选线分析报告",
     "",
-    "数据依据：SuperMap iServer 发布的 map-wuhan-marathon WMS 服务、武汉 DEM 数据、赛道 GeoJSON 与服务点 GeoJSON。",
+    "数据依据：SuperMap iServer 发布的 map-wuhan-road-network WMS 服务、武汉 DEM 数据、赛道 GeoJSON 与服务点 GeoJSON。",
     "",
     "推荐排序："
   ];

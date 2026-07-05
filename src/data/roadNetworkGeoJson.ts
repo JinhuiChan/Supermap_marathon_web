@@ -233,7 +233,11 @@ function addLineToGraph(
     const lengthKm = haversineKm(from, to);
     if (lengthKm <= 0) continue;
 
-    const roadLevel = mapOsmHighwayToRoadLevel(properties.highway);
+    const roadLevel = mapOsmHighwayToRoadLevel(properties.highway ?? properties.road_level ?? properties.fclass);
+    const impedance = normalizeNumber(properties.impedance);
+    const suitabilityScore = normalizeNumber(properties.suitability);
+    const slopeMean = normalizeNumber(properties.slope_mean);
+    const competitionSuitable = normalizeControlFlag(properties.control_ok) ?? isCompetitionSuitableRoadLevel(roadLevel);
     const edgeId = `osm-${featureIndex}-${lineIndex}-${index}`;
     addEdge(graph, {
       id: edgeId,
@@ -243,8 +247,10 @@ function addLineToGraph(
       roadLevel,
       isBridge: isOsmTagTrue(properties.bridge),
       isTunnel: isOsmTagTrue(properties.tunnel),
-      competitionSuitable: isCompetitionSuitableRoadLevel(roadLevel),
-      baselineCost: lengthKm
+      competitionSuitable,
+      baselineCost: impedance === null ? lengthKm : lengthKm * (1 + Math.max(0, impedance) / 100),
+      ...(suitabilityScore === null ? {} : { suitabilityScore }),
+      ...(slopeMean === null ? {} : { slopeMean })
     });
   }
 }
@@ -254,5 +260,18 @@ function nodeIdForCoordinate(coordinate: Coordinate): string {
 }
 
 function isOsmTagTrue(value: unknown): boolean {
-  return value === true || value === "yes" || value === "true" || value === "1";
+  return value === true || value === "yes" || value === "true" || value === "1" || value === "T" || value === "t";
+}
+
+function normalizeNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string" || value.trim() === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeControlFlag(value: unknown): boolean | null {
+  if (value === true || value === "true" || value === "yes" || value === "1" || value === 1) return true;
+  if (value === false || value === "false" || value === "no" || value === "0" || value === 0) return false;
+  return null;
 }

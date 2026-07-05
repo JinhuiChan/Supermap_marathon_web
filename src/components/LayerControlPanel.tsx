@@ -35,7 +35,7 @@ export function LayerControlPanel({
             checked={basemapMode === "online"}
             onChange={() => onBasemapChange("online")}
           />
-          <span>在线真实地图</span>
+          <span>OpenStreetMap 备用底图</span>
         </label>
         <label>
           <input
@@ -44,7 +44,7 @@ export function LayerControlPanel({
             checked={basemapMode === "supermapDem"}
             onChange={() => onBasemapChange("supermapDem")}
           />
-          <span>SuperMap DEM</span>
+          <span>iDesktop 发布图</span>
         </label>
       </div>
       <label className="layer-toggle">

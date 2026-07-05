@@ -2,9 +2,20 @@ import type { BasemapMode } from "../../config/supermap";
 import type { SupportPoint } from "../../data/supportPoints";
 import type { Coordinate } from "../../domain/routeMetrics";
 import type { MarathonRoute } from "../../domain/routeMetrics";
-import { roadNetworkStyle } from "../layers/RoadNetworkLayer";
+import {
+  formatRoadNetworkPopup,
+  roadLabelKey,
+  roadNetworkStyle,
+  shouldShowRoadLabel,
+  type RoadNetworkFeature
+} from "../layers/RoadNetworkLayer";
 import { buildRouteDirectionMarkers, computeRouteStyle, findNearestRouteId, toLeafletLatLngs } from "../layers/RouteLayer";
-import { computeSupportPointStyle, formatSupportPointLabel, toLeafletLatLng } from "../layers/SupportPointLayer";
+import {
+  computeSupportPointStyle,
+  formatSupportPointLabel,
+  formatSupportPointPopup,
+  toLeafletLatLng
+} from "../layers/SupportPointLayer";
 
 export interface MapEngineOptions {
   container: HTMLElement;
@@ -24,7 +35,7 @@ export class MapEngine {
   private supportPointLayers: unknown[] = [];
   private roadNetworkLayers: unknown[] = [];
   private planningPointLayers: unknown[] = [];
-  private roadNetworkLines: [number, number][][] = [];
+  private roadNetworkFeatures: RoadNetworkFeature[] = [];
   private basemapLayers: Partial<Record<BasemapMode, unknown>> = {};
   private activeBasemapLayer: unknown = null;
   private onRouteClickCb: ((id: string) => void) | null = null;
@@ -77,7 +88,8 @@ export class MapEngine {
       center: [this.center[1], this.center[0]],
       zoom: this.zoom,
       zoomControl: false,
-      attributionControl: true
+      attributionControl: true,
+      preferCanvas: true
     });
     this.map = map;
 
@@ -93,7 +105,7 @@ export class MapEngine {
       layers: this.wmsLayerName,
       format: "image/png",
       transparent: false,
-      attribution: "SuperMap iServer DEM WMS"
+      attribution: "SuperMap iServer WMS"
     });
     this.setBasemap(this.basemapMode);
 
@@ -165,9 +177,9 @@ export class MapEngine {
     this.renderSupportPoints();
   }
 
-  setRoadNetwork(lines: [number, number][][]): void {
+  setRoadNetwork(roads: RoadNetworkFeature[]): void {
     if (this.destroyed || !this.map) return;
-    this.roadNetworkLines = lines;
+    this.roadNetworkFeatures = roads;
     this.renderRoadNetwork();
   }
 
@@ -187,14 +199,43 @@ export class MapEngine {
     if (!L) return;
 
     const polyline = L.polyline as (latlngs: [number, number][], opts?: Record<string, unknown>) => unknown;
-    const style = roadNetworkStyle();
 
-    for (const line of this.roadNetworkLines) {
-      const layer = polyline(line, style);
+    const shownRoadLabels = new Set<string>();
+    let roadLabelCount = 0;
+
+    for (const road of this.roadNetworkFeatures) {
+      const layer = polyline(road.line, roadNetworkStyle(road));
       const orderedLayer = layer as {
         addTo: (m: unknown) => unknown;
         bringToBack?: () => unknown;
+        bindTooltip?: (label: string, opts?: Record<string, unknown>) => unknown;
+        bindPopup?: (label: string, opts?: Record<string, unknown>) => unknown;
       };
+      orderedLayer.bindPopup?.(formatRoadNetworkPopup(road), {
+        maxWidth: 280
+      });
+      const labelKey = roadLabelKey(road);
+      const showPermanentLabel = Boolean(
+        labelKey &&
+        !shownRoadLabels.has(labelKey) &&
+        shouldShowRoadLabel(road, roadLabelCount)
+      );
+      if (showPermanentLabel && labelKey) {
+        shownRoadLabels.add(labelKey);
+        roadLabelCount += 1;
+        orderedLayer.bindTooltip?.(road.label, {
+          permanent: true,
+          direction: "center",
+          className: "road-name-label",
+          opacity: 0.82
+        });
+      } else {
+        orderedLayer.bindTooltip?.(road.label, {
+          sticky: true,
+          direction: "top",
+          className: "road-hover-label"
+        });
+      }
       orderedLayer.addTo(this.map);
       orderedLayer.bringToBack?.();
       this.roadNetworkLayers.push(layer);
@@ -366,12 +407,16 @@ export class MapEngine {
       const marker = layer as {
         addTo?: (m: unknown) => unknown;
         bindTooltip?: (label: string, opts?: Record<string, unknown>) => unknown;
+        bindPopup?: (label: string, opts?: Record<string, unknown>) => unknown;
         on?: (event: string, cb: () => void) => void;
       };
       marker.bindTooltip?.(formatSupportPointLabel(point), {
         direction: "top",
-        sticky: true
+        permanent: true,
+        className: "support-point-label",
+        opacity: isHighlighted ? 0.98 : 0.84
       });
+      marker.bindPopup?.(formatSupportPointPopup(point), { maxWidth: 260 });
       marker.on?.("click", () => this.onRouteClickCb?.(point.routeId));
       marker.addTo?.(this.map);
       this.supportPointLayers.push(layer);

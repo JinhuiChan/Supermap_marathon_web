@@ -27,6 +27,8 @@ export interface RoadEdge {
   isTunnel: boolean;
   competitionSuitable: boolean;
   baselineCost: number;
+  suitabilityScore?: number;
+  slopeMean?: number;
   poiScores?: PoiScore;
 }
 

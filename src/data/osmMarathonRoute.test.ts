@@ -98,6 +98,54 @@ describe("osmMarathonRoute", () => {
     expect(haversineKm(routes[0].coordinates.at(-1) ?? [0, 0], endPoint)).toBeLessThan(0.2);
   });
 
+  test("returns a non-zero road-aligned review route when a perfect user loop is unavailable", () => {
+    const routes = buildOsmMarathonCandidateRoutes(smallRoadNetwork, {
+      targetDistanceKm: 42.195,
+      startPoint: [114.3, 30.6],
+      endPoint: [114.3, 30.6]
+    });
+
+    expect(routes.length).toBeGreaterThan(0);
+    expect(routes[0].lengthKm).toBeGreaterThan(1);
+    expect(routes[0].lineage?.note).toContain("校核");
+  });
+
+  test("uses a bridge segment for disconnected cross-river review routes", () => {
+    const disconnectedCrossRiverNetwork = {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { highway: "primary", name: "north approach" },
+          geometry: { type: "LineString", coordinates: [[114.3, 30.6], [114.31, 30.6]] }
+        },
+        {
+          type: "Feature",
+          properties: { highway: "primary", name: "marathon bridge", bridge: "T" },
+          geometry: { type: "LineString", coordinates: [[114.32, 30.6], [114.32, 30.54]] }
+        },
+        {
+          type: "Feature",
+          properties: { highway: "primary", name: "south approach" },
+          geometry: { type: "LineString", coordinates: [[114.33, 30.54], [114.34, 30.54]] }
+        }
+      ]
+    };
+
+    const routes = buildOsmMarathonCandidateRoutes(disconnectedCrossRiverNetwork, {
+      targetDistanceKm: 42.195,
+      startPoint: [114.3, 30.6],
+      endPoint: [114.34, 30.54]
+    });
+
+    expect(routes.length).toBeGreaterThan(0);
+    expect(routes[0].lineage?.note).toContain("桥");
+    expect(routes[0].lengthKm).toBeGreaterThan(35);
+    expect(routes[0].lengthKm).toBeLessThan(45);
+    expect(routes[0].coordinates.some((coordinate) => coordinate[1] < 30.56)).toBe(true);
+    expect(haversineKm(routes[0].coordinates.at(-1) ?? [0, 0], [114.34, 30.54])).toBeLessThan(0.5);
+  });
+
   test("prefers marathon-suitable arterial roads over narrow local roads", () => {
     const mixedRoadNetwork = {
       type: "FeatureCollection",

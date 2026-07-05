@@ -89,7 +89,7 @@ export function SuperMapStatusPanel() {
 
       {servicesReady && (
         <div className="service-ready-banner">
-          武汉马拉松地图服务已就绪，页面使用 DEM WMS 底图叠加业务矢量图层。
+          武汉马拉松地图服务已就绪，页面默认使用 iDesktop 发布的 WMS 地图叠加业务矢量图层。
         </div>
       )}
 
@@ -110,10 +110,10 @@ export function SuperMapStatusPanel() {
         </div>
         <div>
           <dt>WMS 底图源</dt>
-          <dd title={superMapConfig.wmsMapUrl}>{superMapConfig.wmsLayerName} DEM (SuperMap iServer)</dd>
+          <dd title={superMapConfig.wmsMapUrl}>图层 {superMapConfig.wmsLayerName} · iDesktop 发布图</dd>
         </div>
         <div>
-          <dt>在线真实底图</dt>
+          <dt>备用在线底图</dt>
           <dd>{superMapConfig.onlineBasemap.name} · OpenStreetMap</dd>
         </div>
         <div>
@@ -139,7 +139,7 @@ export function SuperMapStatusPanel() {
       </dl>
 
       <p className="integration-note">
-        地图面板默认使用在线真实地图，保留 SuperMap iServer WMS 的 DEM 子图层作为可切换底图；2026 官方路线、备选路线和服务点由前端矢量图层叠加。
+        地图面板默认使用 iDesktop 发布到 iServer 的武汉马拉松 WMS 地图；OpenStreetMap 仅作为备用可切换底图，2026 官方路线、备选路线和服务点由前端矢量图层叠加。
         上次检测：{lastCheck}
       </p>
     </section>

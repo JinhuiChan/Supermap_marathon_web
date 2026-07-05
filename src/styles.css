@@ -790,6 +790,58 @@ textarea {
   background: #c2410c;
 }
 
+.road-hover-label,
+.support-point-label {
+  border: 0;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 1px 3px rgba(22, 34, 45, 0.16);
+  color: #263443;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  padding: 2px 5px;
+  text-shadow: 0 1px 0 #ffffff;
+}
+
+.road-name-label {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #31475d;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+  padding: 0;
+  text-shadow:
+    -1px -1px 0 rgba(255, 255, 255, 0.92),
+    1px -1px 0 rgba(255, 255, 255, 0.92),
+    -1px 1px 0 rgba(255, 255, 255, 0.92),
+    1px 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.road-hover-label {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.road-name-label::before,
+.road-hover-label::before,
+.support-point-label::before {
+  display: none;
+}
+
+.support-point-label {
+  background: rgba(14, 41, 65, 0.86);
+  color: #ffffff;
+  text-shadow: none;
+}
+
+.leaflet-popup-content {
+  color: #243241;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .leaflet-control-attribution {
   position: absolute;
   right: 0;

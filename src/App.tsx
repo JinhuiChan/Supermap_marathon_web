@@ -76,7 +76,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
   useEffect(() => {
     let cancelled = false;
 
-    fetch("data/local-wuhan-marathon-corridor-roads.geojson")
+    fetch(superMapConfig.routingRoadNetworkGeoJsonUrl)
       .then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json();

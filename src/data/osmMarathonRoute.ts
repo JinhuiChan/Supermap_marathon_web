@@ -103,21 +103,44 @@ function buildUserConstrainedRoutes(graph: RoadGraph, options: OSMCandidateOptio
     lengthToleranceKm: Math.max(0.8, Math.min(5, options.targetDistanceKm * 0.18))
   });
 
-  const candidatePaths = paths.length > 0 ? paths : buildShortestConnectorPath(graph, constraints);
+  const endpointAlignedPaths = paths.filter((path) => pathEndsNear(graph, path, options.endPoint, 0.35));
+  const candidatePaths = endpointAlignedPaths.length > 0 ? endpointAlignedPaths : buildFallbackReviewPaths(graph, constraints);
+  const isGenerated = endpointAlignedPaths.length > 0;
+  const usesBridgeReview = !isGenerated && candidatePaths.some((path) => pathUsesBridge(graph, path));
 
   return candidatePaths.map((path, index) => ({
     ...pathToMarathonRoute(path, graph, index),
     id: `user-osm-${index + 1}`,
-    name: paths.length > 0 ? `用户选点候选路线 ${index + 1}` : "起终点道路通达校核线",
+    name: isGenerated ? `\u7528\u6237\u9009\u70b9\u5019\u9009\u8def\u7ebf ${index + 1}` : usesBridgeReview ? "\u8de8\u6865\u9053\u8def\u6821\u6838\u7ebf" : "\u8def\u7f51\u901a\u8fbe\u6821\u6838\u7ebf",
     color: candidateProfiles[index % candidateProfiles.length].color,
     lineage: {
       source: "osm-generated" as const,
       roadAligned: true,
-      note: paths.length > 0
-        ? "基于用户在 Web 地图设置的起点、终点和本地 OSM 道路网络生成"
-        : "未命中目标里程候选时，基于道路网络返回的起终点最短通达校核线"
+      note: isGenerated
+        ? "\u57fa\u4e8e\u7528\u6237\u5728 Web \u5730\u56fe\u8bbe\u7f6e\u7684\u8d77\u70b9\u3001\u7ec8\u70b9\u548c\u672c\u5730 OSM \u9053\u8def\u7f51\u7edc\u751f\u6210"
+        : usesBridgeReview
+          ? "\u672a\u547d\u4e2d\u76ee\u6807\u91cc\u7a0b\u5019\u9009\u65f6\u8fd4\u56de\u7684\u8de8\u6865\u9053\u8def\u6821\u6838\u7ebf\uff0c\u7528\u4e8e\u68c0\u67e5\u6865\u6881\u901a\u8fbe\u548c\u8def\u7f51\u62d3\u6251"
+          : "\u672a\u547d\u4e2d\u76ee\u6807\u91cc\u7a0b\u5019\u9009\u65f6\u8fd4\u56de\u7684\u9053\u8def\u6821\u6838\u7ebf\uff0c\u7528\u4e8e\u68c0\u67e5\u8d77\u7ec8\u70b9\u5438\u9644\u3001\u8def\u7f51\u8fde\u901a\u6027\u548c\u53ef\u901a\u8fbe\u65b9\u5411",
     }
   }));
+}
+
+function buildFallbackReviewPaths(graph: RoadGraph, constraints: RouteConstraints) {
+  const connector = buildShortestConnectorPath(graph, constraints).filter((path) => path.totalLengthKm > 0.5);
+  if (connector.length > 0) return connector;
+  const bridge = buildBridgeReviewPath(graph, constraints);
+  if (bridge.length > 0) return bridge;
+  return buildReachableReviewPath(graph, constraints);
+}
+
+function pathUsesBridge(graph: RoadGraph, path: { edgeIds: string[] }): boolean {
+  return path.edgeIds.some((edgeId) => graph.edges.get(edgeId)?.isBridge || graph.edges.get(baseEdgeId(edgeId))?.isBridge);
+}
+
+function pathEndsNear(graph: RoadGraph, path: { nodeIds: string[] }, coordinate: Coordinate, maxDistanceKm: number): boolean {
+  const lastNodeId = path.nodeIds.at(-1);
+  const lastNode = lastNodeId ? graph.nodes.get(lastNodeId) : null;
+  return Boolean(lastNode && haversineKm(lastNode.coordinate, coordinate) <= maxDistanceKm);
 }
 
 function buildShortestConnectorPath(graph: RoadGraph, constraints: RouteConstraints) {
@@ -168,7 +191,222 @@ function buildShortestConnectorPath(graph: RoadGraph, constraints: RouteConstrai
     cursor = step.nodeId;
   }
 
-  const totalLengthKm = edgeIds.reduce((sum, edgeId) => sum + (graph.edges.get(edgeId)?.lengthKm ?? 0), 0);
+  const totalLengthKm = edgeIds.reduce((sum, edgeId) => sum + getEdgeLengthKm(graph, edgeId), 0);
+  return [{
+    nodeIds,
+    edgeIds,
+    totalLengthKm: Math.round(totalLengthKm * 1000) / 1000
+  }];
+}
+
+function buildBridgeReviewPath(graph: RoadGraph, constraints: RouteConstraints) {
+  const startNodeId = findNearestNodeId(graph, constraints.startPoint);
+  const endNodeId = findNearestNodeId(graph, constraints.endPoint);
+  if (!startNodeId || !endNodeId || startNodeId === endNodeId) return [];
+
+  const startNode = graph.nodes.get(startNodeId);
+  const endNode = graph.nodes.get(endNodeId);
+  if (!startNode || !endNode) return [];
+
+  const bridgeChoice = [...graph.edges.values()]
+    .filter((edge) => edge.isBridge && edge.competitionSuitable)
+    .map((edge) => bestBridgeOrientation(graph, edge, startNode.coordinate, endNode.coordinate))
+    .filter((choice): choice is NonNullable<typeof choice> => choice !== null)
+    .sort((a, b) => a.score - b.score)[0];
+
+  if (!bridgeChoice) return [];
+
+  const connectorNodeIds = [
+    startNodeId,
+    bridgeChoice.fromNodeId,
+    bridgeChoice.toNodeId
+  ].filter((nodeId, index, all) => index === 0 || nodeId !== all[index - 1]);
+  const approachKm = haversineKm(startNode.coordinate, graph.nodes.get(bridgeChoice.fromNodeId)?.coordinate ?? startNode.coordinate);
+  const exitKm = haversineKm(graph.nodes.get(bridgeChoice.toNodeId)?.coordinate ?? endNode.coordinate, endNode.coordinate);
+  const bridgeLengthKm = getEdgeLengthKm(graph, bridgeChoice.edgeId);
+  const baseLengthKm = approachKm + bridgeLengthKm + exitKm;
+  const extension = buildRoundTripExtension(
+    graph,
+    bridgeChoice.toNodeId,
+    Math.max(0, constraints.targetDistanceKm - baseLengthKm),
+    new Set([baseEdgeId(bridgeChoice.edgeId)])
+  );
+  const nodeIds = [
+    ...connectorNodeIds,
+    ...extension.nodeIds,
+    endNodeId
+  ].filter((nodeId, index, all) => index === 0 || nodeId !== all[index - 1]);
+  const totalLengthKm = baseLengthKm + extension.totalLengthKm;
+
+  return [{
+    nodeIds,
+    edgeIds: [bridgeChoice.edgeId, ...extension.edgeIds],
+    totalLengthKm: Math.round(totalLengthKm * 1000) / 1000
+  }];
+}
+
+function bestBridgeOrientation(
+  graph: RoadGraph,
+  edge: RoadEdge,
+  start: Coordinate,
+  end: Coordinate
+): { edgeId: string; fromNodeId: string; toNodeId: string; score: number } | null {
+  const fromNode = graph.nodes.get(edge.fromNodeId);
+  const toNode = graph.nodes.get(edge.toNodeId);
+  if (!fromNode || !toNode) return null;
+
+  const forwardScore =
+    bridgeNamePenalty(edge) +
+    haversineKm(start, fromNode.coordinate) +
+    edge.lengthKm * 0.15 +
+    haversineKm(toNode.coordinate, end);
+  const reverseScore =
+    bridgeNamePenalty(edge) +
+    haversineKm(start, toNode.coordinate) +
+    edge.lengthKm * 0.15 +
+    haversineKm(fromNode.coordinate, end);
+
+  if (forwardScore <= reverseScore) {
+    return { edgeId: edge.id, fromNodeId: edge.fromNodeId, toNodeId: edge.toNodeId, score: forwardScore };
+  }
+  return { edgeId: edge.id, fromNodeId: edge.toNodeId, toNodeId: edge.fromNodeId, score: reverseScore };
+}
+
+function bridgeNamePenalty(edge: RoadEdge): number {
+  const id = edge.id.toLocaleLowerCase();
+  return id.includes("bridge") ? -1 : 0;
+}
+
+function buildRoundTripExtension(
+  graph: RoadGraph,
+  startNodeId: string,
+  targetKm: number,
+  usedBaseIds: Set<string>
+): { nodeIds: string[]; edgeIds: string[]; totalLengthKm: number } {
+  if (targetKm <= 0.25) return { nodeIds: [], edgeIds: [], totalLengthKm: 0 };
+
+  const nodeIds: string[] = [];
+  const edgeIds: string[] = [];
+  let totalLengthKm = 0;
+
+  for (let cycle = 0; cycle < 80 && totalLengthKm < targetKm * 0.96; cycle++) {
+    const remainingKm = targetKm - totalLengthKm;
+    const outbound = buildOutboundWalk(graph, startNodeId, Math.max(0.25, remainingKm / 2), usedBaseIds);
+    if (outbound.steps.length === 0) break;
+    if (totalLengthKm > 0 && totalLengthKm + outbound.totalLengthKm * 2 > targetKm * 1.05) break;
+
+    for (const step of outbound.steps) {
+      edgeIds.push(step.edgeId);
+      nodeIds.push(step.toNodeId);
+      totalLengthKm += step.lengthKm;
+    }
+    for (let index = outbound.steps.length - 1; index >= 0; index--) {
+      const step = outbound.steps[index];
+      edgeIds.push(reverseEdgeId(step.edgeId));
+      nodeIds.push(step.fromNodeId);
+      totalLengthKm += step.lengthKm;
+    }
+  }
+
+  return {
+    nodeIds,
+    edgeIds,
+    totalLengthKm: Math.round(totalLengthKm * 1000) / 1000
+  };
+}
+
+function buildOutboundWalk(
+  graph: RoadGraph,
+  startNodeId: string,
+  targetKm: number,
+  usedBaseIds: Set<string>
+): { steps: Array<{ edgeId: string; fromNodeId: string; toNodeId: string; lengthKm: number }>; totalLengthKm: number } {
+  const steps: Array<{ edgeId: string; fromNodeId: string; toNodeId: string; lengthKm: number }> = [];
+  let current = startNodeId;
+  let totalLengthKm = 0;
+  let previousBaseId = "";
+
+  for (let stepIndex = 0; stepIndex < 400 && totalLengthKm < targetKm; stepIndex++) {
+    const next = chooseExtensionEdge(graph, current, usedBaseIds, previousBaseId);
+    if (!next) break;
+    if (steps.length > 0 && totalLengthKm + next.lengthKm > targetKm * 1.05) break;
+
+    const baseId = baseEdgeId(next.id);
+    steps.push({
+      edgeId: next.id,
+      fromNodeId: next.fromNodeId,
+      toNodeId: next.toNodeId,
+      lengthKm: next.lengthKm
+    });
+    usedBaseIds.add(baseId);
+    previousBaseId = baseId;
+    current = next.toNodeId;
+    totalLengthKm += next.lengthKm;
+  }
+
+  return { steps, totalLengthKm };
+}
+
+function chooseExtensionEdge(
+  graph: RoadGraph,
+  nodeId: string,
+  usedBaseIds: Set<string>,
+  previousBaseId: string
+): RoadEdge | null {
+  return (graph.adjacency.get(nodeId) ?? [])
+    .filter((edge) => edge.competitionSuitable)
+    .sort((a, b) => {
+      const aBaseId = baseEdgeId(a.id);
+      const bBaseId = baseEdgeId(b.id);
+      const aImmediateBacktrack = aBaseId === previousBaseId ? 1 : 0;
+      const bImmediateBacktrack = bBaseId === previousBaseId ? 1 : 0;
+      const aReuse = usedBaseIds.has(aBaseId) ? 1 : 0;
+      const bReuse = usedBaseIds.has(bBaseId) ? 1 : 0;
+      return (
+        aImmediateBacktrack - bImmediateBacktrack ||
+        aReuse - bReuse ||
+        roadLevelScore(b.roadLevel, "balanced") - roadLevelScore(a.roadLevel, "balanced") ||
+        b.lengthKm - a.lengthKm ||
+        a.id.localeCompare(b.id)
+      );
+    })[0] ?? null;
+}
+
+function reverseEdgeId(edgeId: string): string {
+  return edgeId.endsWith("_rev") ? baseEdgeId(edgeId) : `${edgeId}_rev`;
+}
+
+function buildReachableReviewPath(graph: RoadGraph, constraints: RouteConstraints) {
+  const startNodeId = findNearestNodeId(graph, constraints.startPoint);
+  if (!startNodeId) return [];
+
+  const targetKm = Math.max(1, Math.min(constraints.targetDistanceKm, 12));
+  const nodeIds = [startNodeId];
+  const edgeIds: string[] = [];
+  const used = new Set<string>();
+  let current = startNodeId;
+  let totalLengthKm = 0;
+
+  for (let step = 0; step < 400 && totalLengthKm < targetKm; step++) {
+    const outgoing = (graph.adjacency.get(current) ?? [])
+      .filter((edge) => edge.competitionSuitable)
+      .filter((edge) => !used.has(baseEdgeId(edge.id)))
+      .sort((a, b) =>
+        roadLevelScore(b.roadLevel, "balanced") - roadLevelScore(a.roadLevel, "balanced") ||
+        b.lengthKm - a.lengthKm ||
+        a.id.localeCompare(b.id)
+      );
+    const next = outgoing[0];
+    if (!next) break;
+
+    used.add(baseEdgeId(next.id));
+    edgeIds.push(next.id);
+    nodeIds.push(next.toNodeId);
+    totalLengthKm += next.lengthKm;
+    current = next.toNodeId;
+  }
+
+  if (edgeIds.length === 0 || totalLengthKm <= 0) return [];
   return [{
     nodeIds,
     edgeIds,
@@ -200,7 +438,7 @@ function buildRouteFromGraph(
     lineage: {
       source: "osm-generated",
       roadAligned: true,
-      note: `从本地 OSM 道路走廊生成的${options.name}，用于验证真实路网候选方案`
+      note: `从本地 OSM 道路网络生成的 ${options.name}，用于验证真实路网候选方案`
     }
   };
 }
@@ -621,4 +859,8 @@ function poiPreferencesForRoute(preference: RoutePreference): PoiPreferences {
 
 function baseEdgeId(edgeId: string): string {
   return edgeId.endsWith("_rev") ? edgeId.slice(0, -4) : edgeId;
+}
+
+function getEdgeLengthKm(graph: RoadGraph, edgeId: string): number {
+  return graph.edges.get(edgeId)?.lengthKm ?? graph.edges.get(baseEdgeId(edgeId))?.lengthKm ?? 0;
 }
