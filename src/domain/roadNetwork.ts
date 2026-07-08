@@ -29,6 +29,12 @@ export interface RoadEdge {
   baselineCost: number;
   suitabilityScore?: number;
   slopeMean?: number;
+  impedanceBreakdown?: {
+    base: number;
+    explicit: number;
+    slope: number;
+    constraint: number;
+  };
   poiScores?: PoiScore;
 }
 

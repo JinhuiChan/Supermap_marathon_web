@@ -65,7 +65,7 @@ export function LayerControlPanel({
         <input type="checkbox" checked={visibility.supportPoints} onChange={() => updateLayer("supportPoints")} />
         <span>
           <strong>赛事服务点</strong>
-          <small>{supportPointCount} 个起终点、补给、医疗和停车点</small>
+          <small>{supportPointCount} 个起终点、补给、医疗、交通、停车和应急点</small>
         </span>
       </label>
     </section>

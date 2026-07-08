@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildTestGraph } from "../data/testGraph";
+import { addEdge, addNode, createEmptyGraph } from "./roadNetwork";
 import { generateRoutes } from "./routeGenerator";
 import { pathToMarathonRoute } from "./routeReconstruct";
 import { compareRoutes } from "./routeMetrics";
@@ -67,5 +68,42 @@ describe("routeGenerator", () => {
     const stats = { nodeCount: graph.nodes.size, edgeCount: graph.edges.size };
     expect(stats.nodeCount).toBeGreaterThan(50);
     expect(stats.edgeCount).toBeGreaterThan(80);
+  });
+
+  it("uses road-edge slope fields when reconstructing route metrics", () => {
+    const graph = createEmptyGraph();
+    addNode(graph, { id: "a", coordinate: [114.3, 30.6] });
+    addNode(graph, { id: "b", coordinate: [114.31, 30.6] });
+    addNode(graph, { id: "c", coordinate: [114.32, 30.6] });
+    addEdge(graph, {
+      id: "edge-a",
+      fromNodeId: "a",
+      toNodeId: "b",
+      lengthKm: 1,
+      roadLevel: "primary",
+      isBridge: false,
+      isTunnel: false,
+      competitionSuitable: true,
+      baselineCost: 1.48,
+      slopeMean: 6
+    });
+    addEdge(graph, {
+      id: "edge-b",
+      fromNodeId: "b",
+      toNodeId: "c",
+      lengthKm: 1,
+      roadLevel: "primary",
+      isBridge: false,
+      isTunnel: false,
+      competitionSuitable: true,
+      baselineCost: 1.04,
+      slopeMean: 2
+    });
+
+    const route = pathToMarathonRoute({ nodeIds: ["a", "b", "c"], edgeIds: ["edge-a", "edge-b"], totalLengthKm: 2 }, graph, 0);
+
+    expect(route.metrics.avgSlopePercent).toBe(4);
+    expect(route.metrics.maxSlopePercent).toBe(6);
+    expect(route.metrics.longSteepRatio).toBeGreaterThan(0);
   });
 });

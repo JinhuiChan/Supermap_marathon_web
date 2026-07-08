@@ -6,8 +6,8 @@ import {
 } from "./supportPoints";
 
 describe("supportPoints", () => {
-  it("loads the Wuhan marathon service points from the published dataset", () => {
-    expect(supportPoints.length).toBeGreaterThan(9);
+  it("loads a complete Wuhan marathon support POI catalog", () => {
+    expect(supportPoints.length).toBeGreaterThanOrEqual(20);
     expect(supportPoints[0]).toMatchObject({
       id: "start-river-loop",
       routeId: "river-loop",
@@ -16,13 +16,20 @@ describe("supportPoints", () => {
     });
   });
 
-  it("contains service points for the official Wuhan Marathon vector route", () => {
-    const officialPoints = getSupportPointsForRoute("wuhan-marathon-2026");
+  it("contains all required service facility types for the official Wuhan route", () => {
+    const officialTypes = [...new Set(getSupportPointsForRoute("wuhan-marathon-2026").map((point) => point.type))];
 
-    expect(officialPoints.length).toBeGreaterThanOrEqual(5);
-    expect(officialPoints.map((point) => point.type)).toContain("起终点");
-    expect(officialPoints.map((point) => point.type)).toContain("补给");
-    expect(officialPoints.map((point) => point.type)).toContain("医疗");
+    expect(officialTypes).toEqual(expect.arrayContaining([
+      "起终点",
+      "补给",
+      "医疗",
+      "地铁站",
+      "停车场",
+      "公园",
+      "公厕",
+      "商圈/补给",
+      "应急集结"
+    ]));
   });
 
   it("filters service points by route", () => {
@@ -38,7 +45,7 @@ describe("supportPoints", () => {
       byType: {
         起终点: 1,
         补给: 1,
-        停车: 1
+        停车场: 1
       },
       topServiceLevel: "A"
     });

@@ -17,7 +17,12 @@ const serviceLevelWeight: Record<string, number> = { A: 1, B: 0.8, C: 0.6 };
 const supportTypeToPoiCategory: Record<string, PoiCategory> = {
   补给: "supply",
   医疗: "medical",
-  停车: "transit"
+  地铁站: "transit",
+  停车场: "transit",
+  公园: "park",
+  公厕: "supply",
+  "商圈/补给": "supply",
+  应急集结: "medical"
 };
 
 export function buildPoiPointsFromSupportPoints(): PoiPoint[] {

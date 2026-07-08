@@ -1,6 +1,16 @@
 import type { Coordinate } from "../domain/routeMetrics";
 
-export type SupportPointType = "起终点" | "补给" | "医疗" | "停车";
+export type SupportPointType =
+  | "起终点"
+  | "补给"
+  | "医疗"
+  | "地铁站"
+  | "停车场"
+  | "公园"
+  | "公厕"
+  | "商圈/补给"
+  | "应急集结";
+
 export type ServiceLevel = "A" | "B" | "C";
 
 export interface SupportPoint {
@@ -68,7 +78,7 @@ export const supportPoints: SupportPoint[] = [
   {
     id: "parking-east-01",
     name: "东湖绿道停车保障点",
-    type: "停车",
+    type: "停车场",
     routeId: "east-lake",
     serviceLevel: "B",
     coordinate: [114.381, 30.534]
@@ -92,7 +102,7 @@ export const supportPoints: SupportPoint[] = [
   {
     id: "parking-urban-01",
     name: "城市核心停车保障点",
-    type: "停车",
+    type: "停车场",
     routeId: "urban-core",
     serviceLevel: "A",
     coordinate: [114.298, 30.561]
@@ -132,7 +142,7 @@ export const supportPoints: SupportPoint[] = [
   {
     id: "parking-wuhan-2026-qingshan",
     name: "青山终点停车接驳点",
-    type: "停车",
+    type: "停车场",
     routeId: "wuhan-marathon-2026",
     serviceLevel: "B",
     coordinate: [114.398, 30.623]
@@ -144,6 +154,54 @@ export const supportPoints: SupportPoint[] = [
     routeId: "wuhan-marathon-2026",
     serviceLevel: "A",
     coordinate: [114.395, 30.635]
+  },
+  {
+    id: "metro-wuhan-2026-sanyang",
+    name: "三阳路地铁站集散点",
+    type: "地铁站",
+    routeId: "wuhan-marathon-2026",
+    serviceLevel: "A",
+    coordinate: [114.303, 30.602]
+  },
+  {
+    id: "park-wuhan-2026-liberation",
+    name: "解放公园观赛缓冲区",
+    type: "公园",
+    routeId: "wuhan-marathon-2026",
+    serviceLevel: "B",
+    coordinate: [114.292, 30.615]
+  },
+  {
+    id: "restroom-wuhan-2026-riverside",
+    name: "汉口江滩公厕保障点",
+    type: "公厕",
+    routeId: "wuhan-marathon-2026",
+    serviceLevel: "B",
+    coordinate: [114.296, 30.593]
+  },
+  {
+    id: "commercial-wuhan-2026-chuhehanjie",
+    name: "楚河汉街商圈补给潜力点",
+    type: "商圈/补给",
+    routeId: "wuhan-marathon-2026",
+    serviceLevel: "B",
+    coordinate: [114.34, 30.558]
+  },
+  {
+    id: "assembly-wuhan-2026-qingshan",
+    name: "青山江滩应急集结点",
+    type: "应急集结",
+    routeId: "wuhan-marathon-2026",
+    serviceLevel: "A",
+    coordinate: [114.389, 30.63]
+  },
+  {
+    id: "medical-wuhan-2026-center",
+    name: "市中心医疗联动点",
+    type: "医疗",
+    routeId: "wuhan-marathon-2026",
+    serviceLevel: "A",
+    coordinate: [114.318, 30.585]
   }
 ];
 

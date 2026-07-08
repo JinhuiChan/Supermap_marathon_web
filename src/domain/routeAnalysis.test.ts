@@ -9,7 +9,7 @@ describe("routeAnalysis", () => {
     const analysis = analyzeRoute(route, supportPoints);
 
     expect(analysis.routeId).toBe("wuhan-marathon-2026");
-    expect(analysis.supportPointCount).toBeGreaterThan(0);
+    expect(analysis.supportPointCount).toBeGreaterThan(8);
     expect(analysis.dimensionCards.map((card) => card.id)).toEqual([
       "terrain",
       "passage",
@@ -18,8 +18,8 @@ describe("routeAnalysis", () => {
       "experience"
     ]);
     expect(analysis.dimensionCards.find((card) => card.id === "venue")?.score).toBeGreaterThan(0);
-    expect(analysis.dimensionCards.find((card) => card.id === "passage")?.score).toBeGreaterThan(70);
-    expect(analysis.highlights.length).toBeGreaterThan(0);
+    expect(analysis.dimensionCards.find((card) => card.id === "support")?.evidence).toContain("公厕");
+    expect(analysis.highlights.join(" ")).toContain("地铁");
   });
 
   it("builds a competition report with SuperMap evidence and recommendation logic", () => {

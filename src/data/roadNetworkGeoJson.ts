@@ -238,6 +238,10 @@ function addLineToGraph(
     const suitabilityScore = normalizeNumber(properties.suitability);
     const slopeMean = normalizeNumber(properties.slope_mean);
     const competitionSuitable = normalizeControlFlag(properties.control_ok) ?? isCompetitionSuitableRoadLevel(roadLevel);
+    const explicitPenalty = Math.max(0, impedance ?? 0);
+    const slopePenalty = slopeMean === null ? 0 : slopeResistancePenalty(slopeMean);
+    const constraintPenalty = competitionSuitable ? 0 : 80;
+    const totalPenalty = explicitPenalty + slopePenalty + constraintPenalty;
     const edgeId = `osm-${featureIndex}-${lineIndex}-${index}`;
     addEdge(graph, {
       id: edgeId,
@@ -248,11 +252,25 @@ function addLineToGraph(
       isBridge: isOsmTagTrue(properties.bridge),
       isTunnel: isOsmTagTrue(properties.tunnel),
       competitionSuitable,
-      baselineCost: impedance === null ? lengthKm : lengthKm * (1 + Math.max(0, impedance) / 100),
+      baselineCost: lengthKm * (1 + totalPenalty / 100),
       ...(suitabilityScore === null ? {} : { suitabilityScore }),
-      ...(slopeMean === null ? {} : { slopeMean })
+      ...(slopeMean === null ? {} : { slopeMean }),
+      impedanceBreakdown: {
+        base: lengthKm,
+        explicit: explicitPenalty,
+        slope: slopePenalty,
+        constraint: constraintPenalty
+      }
     });
   }
+}
+
+function slopeResistancePenalty(slopeMean: number): number {
+  const slope = Math.abs(slopeMean);
+  if (slope <= 1.5) return 0;
+  if (slope <= 3) return Math.round((slope - 1.5) * 8);
+  if (slope <= 6) return Math.round(12 + (slope - 3) * 12);
+  return Math.round(48 + Math.min(52, (slope - 6) * 10));
 }
 
 function nodeIdForCoordinate(coordinate: Coordinate): string {

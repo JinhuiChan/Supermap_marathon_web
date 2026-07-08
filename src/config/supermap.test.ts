@@ -17,4 +17,12 @@ describe("superMapConfig", () => {
     expect(superMapConfig.displayRoadNetworkGeoJsonUrl).toBe("data/local-wuhan-road-network-osm.geojson");
     expect(superMapConfig.routingRoadNetworkGeoJsonUrl).toBe("data/local-wuhan-marathon-area-roads.geojson");
   });
+
+  it("tracks the planned Wuhan GIS foundation services", () => {
+    expect(superMapConfig.serviceUrls.roadMapWms).toContain("map-wuhan-road-network/wms111");
+    expect(superMapConfig.serviceUrls.roadDataRest).toContain("data-wuhan-road-network/rest");
+    expect(superMapConfig.serviceUrls.poiDataRest).toContain("data-wuhan-poi/rest");
+    expect(superMapConfig.serviceUrls.constraintMapRest).toContain("map-wuhan-constraints/rest");
+    expect(superMapConfig.serviceUrls.demSlopeMapRest).toContain("map-wuhan-dem-slope/rest");
+  });
 });
