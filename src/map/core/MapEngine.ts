@@ -5,8 +5,11 @@ import type { MarathonRoute } from "../../domain/routeMetrics";
 import {
   formatPoiLabel,
   formatPoiPopup,
+  poiLabelDisplayMode,
   shouldShowPoiLabelAtZoom,
+  sortPoiLabelsForDisplay,
   toPoiLeafletLatLng,
+  visiblePoiLimitForZoom,
   type MapPoiLabel
 } from "../layers/PoiLabelLayer";
 import {
@@ -499,12 +502,18 @@ export class MapEngine {
     if (!divIcon || !marker) return;
 
     const currentZoom = this.getCurrentZoom();
-    for (const poi of this.poiLabels.filter((label) => shouldShowPoiLabelAtZoom(label, currentZoom))) {
+    const visiblePois = sortPoiLabelsForDisplay(
+      this.poiLabels.filter((label) => shouldShowPoiLabelAtZoom(label, currentZoom))
+    ).slice(0, visiblePoiLimitForZoom(currentZoom));
+
+    for (const poi of visiblePois) {
+      const displayMode = poiLabelDisplayMode(poi, currentZoom);
+      if (displayMode === "hidden") continue;
       const icon = divIcon({
-        className: `map-poi-marker ${poi.kind}`,
-        html: formatPoiLabel(poi),
-        iconSize: [126, 24],
-        iconAnchor: [10, 12]
+        className: `map-poi-marker ${poi.kind} ${displayMode}`,
+        html: formatPoiLabel(poi, displayMode),
+        iconSize: displayMode === "icon" ? [28, 28] : [170, 32],
+        iconAnchor: displayMode === "icon" ? [14, 14] : [14, 16]
       });
       const layer = marker(toPoiLeafletLatLng(poi), {
         icon,

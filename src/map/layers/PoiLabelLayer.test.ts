@@ -3,7 +3,9 @@ import {
   extractPoiLabelsFromGeoJson,
   extractPoiLabelsFromSuperMapFeatures,
   formatPoiLabel,
+  poiLabelDisplayMode,
   poiLabelVisual,
+  visiblePoiLimitForZoom,
   shouldShowPoiLabelAtZoom
 } from "./PoiLabelLayer";
 
@@ -29,6 +31,8 @@ describe("PoiLabelLayer", () => {
         name: "三阳路",
         kind: "traffic",
         coordinate: [114.303, 30.602],
+        minZoom: 10,
+        priority: 100,
         source: "local"
       }
     ]);
@@ -66,6 +70,7 @@ describe("PoiLabelLayer", () => {
 
   test("formats Gaode-like icon labels by POI type", () => {
     expect(formatPoiLabel({ id: "h", name: "协和医院", kind: "hospital", coordinate: [114.3, 30.6] })).toContain("协和医院");
+    expect(formatPoiLabel({ id: "h", name: "协和医院", kind: "hospital", coordinate: [114.3, 30.6] }, "icon")).not.toContain("map-poi-name");
     expect(poiLabelVisual("hospital")).toMatchObject({
       symbol: "医",
       color: "#d94b42"
@@ -116,5 +121,43 @@ describe("PoiLabelLayer", () => {
     expect(shouldShowPoiLabelAtZoom({ id: "a", name: "协和医院", kind: "hospital", coordinate: [114.3, 30.6], minZoom: 10 }, 9)).toBe(false);
     expect(shouldShowPoiLabelAtZoom({ id: "a", name: "协和医院", kind: "hospital", coordinate: [114.3, 30.6], minZoom: 10 }, 10)).toBe(true);
     expect(shouldShowPoiLabelAtZoom({ id: "b", name: "大型交通点", kind: "traffic", coordinate: [114.3, 30.6], minZoom: 13, priority: 100 }, 11)).toBe(true);
+  });
+
+  test("uses kind fallback names for unnamed local service area POIs", () => {
+    const pois = extractPoiLabelsFromGeoJson(
+      {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            properties: { Lon: 114.303, Lat: 30.602, Level2_cn: "医疗卫生用地" },
+            geometry: { type: "Polygon", coordinates: [[[114.2, 30.5], [114.4, 30.5], [114.4, 30.7], [114.2, 30.5]]] }
+          }
+        ]
+      },
+      "hospital"
+    );
+
+    expect(pois).toHaveLength(1);
+    expect(pois[0].name).toBe("医疗卫生用地");
+    expect(pois[0].coordinate).toEqual([114.303, 30.602]);
+    expect(pois[0].priority).toBeGreaterThan(90);
+  });
+
+
+  test("uses icon-only POIs at low zoom and expands text labels at high zoom", () => {
+    const hospital = { id: "a", name: "协和医院", kind: "hospital" as const, coordinate: [114.3, 30.6] as [number, number], minZoom: 10 };
+    const commercial = { id: "b", name: "商圈补给", kind: "commercial" as const, coordinate: [114.3, 30.6] as [number, number], minZoom: 13 };
+
+    expect(poiLabelDisplayMode(hospital, 10)).toBe("icon");
+    expect(poiLabelDisplayMode(hospital, 13)).toBe("label");
+    expect(poiLabelDisplayMode(commercial, 12)).toBe("hidden");
+    expect(poiLabelDisplayMode(commercial, 13)).toBe("icon");
+    expect(poiLabelDisplayMode(commercial, 15)).toBe("label");
+  });
+
+  test("raises the visible POI cap as users zoom in", () => {
+    expect(visiblePoiLimitForZoom(10)).toBeLessThan(visiblePoiLimitForZoom(13));
+    expect(visiblePoiLimitForZoom(13)).toBeLessThan(visiblePoiLimitForZoom(15));
   });
 });

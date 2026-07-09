@@ -20,6 +20,8 @@ export interface MapPoiLabel {
   source?: "iserver" | "local";
 }
 
+export type PoiLabelDisplayMode = "hidden" | "icon" | "label";
+
 type SuperMapFeatureRecord = {
   fieldNames?: unknown;
   fieldValues?: unknown;
@@ -40,7 +42,7 @@ export function extractPoiLabelsFromGeoJson(
   for (const [index, feature] of getFeatures(geojson).entries()) {
     const name = normalizeName(feature.properties);
     if (!name) continue;
-    const coordinate = featureCenter(feature.geometry);
+    const coordinate = propertyCoordinate(feature.properties) ?? featureCenter(feature.geometry);
     if (!coordinate) continue;
 
     const key = `${kind}:${name.toLocaleLowerCase()}:${coordinate[0].toFixed(4)},${coordinate[1].toFixed(4)}`;
@@ -51,6 +53,8 @@ export function extractPoiLabelsFromGeoJson(
       name,
       kind,
       coordinate,
+      minZoom: defaultMinZoomForKind(kind),
+      priority: priorityForKind(kind),
       source: "local"
     });
     if (labels.length >= maxLabels) break;
@@ -95,8 +99,31 @@ export function extractPoiLabelsFromSuperMapFeatures(
 }
 
 export function shouldShowPoiLabelAtZoom(poi: MapPoiLabel, zoom: number): boolean {
-  if ((poi.priority ?? 0) >= 95) return zoom >= Math.max(10, (poi.minZoom ?? 10) - 2);
-  return zoom >= (poi.minZoom ?? defaultMinZoomForKind(poi.kind));
+  return poiLabelDisplayMode(poi, zoom) !== "hidden";
+}
+
+export function poiLabelDisplayMode(poi: MapPoiLabel, zoom: number): PoiLabelDisplayMode {
+  const iconZoom = iconMinZoomForPoi(poi);
+  if (zoom < iconZoom) return "hidden";
+  return zoom >= labelMinZoomForKind(poi.kind) ? "label" : "icon";
+}
+
+export function visiblePoiLimitForZoom(zoom: number): number {
+  if (zoom >= 16) return 560;
+  if (zoom >= 15) return 420;
+  if (zoom >= 14) return 280;
+  if (zoom >= 13) return 180;
+  if (zoom >= 12) return 110;
+  if (zoom >= 11) return 72;
+  return 42;
+}
+
+export function sortPoiLabelsForDisplay(labels: MapPoiLabel[]): MapPoiLabel[] {
+  return [...labels].sort((a, b) =>
+    (b.priority ?? priorityForKind(b.kind)) - (a.priority ?? priorityForKind(a.kind)) ||
+    kindDisplayRank(a.kind) - kindDisplayRank(b.kind) ||
+    a.name.localeCompare(b.name, "zh-CN")
+  );
 }
 
 export function toPoiLeafletLatLng(poi: MapPoiLabel): [number, number] {
@@ -110,11 +137,15 @@ export function poiLabelVisual(kind: PoiLabelKind): { symbol: string; color: str
   return { symbol: "商", color: "#d07a1c", className: "commercial" };
 }
 
-export function formatPoiLabel(poi: MapPoiLabel): string {
+export function formatPoiLabel(poi: MapPoiLabel, mode: Exclude<PoiLabelDisplayMode, "hidden"> = "label"): string {
   const visual = poiLabelVisual(poi.kind);
+  const symbol = `<span class="map-poi-symbol ${visual.className}" style="background:${visual.color}">${visual.symbol}</span>`;
+  if (mode === "icon") return `<span class="map-poi-label icon-only">${symbol}</span>`;
   return [
-    `<span class="map-poi-symbol ${visual.className}" style="background:${visual.color}">${visual.symbol}</span>`,
-    `<span class="map-poi-name">${escapeHtml(poi.name)}</span>`
+    `<span class="map-poi-label with-name">`,
+    symbol,
+    `<span class="map-poi-name ${visual.className}">${escapeHtml(poi.name)}</span>`,
+    `</span>`
   ].join("");
 }
 
@@ -142,8 +173,10 @@ function normalizeName(properties: Record<string, unknown> | null | undefined): 
     properties?.point_name,
     properties?.POINT_NAME,
     properties?.Level2_CN,
+    properties?.Level2_cn,
     properties?.LEVEL2_CN,
     properties?.Level1_CN,
+    properties?.Level1_cn,
     properties?.LEVEL1_CN,
     properties?.fclass_cn,
     properties?.FCLASS_CN,
@@ -212,6 +245,40 @@ function defaultMinZoomForKind(kind: PoiLabelKind): number {
   if (kind === "hospital" || kind === "traffic") return 10;
   if (kind === "park") return 12;
   return 13;
+}
+
+function propertyCoordinate(properties: Record<string, unknown> | null | undefined): Coordinate | null {
+  const lon = numberValue(properties?.Lon ?? properties?.LON ?? properties?.lon);
+  const lat = numberValue(properties?.Lat ?? properties?.LAT ?? properties?.lat);
+  return typeof lon === "number" && typeof lat === "number" ? [lon, lat] : null;
+}
+
+function numberValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function iconMinZoomForPoi(poi: MapPoiLabel): number {
+  const minZoom = poi.minZoom ?? defaultMinZoomForKind(poi.kind);
+  if ((poi.priority ?? 0) >= 95) return Math.max(10, minZoom - 2);
+  return minZoom;
+}
+
+function labelMinZoomForKind(kind: PoiLabelKind): number {
+  if (kind === "hospital" || kind === "traffic") return 13;
+  if (kind === "park") return 14;
+  return 15;
+}
+
+function kindDisplayRank(kind: PoiLabelKind): number {
+  if (kind === "hospital") return 0;
+  if (kind === "traffic") return 1;
+  if (kind === "park") return 2;
+  return 3;
 }
 
 function featureCenter(geometry: GeoJsonFeature["geometry"]): Coordinate | null {

@@ -139,10 +139,10 @@ export function SuperMapMap(props: SuperMapMapProps) {
     let cancelled = false;
     const loadFallbackPoiLabels = () => {
       const sources: Array<{ url: string; kind: PoiLabelKind; maxLabels: number }> = [
-      { url: superMapConfig.constraintLayerUrls.sensitiveHospital, kind: "hospital", maxLabels: 90 },
-      { url: superMapConfig.constraintLayerUrls.trafficStation, kind: "traffic", maxLabels: 120 },
-      { url: superMapConfig.constraintLayerUrls.parks, kind: "park", maxLabels: 100 },
-      { url: superMapConfig.constraintLayerUrls.commercialPotential, kind: "commercial", maxLabels: 90 }
+      { url: superMapConfig.constraintLayerUrls.sensitiveHospital, kind: "hospital", maxLabels: 120 },
+      { url: superMapConfig.constraintLayerUrls.trafficStation, kind: "traffic", maxLabels: 160 },
+      { url: superMapConfig.constraintLayerUrls.parks, kind: "park", maxLabels: 220 },
+      { url: superMapConfig.constraintLayerUrls.commercialPotential, kind: "commercial", maxLabels: 220 }
       ];
 
       return Promise.all(
@@ -158,11 +158,17 @@ export function SuperMapMap(props: SuperMapMapProps) {
       ).then((layers) => layers.flat());
     };
 
+    loadFallbackPoiLabels().then((labels) => {
+      if (cancelled || labels.length === 0) return;
+      setPoiLabels(labels);
+      engineRef.current?.setPoiLabels(labels);
+    });
+
     fetchIserverPoiLabels(superMapConfig.serviceUrls.poiDataRest)
-      .then((labels) => labels.length > 0 ? labels : loadFallbackPoiLabels())
-      .catch(() => loadFallbackPoiLabels())
+      .catch(() => [])
       .then((labels) => {
       if (cancelled) return;
+      if (labels.length === 0) return;
       setPoiLabels(labels);
       engineRef.current?.setPoiLabels(labels);
     });
