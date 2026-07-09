@@ -1,23 +1,40 @@
 export type SuperMapStatus = "checking" | "online" | "offline";
 export type SuperMapResourceStatus = "checking" | "ready" | "pending";
 
+export function buildIserverHealthUrl(baseUrl: string): string {
+  const normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+  return new URL("services.json", normalizedBaseUrl).toString();
+}
+
 export async function checkSuperMapIserver(baseUrl: string, timeoutMs = 3500): Promise<SuperMapStatus> {
   const controller = new AbortController();
   const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    await fetch(baseUrl, {
+    const response = await fetch(buildIserverHealthUrl(baseUrl), {
       method: "GET",
-      mode: "no-cors",
       cache: "no-store",
       signal: controller.signal
     });
-    return "online";
+    if (response.ok) return "online";
   } catch {
-    return "offline";
+    try {
+      const normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+      await fetch(normalizedBaseUrl, {
+        method: "GET",
+        mode: "no-cors",
+        cache: "no-store",
+        signal: controller.signal
+      });
+      return "online";
+    } catch {
+      return "offline";
+    }
   } finally {
     globalThis.clearTimeout(timeout);
   }
+
+  return "offline";
 }
 
 export async function checkSuperMapResource(url: string, timeoutMs = 3500): Promise<SuperMapResourceStatus> {
