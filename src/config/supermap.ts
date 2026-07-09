@@ -1,4 +1,4 @@
-export type BasemapMode = "online" | "supermapDem";
+export type BasemapMode = "localVector" | "online" | "supermapDem";
 
 const iServerBaseUrl = "http://127.0.0.1:8090/iserver";
 
@@ -10,6 +10,10 @@ export const superMapConfig = {
   leafletCssUrl: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
 
   defaultBasemap: "supermapDem" as BasemapMode,
+  localVectorBasemap: {
+    name: "本地仿 OSM 矢量底图",
+    attribution: "Local OSM/SuperMap vector layers"
+  },
   onlineBasemap: {
     name: "在线真实地图",
     tileUrl: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",

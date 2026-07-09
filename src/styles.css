@@ -704,7 +704,7 @@ textarea {
   overflow: hidden;
   width: 100%;
   height: 100%;
-  background: #dce8ee;
+  background: #f6f7f5;
   outline: 0;
 }
 
@@ -734,6 +734,27 @@ textarea {
 
 .leaflet-overlay-pane {
   z-index: 400;
+}
+
+.leaflet-vector-basemap-pane {
+  z-index: 220;
+  pointer-events: none;
+}
+
+.leaflet-road-network-pane {
+  z-index: 340;
+}
+
+.leaflet-route-overlay-pane {
+  z-index: 460;
+}
+
+.leaflet-support-point-pane {
+  z-index: 520;
+}
+
+.leaflet-planning-point-pane {
+  z-index: 580;
 }
 
 .leaflet-pane > svg {
@@ -834,6 +855,53 @@ textarea {
   background: rgba(14, 41, 65, 0.86);
   color: #ffffff;
   text-shadow: none;
+}
+
+.map-poi-marker {
+  width: auto !important;
+  height: 24px !important;
+}
+
+.map-poi-marker > div,
+.map-poi-marker .map-poi-name {
+  box-sizing: border-box;
+}
+
+.map-poi-marker .map-poi-symbol,
+.map-poi-marker .map-poi-name {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  vertical-align: top;
+}
+
+.map-poi-marker .map-poi-symbol {
+  justify-content: center;
+  width: 22px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(21, 31, 42, 0.2);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.map-poi-marker .map-poi-name {
+  max-width: 112px;
+  margin-left: -3px;
+  padding: 0 7px 0 9px;
+  border: 1px solid rgba(197, 207, 216, 0.92);
+  border-left: 0;
+  border-radius: 0 5px 5px 0;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 1px 4px rgba(21, 31, 42, 0.12);
+  color: #253342;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .leaflet-popup-content {
@@ -1520,6 +1588,13 @@ textarea {
 .gis-generate-button:disabled {
   background: #9caab7;
   cursor: not-allowed;
+}
+
+.gis-generate-disabled-reason {
+  margin: 8px 0 0;
+  color: #5f7184;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .drawer-heading {

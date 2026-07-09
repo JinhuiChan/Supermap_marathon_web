@@ -7,8 +7,9 @@ describe("superMapConfig", () => {
     expect(superMapConfig.wmsLayerName).toBe("0");
   });
 
-  it("defaults to the iDesktop-published map while keeping OpenStreetMap as a fallback option", () => {
+  it("defaults to the iDesktop-published map while keeping local vector and OpenStreetMap as fallback options", () => {
     expect(superMapConfig.defaultBasemap).toBe("supermapDem");
+    expect(superMapConfig.localVectorBasemap.name).toContain("矢量");
     expect(superMapConfig.onlineBasemap.tileUrl).toContain("openstreetmap.org");
     expect(superMapConfig.onlineBasemap.attribution).toContain("OpenStreetMap");
   });

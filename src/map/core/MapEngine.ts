@@ -3,6 +3,13 @@ import type { SupportPoint } from "../../data/supportPoints";
 import type { Coordinate } from "../../domain/routeMetrics";
 import type { MarathonRoute } from "../../domain/routeMetrics";
 import {
+  formatPoiLabel,
+  formatPoiPopup,
+  shouldShowPoiLabelAtZoom,
+  toPoiLeafletLatLng,
+  type MapPoiLabel
+} from "../layers/PoiLabelLayer";
+import {
   formatRoadNetworkPopup,
   roadLabelKey,
   roadNetworkStyle,
@@ -16,6 +23,10 @@ import {
   formatSupportPointPopup,
   toLeafletLatLng
 } from "../layers/SupportPointLayer";
+import {
+  vectorBasemapStyle,
+  type VectorBasemapFeature
+} from "../layers/VectorBasemapLayer";
 
 export interface MapEngineOptions {
   container: HTMLElement;
@@ -33,8 +44,11 @@ export class MapEngine {
   private routeLayers: Map<string, unknown> = new Map();
   private routeDirectionLayers: Map<string, unknown[]> = new Map();
   private supportPointLayers: unknown[] = [];
+  private poiLabelLayers: unknown[] = [];
+  private vectorBasemapLayers: unknown[] = [];
   private roadNetworkLayers: unknown[] = [];
   private planningPointLayers: unknown[] = [];
+  private vectorBasemapFeatures: VectorBasemapFeature[] = [];
   private roadNetworkFeatures: RoadNetworkFeature[] = [];
   private basemapLayers: Partial<Record<BasemapMode, unknown>> = {};
   private activeBasemapLayer: unknown = null;
@@ -51,6 +65,7 @@ export class MapEngine {
   private destroyed = false;
   private routes: MarathonRoute[] = [];
   private supportPoints: SupportPoint[] = [];
+  private poiLabels: MapPoiLabel[] = [];
   private activeRouteId = "";
   private comparedRouteIds: string[] = [];
   private routesVisible = true;
@@ -92,11 +107,18 @@ export class MapEngine {
       preferCanvas: true
     });
     this.map = map;
+    this.createMapPane("vector-basemap-pane", 220, "none");
+    this.createMapPane("road-network-pane", 340, "auto");
+    this.createMapPane("route-overlay-pane", 460, "auto");
+    this.createMapPane("support-point-pane", 520, "auto");
+    this.createMapPane("planning-point-pane", 580, "auto");
 
     const tileLayer = L.tileLayer as ((url: string, opts?: Record<string, unknown>) => unknown) & {
       wms: (url: string, opts: Record<string, unknown>) => unknown;
     };
+    const layerGroup = L.layerGroup as ((layers?: unknown[]) => unknown) | undefined;
 
+    this.basemapLayers.localVector = layerGroup ? layerGroup([]) : undefined;
     this.basemapLayers.online = tileLayer(this.onlineTileUrl, {
       attribution: this.onlineAttribution,
       maxZoom: 19
@@ -120,6 +142,7 @@ export class MapEngine {
       const clickedId = this.findNearestRoute([latlng.lng, latlng.lat]);
       if (clickedId) this.onRouteClickCb(clickedId);
     });
+    (map as { on: (event: string, cb: () => void) => void }).on("zoomend", () => this.renderPoiLabels());
   }
 
   setBasemap(mode: BasemapMode): void {
@@ -135,6 +158,7 @@ export class MapEngine {
     (nextLayer as { addTo: (m: unknown) => unknown }).addTo(this.map);
     this.activeBasemapLayer = nextLayer;
     this.basemapMode = mode;
+    this.renderVectorBasemap();
   }
 
   setRoutes(routes: MarathonRoute[]): void {
@@ -177,10 +201,22 @@ export class MapEngine {
     this.renderSupportPoints();
   }
 
+  setPoiLabels(labels: MapPoiLabel[]): void {
+    if (this.destroyed || !this.map) return;
+    this.poiLabels = labels;
+    this.renderPoiLabels();
+  }
+
   setRoadNetwork(roads: RoadNetworkFeature[]): void {
     if (this.destroyed || !this.map) return;
     this.roadNetworkFeatures = roads;
     this.renderRoadNetwork();
+  }
+
+  setVectorBasemapFeatures(features: VectorBasemapFeature[]): void {
+    if (this.destroyed || !this.map) return;
+    this.vectorBasemapFeatures = features;
+    this.renderVectorBasemap();
   }
 
   setPlanningPoints(startPoint: Coordinate | null, endPoint: Coordinate | null): void {
@@ -204,10 +240,9 @@ export class MapEngine {
     let roadLabelCount = 0;
 
     for (const road of this.roadNetworkFeatures) {
-      const layer = polyline(road.line, roadNetworkStyle(road));
+      const layer = polyline(road.line, { ...roadNetworkStyle(road), pane: "road-network-pane" });
       const orderedLayer = layer as {
         addTo: (m: unknown) => unknown;
-        bringToBack?: () => unknown;
         bindTooltip?: (label: string, opts?: Record<string, unknown>) => unknown;
         bindPopup?: (label: string, opts?: Record<string, unknown>) => unknown;
       };
@@ -237,8 +272,29 @@ export class MapEngine {
         });
       }
       orderedLayer.addTo(this.map);
-      orderedLayer.bringToBack?.();
       this.roadNetworkLayers.push(layer);
+    }
+  }
+
+  private renderVectorBasemap(): void {
+    if (this.destroyed || !this.map) return;
+    this.clearVectorBasemapLayers();
+    if (this.basemapMode !== "localVector") return;
+
+    const L = (window as unknown as Record<string, unknown>).L as Record<string, unknown> | undefined;
+    if (!L) return;
+
+    const polygon = L.polygon as ((latlngs: [number, number][][], opts?: Record<string, unknown>) => unknown) | undefined;
+    const polyline = L.polyline as ((latlngs: [number, number][], opts?: Record<string, unknown>) => unknown) | undefined;
+    if (!polygon || !polyline) return;
+
+    for (const feature of this.vectorBasemapFeatures) {
+      const style = { ...vectorBasemapStyle(feature.kind), pane: "vector-basemap-pane" };
+      const layer = feature.geometryType === "polygon"
+        ? polygon(feature.coordinates as [number, number][][], style)
+        : polyline(feature.coordinates as [number, number][], style);
+      (layer as { addTo?: (m: unknown) => unknown }).addTo?.(this.map);
+      this.vectorBasemapLayers.push(layer);
     }
   }
 
@@ -249,6 +305,7 @@ export class MapEngine {
     }
     if (typeof visibility.supportPoints === "boolean") {
       this.supportPointsVisible = visibility.supportPoints;
+      this.renderPoiLabels();
       this.renderSupportPoints();
     }
     if (typeof visibility.roadNetwork === "boolean") {
@@ -306,6 +363,8 @@ export class MapEngine {
     this.routeLayers.clear();
     this.clearRouteDirectionLayers();
     this.clearSupportPointLayers();
+    this.clearPoiLabelLayers();
+    this.clearVectorBasemapLayers();
     this.clearRoadNetworkLayers();
     this.clearPlanningPointLayers();
     this.basemapLayers = {};
@@ -371,6 +430,7 @@ export class MapEngine {
       });
       const layer = marker([direction.coordinate[1], direction.coordinate[0]], {
         icon,
+        pane: "route-overlay-pane",
         interactive: false,
         keyboard: false
       });
@@ -403,7 +463,10 @@ export class MapEngine {
 
     for (const point of this.supportPoints) {
       const isHighlighted = point.routeId === this.activeRouteId || this.comparedRouteIds.includes(point.routeId);
-      const layer = circleMarker(toLeafletLatLng(point), computeSupportPointStyle(point, isHighlighted));
+      const layer = circleMarker(toLeafletLatLng(point), {
+        ...computeSupportPointStyle(point, isHighlighted),
+        pane: "support-point-pane"
+      });
       const marker = layer as {
         addTo?: (m: unknown) => unknown;
         bindTooltip?: (label: string, opts?: Record<string, unknown>) => unknown;
@@ -423,6 +486,42 @@ export class MapEngine {
     }
   }
 
+  private renderPoiLabels(): void {
+    if (this.destroyed || !this.map) return;
+    this.clearPoiLabelLayers();
+    if (!this.supportPointsVisible) return;
+
+    const L = (window as unknown as Record<string, unknown>).L as Record<string, unknown> | undefined;
+    if (!L) return;
+
+    const divIcon = L.divIcon as ((opts: Record<string, unknown>) => unknown) | undefined;
+    const marker = L.marker as ((latlng: [number, number], opts?: Record<string, unknown>) => unknown) | undefined;
+    if (!divIcon || !marker) return;
+
+    const currentZoom = this.getCurrentZoom();
+    for (const poi of this.poiLabels.filter((label) => shouldShowPoiLabelAtZoom(label, currentZoom))) {
+      const icon = divIcon({
+        className: `map-poi-marker ${poi.kind}`,
+        html: formatPoiLabel(poi),
+        iconSize: [126, 24],
+        iconAnchor: [10, 12]
+      });
+      const layer = marker(toPoiLeafletLatLng(poi), {
+        icon,
+        pane: "support-point-pane",
+        keyboard: false,
+        riseOnHover: true
+      });
+      const poiMarker = layer as {
+        addTo?: (m: unknown) => unknown;
+        bindPopup?: (label: string, opts?: Record<string, unknown>) => unknown;
+      };
+      poiMarker.bindPopup?.(formatPoiPopup(poi), { maxWidth: 240 });
+      poiMarker.addTo?.(this.map);
+      this.poiLabelLayers.push(layer);
+    }
+  }
+
   private clearSupportPointLayers(): void {
     for (const layer of this.supportPointLayers) {
       if (this.map) {
@@ -431,6 +530,26 @@ export class MapEngine {
       }
     }
     this.supportPointLayers = [];
+  }
+
+  private clearPoiLabelLayers(): void {
+    for (const layer of this.poiLabelLayers) {
+      if (this.map) {
+        const mapWithRemove = this.map as { removeLayer?: (l: unknown) => void };
+        mapWithRemove.removeLayer?.(layer);
+      }
+    }
+    this.poiLabelLayers = [];
+  }
+
+  private clearVectorBasemapLayers(): void {
+    for (const layer of this.vectorBasemapLayers) {
+      if (this.map) {
+        const mapWithRemove = this.map as { removeLayer?: (l: unknown) => void };
+        mapWithRemove.removeLayer?.(layer);
+      }
+    }
+    this.vectorBasemapLayers = [];
   }
 
   private renderPlanningPoints(): void {
@@ -459,6 +578,7 @@ export class MapEngine {
       });
       const layer = marker([point.coordinate[1], point.coordinate[0]], {
         icon,
+        pane: "planning-point-pane",
         keyboard: false
       });
       const leafletMarker = layer as {
@@ -502,10 +622,26 @@ export class MapEngine {
         weight: 0
       };
     }
-    return style;
+    return { ...style, pane: "route-overlay-pane" };
   }
 
   private findNearestRoute(coord: [number, number]): string | null {
     return findNearestRouteId(this.routes, coord);
+  }
+
+  private getCurrentZoom(): number {
+    const mapWithZoom = this.map as { getZoom?: () => number };
+    return mapWithZoom.getZoom?.() ?? this.zoom;
+  }
+
+  private createMapPane(name: string, zIndex: number, pointerEvents: "auto" | "none"): void {
+    const mapWithPanes = this.map as {
+      createPane?: (paneName: string) => HTMLElement;
+      getPane?: (paneName: string) => HTMLElement | undefined;
+    };
+    const pane = mapWithPanes.getPane?.(name) ?? mapWithPanes.createPane?.(name);
+    if (!pane) return;
+    pane.style.zIndex = String(zIndex);
+    pane.style.pointerEvents = pointerEvents;
   }
 }

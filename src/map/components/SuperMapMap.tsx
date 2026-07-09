@@ -4,10 +4,21 @@ import { superMapConfig } from "../../config/supermap";
 import type { SupportPoint } from "../../data/supportPoints";
 import type { Coordinate } from "../../domain/routeMetrics";
 import type { MarathonRoute } from "../../domain/routeMetrics";
+import { fetchIserverPoiLabels } from "../../services/iserverPoi";
 import { RouteMap } from "../../components/RouteMap";
 import { loadScript, loadStylesheet } from "../core/loadScript";
 import { MapEngine } from "../core/MapEngine";
+import {
+  extractPoiLabelsFromGeoJson,
+  type MapPoiLabel,
+  type PoiLabelKind
+} from "../layers/PoiLabelLayer";
 import { extractRoadNetworkFeatures, type RoadNetworkFeature } from "../layers/RoadNetworkLayer";
+import {
+  extractVectorBasemapFeatures,
+  type VectorBasemapFeature,
+  type VectorBasemapKind
+} from "../layers/VectorBasemapLayer";
 import { LoadingSpinner } from "./LoadingSpinner";
 
 interface SuperMapMapProps {
@@ -64,6 +75,8 @@ export function SuperMapMap(props: SuperMapMapProps) {
   const engineRef = useRef<MapEngine | null>(null);
   const viewportTimersRef = useRef<number[]>([]);
   const [roadNetworkFeatures, setRoadNetworkFeatures] = useState<RoadNetworkFeature[]>([]);
+  const [poiLabels, setPoiLabels] = useState<MapPoiLabel[]>([]);
+  const [vectorBasemapFeatures, setVectorBasemapFeatures] = useState<VectorBasemapFeature[]>([]);
   const [roadNetworkStatus, setRoadNetworkStatus] = useState("汉马道路走廊：加载中");
   const [phase, setPhase] = useState<MapPhase>("loading");
   const [phaseMessage, setPhaseMessage] = useState("加载 Leaflet 地图库...");
@@ -124,6 +137,75 @@ export function SuperMapMap(props: SuperMapMapProps) {
 
   useEffect(() => {
     let cancelled = false;
+    const loadFallbackPoiLabels = () => {
+      const sources: Array<{ url: string; kind: PoiLabelKind; maxLabels: number }> = [
+      { url: superMapConfig.constraintLayerUrls.sensitiveHospital, kind: "hospital", maxLabels: 90 },
+      { url: superMapConfig.constraintLayerUrls.trafficStation, kind: "traffic", maxLabels: 120 },
+      { url: superMapConfig.constraintLayerUrls.parks, kind: "park", maxLabels: 100 },
+      { url: superMapConfig.constraintLayerUrls.commercialPotential, kind: "commercial", maxLabels: 90 }
+      ];
+
+      return Promise.all(
+        sources.map((source) =>
+          fetch(source.url)
+            .then((response) => {
+              if (!response.ok) throw new Error(`HTTP ${response.status}`);
+              return response.json();
+            })
+            .then((geojson) => extractPoiLabelsFromGeoJson(geojson, source.kind, source.maxLabels))
+            .catch(() => [])
+        )
+      ).then((layers) => layers.flat());
+    };
+
+    fetchIserverPoiLabels(superMapConfig.serviceUrls.poiDataRest)
+      .then((labels) => labels.length > 0 ? labels : loadFallbackPoiLabels())
+      .catch(() => loadFallbackPoiLabels())
+      .then((labels) => {
+      if (cancelled) return;
+      setPoiLabels(labels);
+      engineRef.current?.setPoiLabels(labels);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const sources: Array<{ url: string; kind: VectorBasemapKind; maxFeatures?: number }> = [
+      { url: superMapConfig.constraintLayerUrls.waterArea, kind: "waterArea", maxFeatures: 2400 },
+      { url: superMapConfig.constraintLayerUrls.waterLine, kind: "waterLine", maxFeatures: 1800 },
+      { url: superMapConfig.constraintLayerUrls.parks, kind: "park", maxFeatures: 2400 },
+      { url: superMapConfig.constraintLayerUrls.commercialPotential, kind: "commercial", maxFeatures: 1200 },
+      { url: superMapConfig.constraintLayerUrls.trafficStation, kind: "trafficStation", maxFeatures: 1200 }
+    ];
+
+    Promise.all(
+      sources.map((source) =>
+        fetch(source.url)
+          .then((response) => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+          })
+          .then((geojson) => extractVectorBasemapFeatures(geojson, source.kind, source.maxFeatures))
+          .catch(() => [])
+      )
+    ).then((layers) => {
+      if (cancelled) return;
+      const features = layers.flat();
+      setVectorBasemapFeatures(features);
+      engineRef.current?.setVectorBasemapFeatures(features);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
     const container = containerRef.current;
     if (!container) return;
 
@@ -165,6 +247,8 @@ export function SuperMapMap(props: SuperMapMapProps) {
         engine.onMapClick(activePointTool ? (coordinate) => onMapCoordinateSelectRef.current?.(coordinate) : null);
         engine.setRoutes(visibleRoutes);
         engine.setSupportPoints(supportPoints);
+        engine.setPoiLabels(poiLabels);
+        engine.setVectorBasemapFeatures(vectorBasemapFeatures);
         engine.setRoadNetwork(roadNetworkFeatures);
         engine.setPlanningPoints(planningStartPoint, planningEndPoint);
         engine.highlightRoute(activeRouteId, comparedRouteIds);
@@ -217,6 +301,12 @@ export function SuperMapMap(props: SuperMapMapProps) {
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine || phase !== "ready") return;
+    engine.setPoiLabels(poiLabels);
+  }, [poiLabels, phase]);
+
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!engine || phase !== "ready") return;
     engine.highlightRoute(activeRouteId, comparedRouteIds);
   }, [activeRouteId, comparedRouteIds, phase]);
 
@@ -231,6 +321,12 @@ export function SuperMapMap(props: SuperMapMapProps) {
     if (!engine || phase !== "ready") return;
     engine.setRoadNetwork(roadNetworkFeatures);
   }, [roadNetworkFeatures, phase]);
+
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!engine || phase !== "ready") return;
+    engine.setVectorBasemapFeatures(vectorBasemapFeatures);
+  }, [vectorBasemapFeatures, phase]);
 
   useEffect(() => {
     const engine = engineRef.current;

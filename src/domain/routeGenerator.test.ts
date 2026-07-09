@@ -106,4 +106,37 @@ describe("routeGenerator", () => {
     expect(route.metrics.maxSlopePercent).toBe(6);
     expect(route.metrics.longSteepRatio).toBeGreaterThan(0);
   });
+
+  it("counts reverse-edge lengths when generating routes against bidirectional roads", () => {
+    const graph = createEmptyGraph();
+    addNode(graph, { id: "a", coordinate: [114.3, 30.6] });
+    addNode(graph, { id: "b", coordinate: [114.309, 30.6] });
+    addEdge(graph, {
+      id: "ab",
+      fromNodeId: "a",
+      toNodeId: "b",
+      lengthKm: 1,
+      roadLevel: "primary",
+      isBridge: false,
+      isTunnel: false,
+      competitionSuitable: true,
+      baselineCost: 1
+    });
+
+    const paths = generateRoutes(
+      graph,
+      {
+        startPoint: [114.309, 30.6],
+        endPoint: [114.3, 30.6],
+        mustPassPoints: [],
+        avoidZones: [],
+        targetDistanceKm: 1
+      },
+      { count: 1, seed: 7, maxIterations: 4, lengthToleranceKm: 0.05 }
+    );
+
+    expect(paths).toHaveLength(1);
+    expect(paths[0].edgeIds).toEqual(["ab_rev"]);
+    expect(paths[0].totalLengthKm).toBe(1);
+  });
 });

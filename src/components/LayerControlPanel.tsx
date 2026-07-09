@@ -32,6 +32,15 @@ export function LayerControlPanel({
           <input
             type="radio"
             name="basemap"
+            checked={basemapMode === "localVector"}
+            onChange={() => onBasemapChange("localVector")}
+          />
+          <span>本地矢量街道图</span>
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="basemap"
             checked={basemapMode === "online"}
             onChange={() => onBasemapChange("online")}
           />

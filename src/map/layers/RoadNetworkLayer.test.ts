@@ -112,6 +112,36 @@ describe("RoadNetworkLayer", () => {
     expect(DEFAULT_ROAD_NETWORK_LINE_LIMIT).toBeGreaterThan(50000);
   });
 
+  test("caps permanent road labels to avoid map-wide label clutter", () => {
+    expect(shouldShowRoadLabel({
+      id: "short-main-road",
+      line: [[30.6, 114.3], [30.6005, 114.3005]],
+      label: "Short Arterial",
+      highway: "primary",
+      fclass: "primary",
+      name: "Short Arterial",
+      isBridge: false,
+      isTunnel: false,
+      impedance: null,
+      suitability: null,
+      priority: 90
+    }, 0)).toBe(false);
+
+    expect(shouldShowRoadLabel({
+      id: "long-main-road",
+      line: [[30.6, 114.3], [30.62, 114.32]],
+      label: "Long Arterial",
+      highway: "primary",
+      fclass: "primary",
+      name: "Long Arterial",
+      isBridge: false,
+      isTunnel: false,
+      impedance: null,
+      suitability: null,
+      priority: 90
+    }, 70)).toBe(false);
+  });
+
   test("keeps permanent labels sparse and deduplicated for highway segments", () => {
     const roads = extractRoadNetworkFeatures({
       type: "FeatureCollection",

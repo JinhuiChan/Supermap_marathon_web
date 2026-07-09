@@ -29,6 +29,18 @@ export interface GeneratedPath {
   totalLengthKm: number;
 }
 
+function baseEdgeId(edgeId: string): string {
+  return edgeId.endsWith("_rev") ? edgeId.slice(0, -4) : edgeId;
+}
+
+function resolveEdge(graph: RoadGraph, edgeId: string): RoadEdge | undefined {
+  return graph.edges.get(edgeId) ?? graph.edges.get(baseEdgeId(edgeId));
+}
+
+function edgeLengthKm(graph: RoadGraph, edgeId: string): number {
+  return resolveEdge(graph, edgeId)?.lengthKm ?? 0;
+}
+
 // BFS: shortest path by edge count
 function bfsPathBack(
   graph: RoadGraph, fromId: string, toId: string,
@@ -58,6 +70,7 @@ function bfsPathBack(
     for (const edge of out) {
       const base = edge.id.replace("_rev", "");
       if (forbidden.has(base)) continue;
+      if (!edge.competitionSuitable) continue;
       if (recentEdges.has(base)) continue;
       if (visited.has(edge.toNodeId)) continue;
       visited.add(edge.toNodeId);
@@ -86,14 +99,19 @@ function simpleWalk(
   const COOLDOWN = 15;
 
   for (let step = 0; step < 600; step++) {
+    if (cur === endId && Math.abs(walked - targetKm) <= tolerance) {
+      return {
+        nodeIds: walkNodes,
+        edgeIds: walkEdges,
+        totalLengthKm: Math.round(walked * 1000) / 1000
+      };
+    }
+
     // When within range, try BFS close
     if (walked >= targetKm - 10) {
       const back = bfsPathBack(graph, cur, endId, forbidden, new Set(recent.slice(-5)));
       if (back) {
-        const backDist = back.edgeIds.reduce((s, id) => {
-          const e = graph.edges.get(id);
-          return s + (e ? e.lengthKm : 0);
-        }, 0);
+        const backDist = back.edgeIds.reduce((s, id) => s + edgeLengthKm(graph, id), 0);
         const total = walked + backDist;
         if (Math.abs(total - targetKm) <= tolerance) {
           return {
@@ -110,7 +128,7 @@ function simpleWalk(
     if (!out || out.length === 0) break;
 
     const recentSet = new Set(recent.slice(-COOLDOWN));
-    const available = out.filter((e) => !forbidden.has(e.id.replace("_rev", "")));
+    const available = out.filter((e) => !forbidden.has(e.id.replace("_rev", "")) && e.competitionSuitable);
     if (available.length === 0) break;
 
     const scored = available.map((e) => {
@@ -118,9 +136,11 @@ function simpleWalk(
       const gUsed = globalUsed.get(base) ?? 0;
       const recentPenalty = recentSet.has(base) ? 50 : 0;
       const q = 100 / qualityMultiplier(e.roadLevel, e.isTunnel);
+      const impedancePenalty = Math.max(0, e.baselineCost - e.lengthKm) * 18;
+      const suitabilityBonus = typeof e.suitabilityScore === "number" ? e.suitabilityScore * 0.12 : 0;
       const d = Math.max(0, 100 - gUsed * 10 - recentPenalty);
       const j = rng.next() * 60;
-      return { edge: e, base, score: q * 0.45 + d * 0.25 + j * 0.3 };
+      return { edge: e, base, score: q * 0.42 + d * 0.24 + j * 0.26 + suitabilityBonus - impedancePenalty };
     });
     scored.sort((a, b) => b.score - a.score);
 
@@ -142,10 +162,7 @@ function simpleWalk(
   if (walked >= targetKm - 5) {
     const back = bfsPathBack(graph, cur, endId, forbidden, new Set());
     if (back) {
-      const backDist = back.edgeIds.reduce((s, id) => {
-        const e = graph.edges.get(id);
-        return s + (e ? e.lengthKm : 0);
-      }, 0);
+      const backDist = back.edgeIds.reduce((s, id) => s + edgeLengthKm(graph, id), 0);
       const total = walked + backDist;
       if (Math.abs(total - targetKm) <= tolerance) {
         return {
@@ -228,10 +245,7 @@ export function generateRoutes(
 
     if (!ok) continue;
 
-    const total = fullEdges.reduce((s, id) => {
-      const e = graph.edges.get(id);
-      return s + (e ? e.lengthKm : 0);
-    }, 0);
+    const total = fullEdges.reduce((s, id) => s + edgeLengthKm(graph, id), 0);
 
     if (Math.abs(total - constraints.targetDistanceKm) <= opts.lengthToleranceKm) {
       candidates.push({

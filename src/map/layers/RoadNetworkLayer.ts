@@ -9,7 +9,8 @@ type GeoJsonFeature = {
 type RoadLine = [number, number][];
 
 export const DEFAULT_ROAD_NETWORK_LINE_LIMIT = 60000;
-export const DEFAULT_ROAD_LABEL_LIMIT = 180;
+export const DEFAULT_ROAD_LABEL_LIMIT = 70;
+const MIN_PERMANENT_LABEL_LINE_KM = 0.9;
 
 export interface RoadNetworkFeature {
   id: string;
@@ -93,6 +94,7 @@ export function shouldShowRoadLabel(road: RoadNetworkFeature, labelCount: number
   if (!road.name) return false;
   if (labelCount >= maxLabels) return false;
   if (road.name.length < 2) return false;
+  if (roadLineLengthKm(road.line) < MIN_PERMANENT_LABEL_LINE_KM) return false;
   return road.priority >= 90;
 }
 
@@ -178,6 +180,21 @@ function roadPriority(highway: unknown): number {
     default:
       return 30;
   }
+}
+
+function roadLineLengthKm(line: RoadLine): number {
+  let total = 0;
+  for (let index = 0; index < line.length - 1; index += 1) {
+    total += approxLeafletLineSegmentKm(line[index], line[index + 1]);
+  }
+  return total;
+}
+
+function approxLeafletLineSegmentKm(a: [number, number], b: [number, number]): number {
+  const originLat = (a[0] + b[0]) / 2;
+  const kmPerDegreeLat = 110.574;
+  const kmPerDegreeLon = 111.32 * Math.cos((originLat * Math.PI) / 180);
+  return Math.hypot((b[1] - a[1]) * kmPerDegreeLon, (b[0] - a[0]) * kmPerDegreeLat);
 }
 
 function roadClassLabel(highway: string): string {
