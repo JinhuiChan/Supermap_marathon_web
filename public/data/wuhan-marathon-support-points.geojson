@@ -1,177 +1,28 @@
 {
   "type": "FeatureCollection",
   "name": "wuhan_marathon_support_points",
-  "crs": {
-    "type": "name",
-    "properties": {
-      "name": "EPSG:4326"
-    }
-  },
+  "crs": { "type": "name", "properties": { "name": "EPSG:4326" } },
   "features": [
-    {
-      "type": "Feature",
-      "properties": {
-        "point_id": "start-river-loop",
-        "point_name": "两江四岸起终点",
-        "point_type": "起终点",
-        "route_id": "river-loop",
-        "service_level": "A"
-      },
-      "geometry": { "type": "Point", "coordinates": [114.292, 30.584] }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "point_id": "supply-river-01",
-        "point_name": "汉口江滩补给点",
-        "point_type": "补给",
-        "route_id": "river-loop",
-        "service_level": "A"
-      },
-      "geometry": { "type": "Point", "coordinates": [114.31, 30.602] }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "point_id": "medical-river-01",
-        "point_name": "两江四岸医疗点",
-        "point_type": "医疗",
-        "route_id": "river-loop",
-        "service_level": "A"
-      },
-      "geometry": { "type": "Point", "coordinates": [114.338, 30.589] }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "point_id": "start-east-lake",
-        "point_name": "东湖绿道起终点",
-        "point_type": "起终点",
-        "route_id": "east-lake",
-        "service_level": "A"
-      },
-      "geometry": { "type": "Point", "coordinates": [114.365, 30.548] }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "point_id": "supply-east-01",
-        "point_name": "东湖绿道补给点",
-        "point_type": "补给",
-        "route_id": "east-lake",
-        "service_level": "B"
-      },
-      "geometry": { "type": "Point", "coordinates": [114.414, 30.569] }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "point_id": "parking-east-01",
-        "point_name": "东湖绿道停车保障点",
-        "point_type": "停车",
-        "route_id": "east-lake",
-        "service_level": "B"
-      },
-      "geometry": { "type": "Point", "coordinates": [114.381, 30.534] }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "point_id": "start-urban-core",
-        "point_name": "城市核心起终点",
-        "point_type": "起终点",
-        "route_id": "urban-core",
-        "service_level": "A"
-      },
-      "geometry": { "type": "Point", "coordinates": [114.265, 30.565] }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "point_id": "medical-urban-01",
-        "point_name": "城市核心医疗点",
-        "point_type": "医疗",
-        "route_id": "urban-core",
-        "service_level": "A"
-      },
-      "geometry": { "type": "Point", "coordinates": [114.285, 30.592] }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "point_id": "parking-urban-01",
-        "point_name": "城市核心停车保障点",
-        "point_type": "停车",
-        "route_id": "urban-core",
-        "service_level": "A"
-      },
-      "geometry": { "type": "Point", "coordinates": [114.298, 30.561] }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "point_id": "start-wuhan-2026",
-        "point_name": "沿江大道三阳路口起点",
-        "point_type": "起终点",
-        "route_id": "wuhan-marathon-2026",
-        "service_level": "A"
-      },
-      "geometry": { "type": "Point", "coordinates": [114.302, 30.604] }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "point_id": "supply-wuhan-2026-hankou",
-        "point_name": "汉口沿江补给点",
-        "point_type": "补给",
-        "route_id": "wuhan-marathon-2026",
-        "service_level": "A"
-      },
-      "geometry": { "type": "Point", "coordinates": [114.289, 30.584] }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "point_id": "medical-wuhan-2026-bridge",
-        "point_name": "长江大桥医疗保障点",
-        "point_type": "医疗",
-        "route_id": "wuhan-marathon-2026",
-        "service_level": "A"
-      },
-      "geometry": { "type": "Point", "coordinates": [114.286, 30.545] }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "point_id": "supply-wuhan-2026-east-lake",
-        "point_name": "东湖绿道补给点",
-        "point_type": "补给",
-        "route_id": "wuhan-marathon-2026",
-        "service_level": "A"
-      },
-      "geometry": { "type": "Point", "coordinates": [114.407, 30.548] }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "point_id": "parking-wuhan-2026-qingshan",
-        "point_name": "青山终点停车接驳点",
-        "point_type": "停车",
-        "route_id": "wuhan-marathon-2026",
-        "service_level": "B"
-      },
-      "geometry": { "type": "Point", "coordinates": [114.398, 30.623] }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "point_id": "finish-wuhan-2026",
-        "point_name": "青山江滩终点",
-        "point_type": "起终点",
-        "route_id": "wuhan-marathon-2026",
-        "service_level": "A"
-      },
-      "geometry": { "type": "Point", "coordinates": [114.395, 30.635] }
-    }
+    { "type": "Feature", "properties": { "point_id": "start-river-loop", "point_name": "两江四岸起终点", "point_type": "起终点", "route_id": "river-loop", "service_level": "A" }, "geometry": { "type": "Point", "coordinates": [114.292, 30.584] } },
+    { "type": "Feature", "properties": { "point_id": "supply-river-01", "point_name": "汉口江滩补给点", "point_type": "补给", "route_id": "river-loop", "service_level": "A" }, "geometry": { "type": "Point", "coordinates": [114.31, 30.602] } },
+    { "type": "Feature", "properties": { "point_id": "medical-river-01", "point_name": "两江四岸医疗点", "point_type": "医疗", "route_id": "river-loop", "service_level": "A" }, "geometry": { "type": "Point", "coordinates": [114.338, 30.589] } },
+    { "type": "Feature", "properties": { "point_id": "start-east-lake", "point_name": "东湖绿道起终点", "point_type": "起终点", "route_id": "east-lake", "service_level": "A" }, "geometry": { "type": "Point", "coordinates": [114.365, 30.548] } },
+    { "type": "Feature", "properties": { "point_id": "supply-east-01", "point_name": "东湖绿道补给点", "point_type": "补给", "route_id": "east-lake", "service_level": "B" }, "geometry": { "type": "Point", "coordinates": [114.414, 30.569] } },
+    { "type": "Feature", "properties": { "point_id": "parking-east-01", "point_name": "东湖绿道停车保障点", "point_type": "停车场", "route_id": "east-lake", "service_level": "B" }, "geometry": { "type": "Point", "coordinates": [114.381, 30.534] } },
+    { "type": "Feature", "properties": { "point_id": "start-urban-core", "point_name": "城市核心起终点", "point_type": "起终点", "route_id": "urban-core", "service_level": "A" }, "geometry": { "type": "Point", "coordinates": [114.265, 30.565] } },
+    { "type": "Feature", "properties": { "point_id": "medical-urban-01", "point_name": "城市核心医疗点", "point_type": "医疗", "route_id": "urban-core", "service_level": "A" }, "geometry": { "type": "Point", "coordinates": [114.285, 30.592] } },
+    { "type": "Feature", "properties": { "point_id": "parking-urban-01", "point_name": "城市核心停车保障点", "point_type": "停车场", "route_id": "urban-core", "service_level": "A" }, "geometry": { "type": "Point", "coordinates": [114.298, 30.561] } },
+    { "type": "Feature", "properties": { "point_id": "start-wuhan-2026", "point_name": "沿江大道三阳路口起点", "point_type": "起终点", "route_id": "wuhan-marathon-2026", "service_level": "A" }, "geometry": { "type": "Point", "coordinates": [114.302, 30.604] } },
+    { "type": "Feature", "properties": { "point_id": "supply-wuhan-2026-hankou", "point_name": "汉口沿江补给点", "point_type": "补给", "route_id": "wuhan-marathon-2026", "service_level": "A" }, "geometry": { "type": "Point", "coordinates": [114.289, 30.584] } },
+    { "type": "Feature", "properties": { "point_id": "medical-wuhan-2026-bridge", "point_name": "长江大桥医疗保障点", "point_type": "医疗", "route_id": "wuhan-marathon-2026", "service_level": "A" }, "geometry": { "type": "Point", "coordinates": [114.286, 30.545] } },
+    { "type": "Feature", "properties": { "point_id": "supply-wuhan-2026-east-lake", "point_name": "东湖绿道补给点", "point_type": "补给", "route_id": "wuhan-marathon-2026", "service_level": "A" }, "geometry": { "type": "Point", "coordinates": [114.407, 30.548] } },
+    { "type": "Feature", "properties": { "point_id": "parking-wuhan-2026-qingshan", "point_name": "青山终点停车接驳点", "point_type": "停车场", "route_id": "wuhan-marathon-2026", "service_level": "B" }, "geometry": { "type": "Point", "coordinates": [114.398, 30.623] } },
+    { "type": "Feature", "properties": { "point_id": "finish-wuhan-2026", "point_name": "青山江滩终点", "point_type": "起终点", "route_id": "wuhan-marathon-2026", "service_level": "A" }, "geometry": { "type": "Point", "coordinates": [114.395, 30.635] } },
+    { "type": "Feature", "properties": { "point_id": "metro-wuhan-2026-sanyang", "point_name": "三阳路地铁站集散点", "point_type": "地铁站", "route_id": "wuhan-marathon-2026", "service_level": "A" }, "geometry": { "type": "Point", "coordinates": [114.303, 30.602] } },
+    { "type": "Feature", "properties": { "point_id": "park-wuhan-2026-liberation", "point_name": "解放公园观赛缓冲区", "point_type": "公园", "route_id": "wuhan-marathon-2026", "service_level": "B" }, "geometry": { "type": "Point", "coordinates": [114.292, 30.615] } },
+    { "type": "Feature", "properties": { "point_id": "restroom-wuhan-2026-riverside", "point_name": "汉口江滩公厕保障点", "point_type": "公厕", "route_id": "wuhan-marathon-2026", "service_level": "B" }, "geometry": { "type": "Point", "coordinates": [114.296, 30.593] } },
+    { "type": "Feature", "properties": { "point_id": "commercial-wuhan-2026-chuhehanjie", "point_name": "楚河汉街商圈补给潜力点", "point_type": "商圈/补给", "route_id": "wuhan-marathon-2026", "service_level": "B" }, "geometry": { "type": "Point", "coordinates": [114.34, 30.558] } },
+    { "type": "Feature", "properties": { "point_id": "assembly-wuhan-2026-qingshan", "point_name": "青山江滩应急集结点", "point_type": "应急集结", "route_id": "wuhan-marathon-2026", "service_level": "A" }, "geometry": { "type": "Point", "coordinates": [114.389, 30.63] } },
+    { "type": "Feature", "properties": { "point_id": "medical-wuhan-2026-center", "point_name": "市中心医疗联动点", "point_type": "医疗", "route_id": "wuhan-marathon-2026", "service_level": "A" }, "geometry": { "type": "Point", "coordinates": [114.318, 30.585] } }
   ]
 }

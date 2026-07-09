@@ -1,6 +1,6 @@
 import type { Coordinate, ElevationPoint, MarathonRoute, RouteMetrics } from "./routeMetrics";
 import type { GeneratedPath } from "./routeGenerator";
-import type { RoadGraph } from "./roadNetwork";
+import type { RoadEdge, RoadGraph } from "./roadNetwork";
 import { getElevation, haversineKm, slopePercent, turnAngle } from "./roadAttributes";
 
 const COLORS = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"];
@@ -83,8 +83,8 @@ function computeMetrics(
   profile: ElevationPoint[]
 ): RouteMetrics {
   const edges = path.edgeIds
-    .map((eid) => graph.edges.get(eid))
-    .filter(Boolean) as import("./roadNetwork").RoadEdge[];
+    .map((eid) => resolveEdge(graph, eid))
+    .filter(Boolean) as RoadEdge[];
 
   // totalClimbM
   let totalClimb = 0;
@@ -93,25 +93,30 @@ function computeMetrics(
     if (diff > 0) totalClimb += diff;
   }
 
-  // avgSlopePercent (weighted by segment length)
-  let avgSlope = 0;
-  if (profile.length > 1) {
-    const slopes = profile.slice(1).map((p) => Math.abs(p.slope));
-    avgSlope = slopes.reduce((a, b) => a + b, 0) / slopes.length;
-  }
+  const edgeSlopeMetrics = computeEdgeSlopeMetrics(edges, path.totalLengthKm);
+  let avgSlope = edgeSlopeMetrics.avgSlopePercent;
+  let maxSlope = edgeSlopeMetrics.maxSlopePercent;
+  let longSteepRatio = edgeSlopeMetrics.longSteepRatio;
 
-  // maxSlopePercent
-  const maxSlope = Math.max(...profile.map((p) => Math.abs(p.slope)), 0);
-
-  // longSteepRatio: fraction where slope > 3% for continuous 200m+
-  let steepDist = 0;
-  for (let i = 1; i < profile.length; i++) {
-    if (Math.abs(profile[i].slope) > 3) {
-      const segKm = profile[i].km - profile[i - 1].km;
-      steepDist += segKm;
+  if (!edgeSlopeMetrics.hasSlopeData) {
+    if (profile.length > 1) {
+      const slopes = profile.slice(1).map((p) => Math.abs(p.slope));
+      avgSlope = slopes.reduce((a, b) => a + b, 0) / slopes.length;
     }
+
+    maxSlope = Math.max(...profile.map((p) => Math.abs(p.slope)), 0);
+
+    let steepDist = 0;
+    for (let i = 1; i < profile.length; i++) {
+      if (Math.abs(profile[i].slope) > 3) {
+        const segKm = profile[i].km - profile[i - 1].km;
+        steepDist += segKm;
+      }
+    }
+    longSteepRatio = profile.length > 1 ? steepDist / profile[profile.length - 1].km : 0;
+  } else {
+    totalClimb = Math.max(totalClimb, edgeSlopeMetrics.estimatedClimbM);
   }
-  const longSteepRatio = profile.length > 1 ? steepDist / profile[profile.length - 1].km : 0;
 
   // sharpTurnRatio
   let sharpTurns = 0;
@@ -218,8 +223,8 @@ export function autoName(
   index: number
 ): string {
   const edges = path.edgeIds
-    .map((eid) => graph.edges.get(eid))
-    .filter(Boolean) as import("./roadNetwork").RoadEdge[];
+    .map((eid) => resolveEdge(graph, eid))
+    .filter(Boolean) as RoadEdge[];
 
   const greenwayKm = edges
     .filter((e) => e.roadLevel === "greenway")
@@ -237,4 +242,39 @@ export function autoName(
   else if (path.totalLengthKm > 43) parts.push("(偏长)");
 
   return parts.join("");
+}
+
+function resolveEdge(graph: RoadGraph, edgeId: string): RoadEdge | undefined {
+  return graph.edges.get(edgeId) ?? graph.edges.get(edgeId.replace(/_rev$/, ""));
+}
+
+function computeEdgeSlopeMetrics(edges: RoadEdge[], totalKm: number) {
+  const slopeEdges = edges.filter((edge) => typeof edge.slopeMean === "number");
+  if (slopeEdges.length === 0) {
+    return {
+      hasSlopeData: false,
+      avgSlopePercent: 0,
+      maxSlopePercent: 0,
+      longSteepRatio: 0,
+      estimatedClimbM: 0
+    };
+  }
+
+  const denominator = slopeEdges.reduce((sum, edge) => sum + edge.lengthKm, 0) || totalKm || 1;
+  const weightedSlope = slopeEdges.reduce((sum, edge) => sum + Math.abs(edge.slopeMean ?? 0) * edge.lengthKm, 0);
+  const steepKm = slopeEdges
+    .filter((edge) => Math.abs(edge.slopeMean ?? 0) > 3)
+    .reduce((sum, edge) => sum + edge.lengthKm, 0);
+  const estimatedClimbM = slopeEdges.reduce((sum, edge) => {
+    const slope = Math.max(0, edge.slopeMean ?? 0);
+    return sum + (slope / 100) * edge.lengthKm * 1000;
+  }, 0);
+
+  return {
+    hasSlopeData: true,
+    avgSlopePercent: weightedSlope / denominator,
+    maxSlopePercent: Math.max(...slopeEdges.map((edge) => Math.abs(edge.slopeMean ?? 0)), 0),
+    longSteepRatio: steepKm / (totalKm || denominator),
+    estimatedClimbM
+  };
 }

@@ -14,7 +14,12 @@ const pointColors: Record<SupportPointType, string> = {
   起终点: "#173a52",
   补给: "#23836f",
   医疗: "#c43d32",
-  停车: "#8a5b15"
+  地铁站: "#2563eb",
+  停车场: "#8a5b15",
+  公园: "#2f855a",
+  公厕: "#7c3aed",
+  "商圈/补给": "#d97706",
+  应急集结: "#be123c"
 };
 
 export function toLeafletLatLng(point: SupportPoint): [number, number] {

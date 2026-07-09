@@ -20,12 +20,25 @@ const resourceText: Record<SuperMapResourceStatus, string> = {
   pending: "待发布"
 };
 
+type ServiceKey = "roadMap" | "roadData" | "poiData" | "constraints" | "demSlope";
+
+const serviceItems: Array<{ key: ServiceKey; label: string; kind: "wms" | "rest"; url: string }> = [
+  { key: "roadMap", label: "道路底图服务", kind: "wms", url: superMapConfig.serviceUrls.roadMapWms },
+  { key: "roadData", label: "道路数据服务", kind: "rest", url: superMapConfig.serviceUrls.roadDataRest },
+  { key: "poiData", label: "POI 数据服务", kind: "rest", url: superMapConfig.serviceUrls.poiDataRest },
+  { key: "constraints", label: "约束图层服务", kind: "rest", url: superMapConfig.serviceUrls.constraintMapRest },
+  { key: "demSlope", label: "DEM/坡度图层服务", kind: "rest", url: superMapConfig.serviceUrls.demSlopeMapRest }
+];
+
+const initialServiceStatuses = Object.fromEntries(
+  serviceItems.map((item) => [item.key, "checking"])
+) as Record<ServiceKey, SuperMapResourceStatus>;
+
 export function SuperMapStatusPanel() {
   const [status, setStatus] = useState<SuperMapStatus>("checking");
-  const [mapStatus, setMapStatus] = useState<SuperMapResourceStatus>("checking");
+  const [serviceStatuses, setServiceStatuses] = useState<Record<ServiceKey, SuperMapResourceStatus>>(initialServiceStatuses);
   const [sceneStatus, setSceneStatus] = useState<SuperMapResourceStatus>("checking");
-  const [wmsStatus, setWmsStatus] = useState<SuperMapResourceStatus>("checking");
-  const [lastCheck, setLastCheck] = useState<string>("—");
+  const [lastCheck, setLastCheck] = useState<string>("--");
 
   const runCheck = useCallback((isActive: () => boolean) => {
     const setIfActive = <T,>(setter: (value: T) => void, value: T) => {
@@ -35,15 +48,16 @@ export function SuperMapStatusPanel() {
     checkSuperMapIserver(superMapConfig.iServerBaseUrl).then((s) => {
       setIfActive(setStatus, s);
     });
-    checkSuperMapResource(superMapConfig.expectedMapServiceUrl).then((s) => {
-      setIfActive(setMapStatus, s);
-    });
     checkSuperMapResource(superMapConfig.expectedSceneServiceUrl).then((s) => {
       setIfActive(setSceneStatus, s);
     });
-    checkSuperMapWms(superMapConfig.wmsMapUrl).then((s) => {
-      setIfActive(setWmsStatus, s);
-    });
+    for (const item of serviceItems) {
+      const checker = item.kind === "wms" ? checkSuperMapWms : checkSuperMapResource;
+      checker(item.url).then((s) => {
+        if (!isActive()) return;
+        setServiceStatuses((current) => ({ ...current, [item.key]: s }));
+      });
+    }
 
     if (isActive()) setLastCheck(new Date().toLocaleTimeString("zh-CN"));
   }, []);
@@ -61,7 +75,8 @@ export function SuperMapStatusPanel() {
     };
   }, [runCheck]);
 
-  const servicesReady = mapStatus === "ready" && sceneStatus === "ready";
+  const publishedCount = serviceItems.filter((item) => serviceStatuses[item.key] === "ready").length;
+  const allFoundationServicesReady = publishedCount === serviceItems.length;
 
   return (
     <section className="side-section supermap-status">
@@ -73,29 +88,25 @@ export function SuperMapStatusPanel() {
       </div>
 
       <div className="service-readiness" aria-label="SuperMap 服务发布状态">
-        <div className={`readiness-item ${wmsStatus}`}>
-          <span>WMS 底图服务</span>
-          <strong>{resourceText[wmsStatus]}</strong>
-        </div>
-        <div className={`readiness-item ${mapStatus}`}>
-          <span>二维地图服务</span>
-          <strong>{resourceText[mapStatus]}</strong>
-        </div>
+        {serviceItems.map((item) => (
+          <div key={item.key} className={`readiness-item ${serviceStatuses[item.key]}`}>
+            <span>{item.label}</span>
+            <strong>{resourceText[serviceStatuses[item.key]]}</strong>
+          </div>
+        ))}
         <div className={`readiness-item ${sceneStatus}`}>
-          <span>三维地形服务</span>
+          <span>三维场景服务</span>
           <strong>{resourceText[sceneStatus]}</strong>
         </div>
       </div>
 
-      {servicesReady && (
+      {allFoundationServicesReady ? (
         <div className="service-ready-banner">
-          武汉马拉松地图服务已就绪，页面默认使用 iDesktop 发布的 WMS 地图叠加业务矢量图层。
+          武汉马拉松基础 GIS 服务已齐备，Web 端可同时使用道路、POI、约束和 DEM/坡度服务。
         </div>
-      )}
-
-      {status === "online" && !servicesReady && (
+      ) : (
         <div className="service-pending-hint">
-          iServer 已连接。二维地图和三维服务可继续通过 iDesktopX 发布向导完善。
+          已发布 {publishedCount}/{serviceItems.length} 个基础 GIS 服务。约束和 DEM/坡度如显示待发布，请在 iDesktopX 中保存地图后通过 iServer 发布。
         </div>
       )}
 
@@ -117,6 +128,14 @@ export function SuperMapStatusPanel() {
           <dd>{superMapConfig.onlineBasemap.name} · OpenStreetMap</dd>
         </div>
         <div>
+          <dt>约束图层服务</dt>
+          <dd title={superMapConfig.serviceUrls.constraintMapRest}>map-wuhan-constraints</dd>
+        </div>
+        <div>
+          <dt>DEM/坡度服务</dt>
+          <dd title={superMapConfig.serviceUrls.demSlopeMapRest}>map-wuhan-dem-slope</dd>
+        </div>
+        <div>
           <dt>iClient JavaScript</dt>
           <dd>{superMapConfig.iClientJavaScriptUrl}</dd>
         </div>
@@ -125,21 +144,17 @@ export function SuperMapStatusPanel() {
           <dd>{superMapConfig.iClient3DUrl}</dd>
         </div>
         <div>
-          <dt>武汉 DEM 数据</dt>
-          <dd>
-            {superMapConfig.demMetadata.name} · {superMapConfig.demMetadata.crs}
-          </dd>
+          <dt>武汉 DEM / 坡度数据</dt>
+          <dd>{superMapConfig.demMetadata.name} · {superMapConfig.demMetadata.crs}</dd>
         </div>
         <div>
           <dt>DEM 范围 / 高程</dt>
-          <dd>
-            {superMapConfig.demMetadata.bounds} · {superMapConfig.demMetadata.elevationRange}
-          </dd>
+          <dd>{superMapConfig.demMetadata.bounds} · {superMapConfig.demMetadata.elevationRange}</dd>
         </div>
       </dl>
 
       <p className="integration-note">
-        地图面板默认使用 iDesktop 发布到 iServer 的武汉马拉松 WMS 地图；OpenStreetMap 仅作为备用可切换底图，2026 官方路线、备选路线和服务点由前端矢量图层叠加。
+        地图面板默认使用 iDesktop 发布到 iServer 的武汉道路 WMS 地图；候选路线、路网、约束和服务点由前端矢量图层叠加。
         上次检测：{lastCheck}
       </p>
     </section>

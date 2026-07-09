@@ -206,6 +206,14 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
     });
   };
 
+  const generateDisabledReason = !osmRoadGeoJson
+    ? "道路网络数据仍在加载或加载失败，请检查 public/data/local-wuhan-marathon-area-roads.geojson"
+    : !planningStartPoint
+      ? "请先在地图上选择起点"
+      : !planningEndPoint
+        ? "请先在地图上选择终点"
+        : "";
+
   return (
     <main className={`app-shell gis-tool-shell ${workspaceMode}`}>
       <header className="gis-app-header">
@@ -240,6 +248,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
               activeProfile={selectionProfile}
               settings={planningSettings}
               canGenerate={Boolean(osmRoadGeoJson && planningStartPoint && planningEndPoint)}
+              generateDisabledReason={generateDisabledReason}
               startPoint={planningStartPoint}
               endPoint={planningEndPoint}
               activePointTool={activePointTool}

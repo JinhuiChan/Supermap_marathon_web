@@ -98,7 +98,7 @@ describe("osmMarathonRoute", () => {
     expect(haversineKm(routes[0].coordinates.at(-1) ?? [0, 0], endPoint)).toBeLessThan(0.2);
   });
 
-  test("returns a non-zero road-aligned review route when a perfect user loop is unavailable", () => {
+  test("returns a non-zero road-aligned route for same-point user loops", () => {
     const routes = buildOsmMarathonCandidateRoutes(smallRoadNetwork, {
       targetDistanceKm: 42.195,
       startPoint: [114.3, 30.6],
@@ -107,7 +107,8 @@ describe("osmMarathonRoute", () => {
 
     expect(routes.length).toBeGreaterThan(0);
     expect(routes[0].lengthKm).toBeGreaterThan(1);
-    expect(routes[0].lineage?.note).toContain("校核");
+    expect(routes[0].lineage?.roadAligned).toBe(true);
+    expect(haversineKm(routes[0].coordinates.at(-1) ?? [0, 0], [114.3, 30.6])).toBeLessThan(0.5);
   });
 
   test("uses a bridge segment for disconnected cross-river review routes", () => {
@@ -144,6 +145,45 @@ describe("osmMarathonRoute", () => {
     expect(routes[0].lengthKm).toBeLessThan(45);
     expect(routes[0].coordinates.some((coordinate) => coordinate[1] < 30.56)).toBe(true);
     expect(haversineKm(routes[0].coordinates.at(-1) ?? [0, 0], [114.34, 30.54])).toBeLessThan(0.5);
+  });
+
+  test("keeps cross-river user routing connected through bridge roads", () => {
+    const connectedBridgeNetwork = {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { highway: "primary", name: "north approach" },
+          geometry: { type: "LineString", coordinates: [[114.3, 30.6], [114.31, 30.6]] }
+        },
+        {
+          type: "Feature",
+          properties: { highway: "primary", name: "river bridge", bridge: "T" },
+          geometry: { type: "LineString", coordinates: [[114.31, 30.6], [114.32, 30.55]] }
+        },
+        {
+          type: "Feature",
+          properties: { highway: "secondary", name: "south approach" },
+          geometry: { type: "LineString", coordinates: [[114.32, 30.55], [114.34, 30.54]] }
+        },
+        {
+          type: "Feature",
+          properties: { highway: "service", name: "narrow detour" },
+          geometry: { type: "LineString", coordinates: [[114.3, 30.6], [114.34, 30.54]] }
+        }
+      ]
+    };
+
+    const routes = buildOsmMarathonCandidateRoutes(connectedBridgeNetwork, {
+      targetDistanceKm: 7,
+      startPoint: [114.3, 30.6],
+      endPoint: [114.34, 30.54]
+    });
+
+    expect(routes.length).toBeGreaterThan(0);
+    expect(routes[0].coordinates.some((coordinate) => coordinate[1] < 30.56)).toBe(true);
+    expect(routes[0].metrics.narrowRoadRatio).toBe(0);
+    expect(haversineKm(routes[0].coordinates.at(-1) ?? [0, 0], [114.34, 30.54])).toBeLessThan(0.2);
   });
 
   test("prefers marathon-suitable arterial roads over narrow local roads", () => {

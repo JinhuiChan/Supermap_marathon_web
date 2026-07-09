@@ -19,6 +19,7 @@ interface GisSelectionPanelProps {
   activeProfile: RouteSelectionProfile;
   settings: GisPlanningSettings;
   canGenerate: boolean;
+  generateDisabledReason?: string;
   startPoint: Coordinate | null;
   endPoint: Coordinate | null;
   activePointTool: PlanningPointTool | null;
@@ -80,6 +81,7 @@ export function GisSelectionPanel({
   activeProfile,
   settings,
   canGenerate,
+  generateDisabledReason,
   startPoint,
   endPoint,
   activePointTool,
@@ -196,9 +198,18 @@ export function GisSelectionPanel({
         onChange={(key, value) => onWeightChange("impedanceWeights", key, value)}
       />
 
-      <button type="button" className="gis-generate-button" disabled={!canGenerate || isGenerating} onClick={onGenerateRoutes}>
+      <button
+        type="button"
+        className="gis-generate-button"
+        disabled={!canGenerate || isGenerating}
+        title={!canGenerate ? generateDisabledReason : undefined}
+        onClick={onGenerateRoutes}
+      >
         {isGenerating ? "正在计算路网候选..." : "运行路网选线模型"}
       </button>
+      {!canGenerate && !isGenerating && generateDisabledReason ? (
+        <p className="gis-generate-disabled-reason">{generateDisabledReason}</p>
+      ) : null}
     </aside>
   );
 }

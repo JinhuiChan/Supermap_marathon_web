@@ -7,8 +7,9 @@ describe("superMapConfig", () => {
     expect(superMapConfig.wmsLayerName).toBe("0");
   });
 
-  it("defaults to the iDesktop-published map while keeping OpenStreetMap as a fallback option", () => {
+  it("defaults to the iDesktop-published map while keeping local vector and OpenStreetMap as fallback options", () => {
     expect(superMapConfig.defaultBasemap).toBe("supermapDem");
+    expect(superMapConfig.localVectorBasemap.name).toContain("矢量");
     expect(superMapConfig.onlineBasemap.tileUrl).toContain("openstreetmap.org");
     expect(superMapConfig.onlineBasemap.attribution).toContain("OpenStreetMap");
   });
@@ -16,5 +17,13 @@ describe("superMapConfig", () => {
   it("separates the full Wuhan road display layer from the lighter routing network", () => {
     expect(superMapConfig.displayRoadNetworkGeoJsonUrl).toBe("data/local-wuhan-road-network-osm.geojson");
     expect(superMapConfig.routingRoadNetworkGeoJsonUrl).toBe("data/local-wuhan-marathon-area-roads.geojson");
+  });
+
+  it("tracks the planned Wuhan GIS foundation services", () => {
+    expect(superMapConfig.serviceUrls.roadMapWms).toContain("map-wuhan-road-network/wms111");
+    expect(superMapConfig.serviceUrls.roadDataRest).toContain("data-wuhan-road-network/rest");
+    expect(superMapConfig.serviceUrls.poiDataRest).toContain("data-wuhan-poi/rest");
+    expect(superMapConfig.serviceUrls.constraintMapRest).toContain("map-wuhan-constraints/rest");
+    expect(superMapConfig.serviceUrls.demSlopeMapRest).toContain("map-wuhan-dem-slope/rest");
   });
 });

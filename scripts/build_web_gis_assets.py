@@ -13,6 +13,8 @@ ROOT = Path(r"E:\SuperMap")
 PREPARED = ROOT / "data" / "processed" / "wuhan_marathon" / "web_geojson"
 WEB_PUBLIC = ROOT / "超图" / "Supermap_marathon_web" / "public" / "data"
 WEB_GIS = WEB_PUBLIC / "gis"
+WEB_PUBLIC = ROOT / "超图" / "Supermap_marathon_web_main" / "public" / "data"
+WEB_GIS = WEB_PUBLIC / "gis"
 
 ROAD_SOURCE = PREPARED / "road_network_osm.geojson"
 ROUTE_SOURCE = WEB_PUBLIC / "wuhan-marathon-routes.geojson"

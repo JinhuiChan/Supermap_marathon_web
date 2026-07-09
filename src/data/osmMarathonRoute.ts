@@ -54,7 +54,7 @@ export function buildOsmMarathonTestRoute(
   geojson: unknown,
   options: OSMRouteOptions
 ): MarathonRoute | null {
-  const graph = buildRoadGraphFromGeoJson(geojson);
+  const graph = buildRoadGraphFromGeoJson(filterGeoJsonByRouteEnvelope(geojson, options));
   augmentGraphWithSupportPois(graph);
   return buildRouteFromGraph(graph, {
     ...options,
@@ -68,7 +68,7 @@ export function buildOsmMarathonCandidateRoutes(
   geojson: unknown,
   options: OSMCandidateOptions
 ): MarathonRoute[] {
-  const graph = buildRoadGraphFromGeoJson(geojson);
+  const graph = buildRoadGraphFromGeoJson(filterGeoJsonByRouteEnvelope(geojson, options));
   augmentGraphWithSupportPois(graph);
   if (options.endPoint) {
     return buildUserConstrainedRoutes(graph, { ...options, endPoint: options.endPoint });
@@ -88,6 +88,67 @@ export function buildOsmMarathonCandidateRoutes(
     .filter((route): route is MarathonRoute => route !== null);
 }
 
+function filterGeoJsonByRouteEnvelope(geojson: unknown, options: OSMCandidateOptions | OSMRouteOptions): unknown {
+  if (!isFeatureCollection(geojson)) return geojson;
+
+  const points = [options.startPoint, "endPoint" in options ? options.endPoint : undefined]
+    .filter((point): point is Coordinate => Boolean(point));
+  const marginDegrees = Math.max(0.04, Math.min(0.18, options.targetDistanceKm / 100));
+  const bbox = points.reduce(
+    (bounds, point) => ({
+      minLon: Math.min(bounds.minLon, point[0] - marginDegrees),
+      minLat: Math.min(bounds.minLat, point[1] - marginDegrees),
+      maxLon: Math.max(bounds.maxLon, point[0] + marginDegrees),
+      maxLat: Math.max(bounds.maxLat, point[1] + marginDegrees)
+    }),
+    { minLon: Infinity, minLat: Infinity, maxLon: -Infinity, maxLat: -Infinity }
+  );
+  const features = geojson.features.filter((feature) => featureTouchesBbox(feature, bbox));
+
+  return features.length >= 20 ? { ...geojson, features } : geojson;
+}
+
+function isFeatureCollection(geojson: unknown): geojson is {
+  type: "FeatureCollection";
+  features: Array<{ geometry?: { coordinates?: unknown } }>;
+} {
+  return Boolean(
+    geojson &&
+      typeof geojson === "object" &&
+      "type" in geojson &&
+      geojson.type === "FeatureCollection" &&
+      "features" in geojson &&
+      Array.isArray(geojson.features)
+  );
+}
+
+function featureTouchesBbox(
+  feature: { geometry?: { coordinates?: unknown } },
+  bbox: { minLon: number; minLat: number; maxLon: number; maxLat: number }
+): boolean {
+  let touches = false;
+  visitCoordinates(feature.geometry?.coordinates, (coordinate) => {
+    if (
+      coordinate[0] >= bbox.minLon &&
+      coordinate[0] <= bbox.maxLon &&
+      coordinate[1] >= bbox.minLat &&
+      coordinate[1] <= bbox.maxLat
+    ) {
+      touches = true;
+    }
+  });
+  return touches;
+}
+
+function visitCoordinates(value: unknown, visitor: (coordinate: Coordinate) => void): void {
+  if (!Array.isArray(value) || value.length === 0) return;
+  if (typeof value[0] === "number" && typeof value[1] === "number") {
+    visitor([value[0], value[1]]);
+    return;
+  }
+  value.forEach((child) => visitCoordinates(child, visitor));
+}
+
 function buildUserConstrainedRoutes(graph: RoadGraph, options: OSMCandidateOptions & { endPoint: Coordinate }): MarathonRoute[] {
   const constraints: RouteConstraints = {
     startPoint: options.startPoint,
@@ -96,15 +157,19 @@ function buildUserConstrainedRoutes(graph: RoadGraph, options: OSMCandidateOptio
     avoidZones: [],
     targetDistanceKm: options.targetDistanceKm
   };
-  const paths = generateRoutes(graph, constraints, {
-    count: 3,
-    seed: 2026,
-    maxIterations: 80,
-    lengthToleranceKm: Math.max(0.8, Math.min(5, options.targetDistanceKm * 0.18))
-  });
+  const reviewPaths = buildFallbackReviewPaths(graph, constraints);
+  const useStableReviewFirst = graph.nodes.size > 1200 || graph.edges.size > 2500;
+  const paths = useStableReviewFirst
+    ? []
+    : generateRoutes(graph, constraints, {
+        count: 3,
+        seed: 2026,
+        maxIterations: 24,
+        lengthToleranceKm: Math.max(0.8, Math.min(5, options.targetDistanceKm * 0.18))
+      });
 
   const endpointAlignedPaths = paths.filter((path) => pathEndsNear(graph, path, options.endPoint, 0.35));
-  const candidatePaths = endpointAlignedPaths.length > 0 ? endpointAlignedPaths : buildFallbackReviewPaths(graph, constraints);
+  const candidatePaths = endpointAlignedPaths.length > 0 ? endpointAlignedPaths : reviewPaths;
   const isGenerated = endpointAlignedPaths.length > 0;
   const usesBridgeReview = !isGenerated && candidatePaths.some((path) => pathUsesBridge(graph, path));
 
@@ -126,11 +191,38 @@ function buildUserConstrainedRoutes(graph: RoadGraph, options: OSMCandidateOptio
 }
 
 function buildFallbackReviewPaths(graph: RoadGraph, constraints: RouteConstraints) {
-  const connector = buildShortestConnectorPath(graph, constraints).filter((path) => path.totalLengthKm > 0.5);
+  const connector = buildShortestConnectorPath(graph, constraints)
+    .filter((path) => path.totalLengthKm > 0.5)
+    .map((path) => extendPathTowardTarget(graph, path, constraints.targetDistanceKm));
   if (connector.length > 0) return connector;
   const bridge = buildBridgeReviewPath(graph, constraints);
   if (bridge.length > 0) return bridge;
   return buildReachableReviewPath(graph, constraints);
+}
+
+function extendPathTowardTarget(
+  graph: RoadGraph,
+  path: { nodeIds: string[]; edgeIds: string[]; totalLengthKm: number },
+  targetDistanceKm: number
+) {
+  const remainingKm = targetDistanceKm - path.totalLengthKm;
+  const endNodeId = path.nodeIds.at(-1);
+  if (!endNodeId || remainingKm <= 0.25) return path;
+
+  const extension = buildRoundTripExtension(
+    graph,
+    endNodeId,
+    remainingKm,
+    new Set(path.edgeIds.map((edgeId) => baseEdgeId(edgeId)))
+  );
+  if (extension.edgeIds.length === 0) return path;
+
+  const totalLengthKm = path.totalLengthKm + extension.totalLengthKm;
+  return {
+    nodeIds: [...path.nodeIds, ...extension.nodeIds],
+    edgeIds: [...path.edgeIds, ...extension.edgeIds],
+    totalLengthKm: Math.round(totalLengthKm * 1000) / 1000
+  };
 }
 
 function pathUsesBridge(graph: RoadGraph, path: { edgeIds: string[] }): boolean {
