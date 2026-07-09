@@ -184,6 +184,40 @@ describe("roadNetworkGeoJson", () => {
     expect(edge.impedanceBreakdown?.slope).toBeGreaterThan(0);
   });
 
+  test("uses decomposed raster slope impedance without double counting penalties", () => {
+    const graph = buildRoadGraphFromGeoJson({
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: {
+            highway: "primary",
+            control_ok: 0,
+            impedance: 96,
+            base_impedance: 10,
+            slope_impedance: 6,
+            constraint_impedance: 80,
+            slope_mean: 2.4,
+            slope_p85: 2.8,
+            slope_source: "wuhan_30m_slope_tif",
+            suitability: 4
+          },
+          geometry: { type: "LineString", coordinates: [[114.3, 30.6], [114.31, 30.6]] }
+        }
+      ]
+    });
+
+    const edge = [...graph.edges.values()][0];
+    expect(edge.baselineCost).toBeCloseTo(edge.lengthKm * 1.96, 4);
+    expect(edge.impedanceBreakdown).toMatchObject({
+      explicit: 10,
+      slope: 6,
+      constraint: 80
+    });
+    expect(edge.slopeMean).toBe(2.4);
+    expect(edge.suitabilityScore).toBe(4);
+  });
+
   test("filters road features to a planning bounds", () => {
     const filtered = filterRoadGeoJsonByBounds(
       {

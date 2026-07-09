@@ -235,13 +235,26 @@ function addLineToGraph(
 
     const roadLevel = mapOsmHighwayToRoadLevel(properties.highway ?? properties.road_level ?? properties.fclass);
     const impedance = normalizeNumber(properties.impedance);
+    const baseImpedance = normalizeNumber(properties.base_impedance);
+    const slopeImpedance = normalizeNumber(properties.slope_impedance);
+    const constraintImpedance = normalizeNumber(properties.constraint_impedance);
     const suitabilityScore = normalizeNumber(properties.suitability);
     const slopeMean = normalizeNumber(properties.slope_mean);
     const competitionSuitable = normalizeControlFlag(properties.control_ok) ?? isCompetitionSuitableRoadLevel(roadLevel);
-    const explicitPenalty = Math.max(0, impedance ?? 0);
-    const slopePenalty = slopeMean === null ? 0 : slopeResistancePenalty(slopeMean);
-    const constraintPenalty = competitionSuitable ? 0 : 80;
-    const totalPenalty = explicitPenalty + slopePenalty + constraintPenalty;
+    const hasDecomposedImpedance =
+      baseImpedance !== null || slopeImpedance !== null || constraintImpedance !== null || typeof properties.slope_source === "string";
+    const slopePenalty = hasDecomposedImpedance
+      ? Math.max(0, slopeImpedance ?? 0)
+      : slopeMean === null ? 0 : slopeResistancePenalty(slopeMean);
+    const constraintPenalty = hasDecomposedImpedance
+      ? Math.max(0, constraintImpedance ?? (competitionSuitable ? 0 : 80))
+      : competitionSuitable ? 0 : 80;
+    const explicitPenalty = hasDecomposedImpedance
+      ? Math.max(0, baseImpedance ?? ((impedance ?? 0) - slopePenalty - constraintPenalty))
+      : Math.max(0, impedance ?? 0);
+    const totalPenalty = hasDecomposedImpedance && impedance !== null
+      ? Math.max(0, impedance)
+      : explicitPenalty + slopePenalty + constraintPenalty;
     const edgeId = `osm-${featureIndex}-${lineIndex}-${index}`;
     addEdge(graph, {
       id: edgeId,
