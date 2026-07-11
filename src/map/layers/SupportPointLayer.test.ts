@@ -10,12 +10,12 @@ describe("SupportPointLayer", () => {
   it("uses distinct visual styles for different support point types", () => {
     const supply = supportPoints.find((point) => point.type === "补给")!;
     const medical = supportPoints.find((point) => point.type === "医疗")!;
-    const metro = supportPoints.find((point) => point.type === "地铁站")!;
+    const parking = supportPoints.find((point) => point.type === "停车场")!;
 
     expect(computeSupportPointStyle(supply, true).fillColor).not.toBe(
       computeSupportPointStyle(medical, true).fillColor
     );
-    expect(computeSupportPointStyle(metro, true).fillColor).not.toBe(
+    expect(computeSupportPointStyle(parking, true).fillColor).not.toBe(
       computeSupportPointStyle(supply, true).fillColor
     );
     expect(computeSupportPointStyle(supply, true).radius).toBeGreaterThan(

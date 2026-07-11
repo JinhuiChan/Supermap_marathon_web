@@ -3,11 +3,6 @@ const dataItems = [
     name: "候选赛道线数据",
     file: "wuhan-marathon-routes.geojson",
     href: "/data/wuhan-marathon-routes.geojson"
-  },
-  {
-    name: "赛事保障点数据",
-    file: "wuhan-marathon-support-points.geojson",
-    href: "/data/wuhan-marathon-support-points.geojson"
   }
 ];
 

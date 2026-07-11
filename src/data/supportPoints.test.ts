@@ -6,8 +6,8 @@ import {
 } from "./supportPoints";
 
 describe("supportPoints", () => {
-  it("loads a complete Wuhan marathon support POI catalog", () => {
-    expect(supportPoints.length).toBeGreaterThanOrEqual(20);
+  it("loads support POIs for non-official candidate scenarios", () => {
+    expect(supportPoints.length).toBeGreaterThanOrEqual(9);
     expect(supportPoints[0]).toMatchObject({
       id: "start-river-loop",
       routeId: "river-loop",
@@ -16,20 +16,8 @@ describe("supportPoints", () => {
     });
   });
 
-  it("contains all required service facility types for the official Wuhan route", () => {
-    const officialTypes = [...new Set(getSupportPointsForRoute("wuhan-marathon-2026").map((point) => point.type))];
-
-    expect(officialTypes).toEqual(expect.arrayContaining([
-      "起终点",
-      "补给",
-      "医疗",
-      "地铁站",
-      "停车场",
-      "公园",
-      "公厕",
-      "商圈/补给",
-      "应急集结"
-    ]));
+  it("does not keep support points bound to the deleted official vector route", () => {
+    expect(getSupportPointsForRoute("wuhan-marathon-2026")).toEqual([]);
   });
 
   it("filters service points by route", () => {

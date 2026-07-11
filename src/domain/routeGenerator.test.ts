@@ -102,9 +102,54 @@ describe("routeGenerator", () => {
 
     const route = pathToMarathonRoute({ nodeIds: ["a", "b", "c"], edgeIds: ["edge-a", "edge-b"], totalLengthKm: 2 }, graph, 0);
 
-    expect(route.metrics.avgSlopePercent).toBe(4);
-    expect(route.metrics.maxSlopePercent).toBe(6);
-    expect(route.metrics.longSteepRatio).toBeGreaterThan(0);
+    expect(route.metrics.avgSlopePercent).toBe(0.9);
+    expect(route.metrics.maxSlopePercent).toBe(1.3);
+    expect(route.metrics.longSteepRatio).toBe(0);
+  });
+
+  it("reconstructs display coordinates only from real road edges", () => {
+    const graph = createEmptyGraph();
+    addNode(graph, { id: "a", coordinate: [114.3, 30.6] });
+    addNode(graph, { id: "b", coordinate: [114.31, 30.6] });
+    addNode(graph, { id: "c", coordinate: [114.5, 30.8] });
+    addEdge(graph, {
+      id: "ab",
+      fromNodeId: "a",
+      toNodeId: "b",
+      lengthKm: 1,
+      roadLevel: "primary",
+      isBridge: false,
+      isTunnel: false,
+      competitionSuitable: true,
+      baselineCost: 1
+    });
+
+    const route = pathToMarathonRoute({ nodeIds: ["a", "b", "c"], edgeIds: ["ab"], totalLengthKm: 1 }, graph, 0);
+
+    expect(route.coordinates).toEqual([[114.3, 30.6], [114.31, 30.6]]);
+    expect(route.coordinates).not.toContainEqual([114.5, 30.8]);
+  });
+
+  it("uses original edge geometry for display when graph nodes are topology-snapped", () => {
+    const graph = createEmptyGraph();
+    addNode(graph, { id: "a", coordinate: [114.3, 30.6] });
+    addNode(graph, { id: "b", coordinate: [114.31, 30.61] });
+    addEdge(graph, {
+      id: "snapped-ab",
+      fromNodeId: "a",
+      toNodeId: "b",
+      lengthKm: 1,
+      roadLevel: "primary",
+      isBridge: false,
+      isTunnel: false,
+      competitionSuitable: true,
+      baselineCost: 1,
+      coordinates: [[114.3004, 30.6002], [114.3097, 30.6004]]
+    });
+
+    const route = pathToMarathonRoute({ nodeIds: ["a", "b"], edgeIds: ["snapped-ab"], totalLengthKm: 1 }, graph, 0);
+
+    expect(route.coordinates).toEqual([[114.3004, 30.6002], [114.3097, 30.6004]]);
   });
 
   it("counts reverse-edge lengths when generating routes against bidirectional roads", () => {

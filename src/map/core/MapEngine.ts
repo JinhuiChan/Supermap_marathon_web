@@ -1,4 +1,4 @@
-import type { BasemapMode } from "../../config/supermap";
+﻿import type { BasemapMode } from "../../config/supermap";
 import type { SupportPoint } from "../../data/supportPoints";
 import type { Coordinate } from "../../domain/routeMetrics";
 import type { MarathonRoute } from "../../domain/routeMetrics";
@@ -19,33 +19,28 @@ import {
   shouldShowRoadLabel,
   type RoadNetworkFeature
 } from "../layers/RoadNetworkLayer";
-import { buildRouteDirectionMarkers, computeRouteStyle, findNearestRouteId, toLeafletLatLngs } from "../layers/RouteLayer";
+import { buildRouteDirectionMarkers, buildRouteEndpointMarkers, computeRouteStyle, findNearestRouteId, toLeafletLatLngs } from "../layers/RouteLayer";
 import {
   computeSupportPointStyle,
   formatSupportPointLabel,
   formatSupportPointPopup,
   toLeafletLatLng
 } from "../layers/SupportPointLayer";
-import {
-  vectorBasemapStyle,
-  type VectorBasemapFeature
-} from "../layers/VectorBasemapLayer";
+import type { VectorBasemapFeature } from "../layers/VectorBasemapLayer";
 
 export interface MapEngineOptions {
   container: HTMLElement;
   wmsUrl: string;
   wmsLayerName: string;
-  onlineTileUrl: string;
-  onlineAttribution: string;
   defaultBasemap: BasemapMode;
   center: [number, number];
   zoom: number;
 }
-
 export class MapEngine {
   private map: unknown = null;
   private routeLayers: Map<string, unknown> = new Map();
   private routeDirectionLayers: Map<string, unknown[]> = new Map();
+  private routeEndpointLayers: unknown[] = [];
   private supportPointLayers: unknown[] = [];
   private poiLabelLayers: unknown[] = [];
   private vectorBasemapLayers: unknown[] = [];
@@ -60,8 +55,6 @@ export class MapEngine {
   private container: HTMLElement;
   private wmsUrl: string;
   private wmsLayerName: string;
-  private onlineTileUrl: string;
-  private onlineAttribution: string;
   private basemapMode: BasemapMode;
   private center: [number, number];
   private zoom: number;
@@ -81,8 +74,6 @@ export class MapEngine {
     this.container = options.container;
     this.wmsUrl = options.wmsUrl;
     this.wmsLayerName = options.wmsLayerName;
-    this.onlineTileUrl = options.onlineTileUrl;
-    this.onlineAttribution = options.onlineAttribution;
     this.basemapMode = options.defaultBasemap;
     this.center = options.center;
     this.zoom = options.zoom;
@@ -119,13 +110,6 @@ export class MapEngine {
     const tileLayer = L.tileLayer as ((url: string, opts?: Record<string, unknown>) => unknown) & {
       wms: (url: string, opts: Record<string, unknown>) => unknown;
     };
-    const layerGroup = L.layerGroup as ((layers?: unknown[]) => unknown) | undefined;
-
-    this.basemapLayers.localVector = layerGroup ? layerGroup([]) : undefined;
-    this.basemapLayers.online = tileLayer(this.onlineTileUrl, {
-      attribution: this.onlineAttribution,
-      maxZoom: 19
-    });
     this.basemapLayers.supermapDem = tileLayer.wms(this.wmsUrl, {
       layers: this.wmsLayerName,
       format: "image/png",
@@ -179,6 +163,7 @@ export class MapEngine {
       this.routeLayers.set(route.id, layer);
       this.routeDirectionLayers.set(route.id, this.createRouteDirectionLayers(route, false, true));
     }
+    this.renderRouteEndpointMarkers();
   }
 
   highlightRoute(activeRouteId: string, comparedRouteIds: string[]): void {
@@ -195,6 +180,7 @@ export class MapEngine {
         this.replaceRouteDirectionLayers(route, isActive, isCompared);
       }
     }
+    this.renderRouteEndpointMarkers();
     this.renderSupportPoints();
   }
 
@@ -280,25 +266,7 @@ export class MapEngine {
   }
 
   private renderVectorBasemap(): void {
-    if (this.destroyed || !this.map) return;
     this.clearVectorBasemapLayers();
-    if (this.basemapMode !== "localVector") return;
-
-    const L = (window as unknown as Record<string, unknown>).L as Record<string, unknown> | undefined;
-    if (!L) return;
-
-    const polygon = L.polygon as ((latlngs: [number, number][][], opts?: Record<string, unknown>) => unknown) | undefined;
-    const polyline = L.polyline as ((latlngs: [number, number][], opts?: Record<string, unknown>) => unknown) | undefined;
-    if (!polygon || !polyline) return;
-
-    for (const feature of this.vectorBasemapFeatures) {
-      const style = { ...vectorBasemapStyle(feature.kind), pane: "vector-basemap-pane" };
-      const layer = feature.geometryType === "polygon"
-        ? polygon(feature.coordinates as [number, number][][], style)
-        : polyline(feature.coordinates as [number, number][], style);
-      (layer as { addTo?: (m: unknown) => unknown }).addTo?.(this.map);
-      this.vectorBasemapLayers.push(layer);
-    }
   }
 
   setLayerVisibility(visibility: { routes?: boolean; supportPoints?: boolean; roadNetwork?: boolean }): void {
@@ -365,6 +333,7 @@ export class MapEngine {
     }
     this.routeLayers.clear();
     this.clearRouteDirectionLayers();
+    this.clearRouteEndpointLayers();
     this.clearSupportPointLayers();
     this.clearPoiLabelLayers();
     this.clearVectorBasemapLayers();
@@ -399,6 +368,7 @@ export class MapEngine {
     }
     this.routeLayers.clear();
     this.clearRouteDirectionLayers();
+    this.clearRouteEndpointLayers();
   }
 
   private replaceRouteDirectionLayers(route: MarathonRoute, isActive: boolean, isCompared: boolean): void {
@@ -452,6 +422,60 @@ export class MapEngine {
       }
     }
     this.routeDirectionLayers.clear();
+  }
+
+  private renderRouteEndpointMarkers(): void {
+    if (this.destroyed || !this.map) return;
+    this.clearRouteEndpointLayers();
+    if (!this.routesVisible) return;
+
+    const route = this.routes.find((item) => item.id === this.activeRouteId) ?? this.routes[0];
+    if (!route) return;
+
+    const L = (window as unknown as Record<string, unknown>).L as Record<string, unknown> | undefined;
+    if (!L) return;
+    const divIcon = L.divIcon as ((opts: Record<string, unknown>) => unknown) | undefined;
+    const marker = L.marker as ((latlng: [number, number], opts?: Record<string, unknown>) => unknown) | undefined;
+    if (!divIcon || !marker) return;
+
+    for (const endpoint of buildRouteEndpointMarkers(route)) {
+      const icon = divIcon({
+        className: `route-endpoint-marker ${endpoint.role}`,
+        html: `<span>${endpoint.role === "start" ? "\u8d77" : "\u7ec8"}</span>`,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17]
+      });
+      const layer = marker([endpoint.coordinate[1], endpoint.coordinate[0]], {
+        icon,
+        pane: "planning-point-pane",
+        keyboard: false
+      });
+      const leafletMarker = layer as {
+        addTo?: (m: unknown) => unknown;
+        bindTooltip?: (label: string, opts?: Record<string, unknown>) => unknown;
+        bindPopup?: (label: string, opts?: Record<string, unknown>) => unknown;
+      };
+      const coordinateText = `${endpoint.coordinate[0].toFixed(5)}, ${endpoint.coordinate[1].toFixed(5)}`;
+      leafletMarker.bindTooltip?.(`${endpoint.label} ${coordinateText}`, {
+        direction: "top",
+        permanent: true,
+        className: "route-endpoint-label",
+        opacity: 0.95
+      });
+      leafletMarker.bindPopup?.(`<strong>${endpoint.label}</strong><br>\u5750\u6807：${coordinateText}`, { maxWidth: 220 });
+      leafletMarker.addTo?.(this.map);
+      this.routeEndpointLayers.push(layer);
+    }
+  }
+
+  private clearRouteEndpointLayers(): void {
+    for (const layer of this.routeEndpointLayers) {
+      if (this.map) {
+        const mapWithRemove = this.map as { removeLayer?: (l: unknown) => void };
+        mapWithRemove.removeLayer?.(layer);
+      }
+    }
+    this.routeEndpointLayers = [];
   }
 
   private renderSupportPoints(): void {
@@ -581,7 +605,7 @@ export class MapEngine {
       if (!point.coordinate) continue;
       const icon = divIcon({
         className: `planning-point-marker ${point.role}`,
-        html: `<span>${point.role === "start" ? "起" : "终"}</span>`,
+        html: `<span>${point.role === "start" ? "\u8d77" : "\u7ec8"}</span>`,
         iconSize: [34, 34],
         iconAnchor: [17, 17]
       });

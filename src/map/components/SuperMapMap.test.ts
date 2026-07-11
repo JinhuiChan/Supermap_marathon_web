@@ -30,15 +30,21 @@ function makeRoute(id: string): MarathonRoute {
 }
 
 describe("getVisibleMapRoutes", () => {
-  it("returns only checked routes for the map", () => {
-    const routes = [makeRoute("checked"), makeRoute("unchecked")];
+  it("returns active and compared routes for the map", () => {
+    const routes = [makeRoute("active"), makeRoute("checked"), makeRoute("unchecked")];
 
-    expect(getVisibleMapRoutes(routes, ["checked"]).map((route) => route.id)).toEqual(["checked"]);
+    expect(getVisibleMapRoutes(routes, "active", ["checked"]).map((route) => route.id)).toEqual(["active", "checked"]);
+  });
+
+  it("keeps the active route visible even when it is not checked for comparison", () => {
+    const routes = [makeRoute("active"), makeRoute("unchecked")];
+
+    expect(getVisibleMapRoutes(routes, "active", []).map((route) => route.id)).toEqual(["active"]);
   });
 
   it("returns no routes when the candidate route map layer is hidden", () => {
     const routes = [makeRoute("checked")];
 
-    expect(getVisibleMapRoutes(routes, ["checked"], false)).toEqual([]);
+    expect(getVisibleMapRoutes(routes, "checked", ["checked"], false)).toEqual([]);
   });
 });

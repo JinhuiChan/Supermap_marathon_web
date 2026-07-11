@@ -50,6 +50,20 @@ export interface RouteDirectionMarker {
   angleDeg: number;
 }
 
+export interface RouteEndpointMarker {
+  role: "start" | "end";
+  coordinate: Coordinate;
+  label: string;
+}
+
+export function buildRouteEndpointMarkers(route: MarathonRoute): RouteEndpointMarker[] {
+  if (route.coordinates.length < 2) return [];
+  return [
+    { role: "start", coordinate: route.coordinates[0], label: `${route.name} 起点` },
+    { role: "end", coordinate: route.coordinates[route.coordinates.length - 1], label: `${route.name} 终点` }
+  ];
+}
+
 export function buildRouteDirectionMarkers(
   route: MarathonRoute,
   markerCount = 8
