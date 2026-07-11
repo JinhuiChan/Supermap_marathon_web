@@ -8,6 +8,14 @@ import { buildBestRouteForSelectionProfile } from "./profileRoutePlanner";
 const realWuhanRoads = JSON.parse(realWuhanRoadsText);
 
 describe("osmMarathonRoute with real local Wuhan roads", () => {
+  test("returns a quality-gated route for every visible selection goal", () => {
+    for (const profile of ["pb-friendly", "support-first", "scenic"] as const) {
+      const route = buildBestRouteForSelectionProfile(realWuhanRoads, profile);
+      expect(route, profile).not.toBeNull();
+      expect(evaluateRouteQuality(route!), profile).toMatchObject({ passed: true, issues: [] });
+    }
+  }, 60000);
+
   test("uses an OSM generated compliant route for the city-experience objective", () => {
     const route = buildBestRouteForSelectionProfile(realWuhanRoads, "scenic", {
       seedPoints: [[114.2955, 30.5488]]
