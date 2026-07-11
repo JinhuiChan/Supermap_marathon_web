@@ -19,16 +19,26 @@ export interface RoadNode {
 
 export interface RoadEdge {
   id: string;
+  physicalEdgeId?: string;
   fromNodeId: string;
   toNodeId: string;
   lengthKm: number;
   roadLevel: RoadLevel;
   isBridge: boolean;
   isTunnel: boolean;
+  isElevated?: boolean;
   competitionSuitable: boolean;
   baselineCost: number;
+  roadWidthM?: number;
+  roadName?: string;
   suitabilityScore?: number;
   slopeMean?: number;
+  slopeMax?: number;
+  slopeFiltered?: boolean;
+  isRequiredRiverBridge?: boolean;
+  coordinates?: Coordinate[];
+  surfaceSuitable?: boolean;
+  terrainMeasured?: boolean;
   impedanceBreakdown?: {
     base: number;
     explicit: number;
@@ -60,19 +70,26 @@ export function addNode(graph: RoadGraph, node: RoadNode): void {
 }
 
 export function addEdge(graph: RoadGraph, edge: RoadEdge): void {
-  graph.edges.set(edge.id, edge);
+  const normalized: RoadEdge = {
+    ...edge,
+    physicalEdgeId: edge.physicalEdgeId ?? edge.id.replace(/_rev$/, ""),
+    surfaceSuitable: edge.surfaceSuitable ?? edge.competitionSuitable,
+    terrainMeasured: edge.terrainMeasured ?? typeof edge.slopeMean === "number"
+  };
+  graph.edges.set(normalized.id, normalized);
 
-  const from = graph.adjacency.get(edge.fromNodeId);
-  if (from) from.push(edge);
+  const from = graph.adjacency.get(normalized.fromNodeId);
+  if (from) from.push(normalized);
 
   // bidirectional
-  const to = graph.adjacency.get(edge.toNodeId);
+  const to = graph.adjacency.get(normalized.toNodeId);
   if (to) {
     to.push({
-      ...edge,
-      id: edge.id + "_rev",
-      fromNodeId: edge.toNodeId,
-      toNodeId: edge.fromNodeId
+      ...normalized,
+      id: normalized.id + "_rev",
+      fromNodeId: normalized.toNodeId,
+      toNodeId: normalized.fromNodeId,
+      coordinates: normalized.coordinates ? [...normalized.coordinates].reverse() : undefined
     });
   }
 }
