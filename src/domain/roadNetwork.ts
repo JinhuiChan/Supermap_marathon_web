@@ -101,3 +101,15 @@ export function graphStats(graph: RoadGraph) {
     totalKm: [...graph.edges.values()].reduce((s, e) => s + e.lengthKm, 0)
   };
 }
+
+export function isEventUsableRoadEdge(edge: RoadEdge): boolean {
+  if (edge.competitionSuitable || edge.slopeFiltered === true) return true;
+  return (
+    edge.roadLevel === "residential" &&
+    (edge.roadWidthM ?? 0) >= 5 &&
+    edge.surfaceSuitable !== false &&
+    edge.terrainMeasured === true &&
+    edge.isElevated !== true &&
+    edge.isTunnel !== true
+  );
+}

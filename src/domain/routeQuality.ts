@@ -73,7 +73,7 @@ export function evaluateRouteQuality(route: MarathonRoute): RouteQualityReport {
   if ((metrics.repeatedRoadRatio ?? Number.POSITIVE_INFINITY) > 0) {
     addIssue(issues, "repeated-road", "重复道路", metrics.repeatedRoadRatio ?? false, 0);
   }
-  if ((metrics.localBacktrackCount ?? Number.POSITIVE_INFINITY) > 0) {
+  if ((metrics.localBacktrackCount ?? Number.POSITIVE_INFINITY) > 0 && (metrics.repeatedRoadRatio ?? 0) > 0) {
     addIssue(issues, "backtrack", "局部折返", metrics.localBacktrackCount ?? false, 0);
   }
   if ((metrics.selfIntersectionCount ?? Number.POSITIVE_INFINITY) > 0) {

@@ -100,6 +100,19 @@ describe("evaluateRouteQuality", () => {
     ]));
   });
 
+  it("does not call a nearby junction revisit a backtrack when no physical road is repeated", () => {
+    const route = validRoute({
+      metrics: {
+        ...validRoute().metrics,
+        repeatedRoadRatio: 0,
+        localBacktrackCount: 20
+      }
+    });
+
+    expect(evaluateRouteQuality(route).passed).toBe(true);
+    expect(issueCodes(route)).not.toContain("backtrack");
+  });
+
   it("rejects gaps, unsuitable roads, and coordinates that do not fully follow the road geometry", () => {
     const route = validRoute({
       metrics: {

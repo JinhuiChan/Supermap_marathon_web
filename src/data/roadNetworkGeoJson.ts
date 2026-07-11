@@ -39,7 +39,7 @@ export const WUHAN_MARATHON_AREA_BOUNDS: GeoJsonBounds = {
 export const WUHAN_MARATHON_ROUTE_CORRIDOR_KM = 1.5;
 const MIN_MARATHON_ROAD_WIDTH_M = 6;
 const LONG_TUNNEL_KM = 0.8;
-const ROAD_NODE_SNAP_DECIMALS = 3;
+const ROAD_NODE_SNAP_DECIMALS = 5;
 
 export function mapOsmHighwayToRoadLevel(value: unknown): RoadLevel {
   switch (value) {

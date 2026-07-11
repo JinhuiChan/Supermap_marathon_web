@@ -1,6 +1,6 @@
 import type { Coordinate, ElevationPoint, MarathonRoute, RouteMetrics } from "./routeMetrics";
 import type { GeneratedPath } from "./routeGenerator";
-import type { RoadEdge, RoadGraph } from "./roadNetwork";
+import { isEventUsableRoadEdge, type RoadEdge, type RoadGraph } from "./roadNetwork";
 import { getElevation, haversineKm, turnAngle, turnPenaltyFromAngle } from "./roadAttributes";
 import { summarizeMarathonSuitability } from "./competitionSuitability";
 
@@ -319,7 +319,7 @@ function computeGeometryProvenance(path: GeneratedPath, graph: RoadGraph) {
     const reversed = edgeId.endsWith("_rev");
     const edgeCoordinates = getDisplayCoordinatesForEdge(edge, reversed);
     if (edge.terrainMeasured || typeof edge.slopeMean === "number") measuredTerrainKm += edge.lengthKm;
-    if (!edge.competitionSuitable || edge.surfaceSuitable === false) unsuitableEdgeCount += 1;
+    if (!isEventUsableRoadEdge(edge) || edge.surfaceSuitable === false) unsuitableEdgeCount += 1;
     if (edgeCoordinates.length < 2) continue;
 
     sourceGeometryKm += edge.lengthKm;

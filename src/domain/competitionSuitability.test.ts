@@ -67,4 +67,29 @@ describe("competitionSuitability", () => {
     expect(summary.localBacktrackCount).toBeGreaterThan(0);
     expect(summary.score).toBeLessThan(95);
   });
+
+  it("detects compact local knots around one junction", () => {
+    const summary = summarizeMarathonSuitability(
+      [
+        [114.3, 30.6],
+        [114.302, 30.602],
+        [114.304, 30.6],
+        [114.302, 30.598],
+        [114.3005, 30.5997],
+        [114.298, 30.598]
+      ],
+      [
+        edge("a", "primary", 0.35),
+        edge("b", "primary", 0.35),
+        edge("c", "primary", 0.35),
+        edge("d", "primary", 0.35),
+        edge("e", "primary", 0.9)
+      ],
+      2.3
+    );
+
+    expect(summary.selfIntersectionCount).toBe(0);
+    expect(summary.localKnotCount).toBeGreaterThan(0);
+    expect(summary.score).toBeLessThan(88);
+  });
 });

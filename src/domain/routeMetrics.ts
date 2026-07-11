@@ -80,12 +80,9 @@ export type RouteSelectionProfile =
   | "river-scenic";
 
 export const routeSelectionProfiles: Array<{ id: RouteSelectionProfile; label: string; description: string }> = [
-  { id: "balanced", label: "综合平衡", description: "兼顾难度、保障、景观和组织可行性" },
-  { id: "pb-friendly", label: "PB 竞速", description: "优先低爬升、少急弯、通行顺畅" },
-  { id: "mass-finish", label: "大众完赛", description: "优先稳定完赛和保障覆盖" },
-  { id: "support-first", label: "保障优先", description: "优先补给、医疗和集散能力" },
-  { id: "scenic", label: "景观体验", description: "优先地标、滨水和东湖绿道体验" },
-  { id: "river-scenic", label: "跨江风景", description: "优先跨江桥梁、滨江视野和城市地标展示" }
+  { id: "pb-friendly", label: "竞速平坦", description: "低爬升、少急弯、宽路连续，适合稳定配速" },
+  { id: "support-first", label: "组织保障", description: "优先医疗、补给、公共交通和赛后集散" },
+  { id: "scenic", label: "城市体验", description: "优先地标、滨水、公园与观赛展示价值" }
 ];
 
 const clamp = (value: number, min = 0, max = 100) => Math.min(Math.max(value, min), max);

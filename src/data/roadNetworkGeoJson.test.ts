@@ -92,6 +92,29 @@ describe("roadNetworkGeoJson", () => {
     expect(edge.competitionSuitable).toBe(false);
   });
 
+  test("does not merge road endpoints that are tens of metres apart", () => {
+    const graph = buildRoadGraphFromGeoJson({
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { highway: "primary", slope_mean: 1 },
+          geometry: { type: "LineString", coordinates: [[114.3, 30.6], [114.3001, 30.6]] }
+        },
+        {
+          type: "Feature",
+          properties: { highway: "primary", slope_mean: 1 },
+          geometry: { type: "LineString", coordinates: [[114.3008, 30.6], [114.301, 30.6]] }
+        }
+      ]
+    });
+
+    expect(graph.nodes.size).toBe(4);
+    const firstEnd = [...graph.edges.values()][0].toNodeId;
+    const secondStart = [...graph.edges.values()][1].fromNodeId;
+    expect(firstEnd).not.toBe(secondStart);
+  });
+
   test("builds separate chains from a MultiLineString", () => {
     const graph = buildRoadGraphFromGeoJson({
       type: "FeatureCollection",

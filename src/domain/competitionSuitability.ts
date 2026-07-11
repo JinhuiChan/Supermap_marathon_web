@@ -9,6 +9,7 @@ export interface MarathonSuitabilitySummary {
   repeatedRoadRatio: number;
   selfIntersectionCount: number;
   localBacktrackCount: number;
+  localKnotCount: number;
   tunnelRatio: number;
 }
 
@@ -34,6 +35,7 @@ export function summarizeMarathonSuitability(
   const repeatedRoadKm = computeRepeatedRoadKm(edges);
   const selfIntersectionCount = countSelfIntersections(coordinates);
   const localBacktrackCount = countLocalBacktracks(coordinates);
+  const localKnotCount = countLocalKnots(coordinates);
 
   const mainRoadRatio = roundRatio(mainRoadKm / denominator);
   const unsuitableRoadRatio = roundRatio(unsuitableKm / denominator);
@@ -48,6 +50,7 @@ export function summarizeMarathonSuitability(
         repeatedRoadRatio * 35 -
         Math.min(selfIntersectionCount, 5) * 8 -
         Math.min(localBacktrackCount, 5) * 10 -
+        Math.min(localKnotCount, 5) * 14 -
         tunnelRatio * 15
     )
   );
@@ -59,6 +62,7 @@ export function summarizeMarathonSuitability(
     repeatedRoadRatio,
     selfIntersectionCount,
     localBacktrackCount,
+    localKnotCount,
     tunnelRatio
   };
 }
@@ -113,6 +117,37 @@ function countLocalBacktracks(coordinates: Coordinate[]): number {
       if (walkedKm < 0.8) continue;
       if (haversineKm(coordinates[first], coordinates[second]) < 0.25) {
         count += 1;
+      }
+    }
+  }
+
+  return count;
+}
+
+function countLocalKnots(coordinates: Coordinate[]): number {
+  if (coordinates.length < 5) return 0;
+  let count = 0;
+  const closed = sameCoordinate(coordinates[0], coordinates[coordinates.length - 1]);
+
+  for (let first = 0; first < coordinates.length - 3; first++) {
+    let walkedKm = 0;
+    let maxDistanceFromAnchorKm = 0;
+
+    for (let second = first + 1; second < coordinates.length; second++) {
+      walkedKm += haversineKm(coordinates[second - 1], coordinates[second]);
+      maxDistanceFromAnchorKm = Math.max(
+        maxDistanceFromAnchorKm,
+        haversineKm(coordinates[first], coordinates[second])
+      );
+      if (second < first + 3) continue;
+      if (closed && first === 0 && second === coordinates.length - 1) continue;
+      if (walkedKm < 0.25) continue;
+      if (walkedKm > 1.25) break;
+
+      const returnKm = haversineKm(coordinates[first], coordinates[second]);
+      if (returnKm < 0.16 && maxDistanceFromAnchorKm > 0.18) {
+        count += 1;
+        break;
       }
     }
   }
