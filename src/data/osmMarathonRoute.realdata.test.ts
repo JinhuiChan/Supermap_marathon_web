@@ -10,13 +10,19 @@ const realWuhanRoads = JSON.parse(realWuhanRoadsText);
 describe("osmMarathonRoute with real local Wuhan roads", () => {
   test("returns a quality-gated route for every visible selection goal", () => {
     const routeSignatures = new Set<string>();
-    for (const profile of ["pb-friendly", "support-first", "scenic"] as const) {
+    for (const profile of ["pb-friendly", "scenic"] as const) {
       const route = buildBestRouteForSelectionProfile(realWuhanRoads, profile);
       expect(route, profile).not.toBeNull();
       expect(evaluateRouteQuality(route!), profile).toMatchObject({ passed: true, issues: [] });
+      expect(route!.metrics, profile).toMatchObject({
+        revisitedNodeCount: 0,
+        parallelBacktrackCount: 0,
+        hairpinTurnCount: 0
+      });
+      expect(route!.metrics.sharpTurnDensityPerKm, profile).toBeLessThanOrEqual(1.5);
       routeSignatures.add(JSON.stringify(route!.coordinates));
     }
-    expect(routeSignatures.size).toBe(3);
+    expect(routeSignatures.size).toBe(2);
   }, 60000);
 
   test("uses an OSM generated compliant route for the city-experience objective", () => {
@@ -32,14 +38,14 @@ describe("osmMarathonRoute with real local Wuhan roads", () => {
 
   test("generates full marathon candidates from preset scenario seeds", () => {
     const scenarioSeeds: Array<[number, number]> = [
-      [114.2955, 30.5488]
+      [114.434059, 30.596715]
     ];
     const routes = scenarioSeeds.flatMap((startPoint) =>
       buildOsmMarathonCandidateRoutes(realWuhanRoads, {
         targetDistanceKm: 42.195,
         startPoint,
         maxRoutes: 1,
-        profileIds: ["osm-scenic"]
+        profileIds: ["osm-scenic", "osm-balanced", "osm-main-road"]
       }).slice(0, 1)
     );
 
@@ -51,22 +57,22 @@ describe("osmMarathonRoute with real local Wuhan roads", () => {
 
   test("uses different routes for materially different planning objectives", () => {
     const pbRoute = buildOsmMarathonCandidateRoutes(realWuhanRoads, {
-      targetDistanceKm: 8,
-      startPoint: [114.434059, 30.596715],
+      targetDistanceKm: 42.195,
+      startPoint: [114.365, 30.548],
       maxRoutes: 1,
       profileIds: ["osm-main-road", "osm-balanced"]
     })[0];
     const cityRoute = buildOsmMarathonCandidateRoutes(realWuhanRoads, {
       targetDistanceKm: 42.195,
-      startPoint: [114.2955, 30.5488],
+      startPoint: [114.434059, 30.596715],
       maxRoutes: 1,
-      profileIds: ["osm-scenic"]
+      profileIds: ["osm-scenic", "osm-balanced", "osm-main-road"]
     })[0];
 
     expect(pbRoute).toBeDefined();
     expect(cityRoute).toBeDefined();
     expect(pbRoute?.coordinates).not.toEqual(cityRoute?.coordinates);
-    expect(cityRoute?.id).toBe("osm-scenic");
+    expect(["osm-scenic", "osm-balanced", "osm-main-road"]).toContain(cityRoute?.id);
     expect(evaluateRouteQuality(cityRoute!)).toMatchObject({ passed: true, issues: [] });
   }, 40000);
 

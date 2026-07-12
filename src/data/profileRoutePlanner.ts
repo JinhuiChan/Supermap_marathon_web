@@ -56,7 +56,7 @@ export const profileRoutePlans: Record<RouteSelectionProfile, ProfileRoutePlan> 
     name: "保障优先最优路线",
     color: "#d97706",
     targetDistanceKm: 42.195,
-    seedPoints: [[114.34, 30.558], [114.302, 30.604], [114.434059, 30.596715], [114.365, 30.548]],
+    seedPoints: [[114.365, 30.548], [114.34, 30.558], [114.302, 30.604], [114.434059, 30.596715]],
     preferredCandidateIds: ["osm-balanced", "osm-main-road", "osm-river-scenic", "osm-scenic"],
     note: "保障优先目标强化医疗、轨道交通、补给与赛后集散可达性。"
   },

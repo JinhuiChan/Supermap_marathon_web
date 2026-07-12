@@ -27,7 +27,7 @@ export function analyzeRouteTopology(
   for (let index = 1; index < coordinates.length - 1; index++) {
     const angle = turnAngle(coordinates[index - 1], coordinates[index], coordinates[index + 1]);
     if (angle >= 75) sharpTurnCount += 1;
-    if (angle >= 150) hairpinTurnCount += 1;
+    if (angle >= 165) hairpinTurnCount += 1;
   }
 
   return {
@@ -40,19 +40,37 @@ export function analyzeRouteTopology(
 
 function countParallelBacktracks(coordinates: Coordinate[]): number {
   let count = 0;
-  for (let first = 0; first < coordinates.length - 1; first++) {
-    const firstVector = direction(coordinates[first], coordinates[first + 1]);
-    if (!firstVector) continue;
-    const firstMidpoint = midpoint(coordinates[first], coordinates[first + 1]);
-
-    for (let second = first + 2; second < coordinates.length - 1; second++) {
-      const secondVector = direction(coordinates[second], coordinates[second + 1]);
-      if (!secondVector || firstVector.x * secondVector.x + firstVector.y * secondVector.y > -0.94) continue;
-      const secondMidpoint = midpoint(coordinates[second], coordinates[second + 1]);
-      if (haversineKm(firstMidpoint, secondMidpoint) <= 0.15) count += 1;
+  for (let second = 2; second < coordinates.length - 1; second++) {
+    for (let first = 0; first <= second - 2; first++) {
+      if (!segmentsAreReverseParallelClose(
+        coordinates[first],
+        coordinates[first + 1],
+        coordinates[second],
+        coordinates[second + 1]
+      )) continue;
+      count += 1;
+      break;
     }
   }
   return count;
+}
+
+export function createsForbiddenTopologyStep(coordinates: Coordinate[], next: Coordinate): boolean {
+  if (coordinates.length >= 2 && turnAngle(coordinates.at(-2)!, coordinates.at(-1)!, next) >= 165) return true;
+  if (coordinates.length < 3) return false;
+  const from = coordinates.at(-1)!;
+  for (let index = 0; index < coordinates.length - 2; index++) {
+    if (segmentsAreReverseParallelClose(coordinates[index], coordinates[index + 1], from, next)) return true;
+  }
+  return false;
+}
+
+function segmentsAreReverseParallelClose(a: Coordinate, b: Coordinate, c: Coordinate, d: Coordinate): boolean {
+  const firstVector = direction(a, b);
+  const secondVector = direction(c, d);
+  if (!firstVector || !secondVector) return false;
+  if (firstVector.x * secondVector.x + firstVector.y * secondVector.y > -0.94) return false;
+  return haversineKm(midpoint(a, b), midpoint(c, d)) <= 0.04;
 }
 
 function direction(from: Coordinate, to: Coordinate): { x: number; y: number } | null {

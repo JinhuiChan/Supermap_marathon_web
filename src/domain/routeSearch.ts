@@ -2,6 +2,7 @@ import { haversineKm } from "./roadAttributes";
 import { isFullMarathonRoadEdge, type RoadEdge, type RoadGraph } from "./roadNetwork";
 import type { Coordinate } from "./routeMetrics";
 import { marathonQualityThresholds } from "./routeQuality";
+import { createsForbiddenTopologyStep } from "./routeTopology";
 
 export type MarathonSearchObjective = "race-fast" | "operations" | "city-experience";
 
@@ -46,9 +47,17 @@ const MAX_SNAP_DISTANCE_KM = 1.5;
 
 export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRequest): MarathonSearchResult {
   const hasFixedFinish = Boolean(request.endPoint);
-  const start = snapToSuitableNode(graph, request.startPoint);
+  const componentCapacityKm = hasFixedFinish ? undefined : computeEligibleComponentCapacityKm(graph);
+  const start = snapToSuitableNode(
+    graph,
+    request.startPoint,
+    componentCapacityKm,
+    hasFixedFinish ? 0 : marathonQualityThresholds.minDistanceKm
+  );
   const end = request.endPoint ? snapToSuitableNode(graph, request.endPoint) : start;
-  if (!start || !end || start.distanceKm > MAX_SNAP_DISTANCE_KM || end.distanceKm > MAX_SNAP_DISTANCE_KM) {
+  const startTooFar = hasFixedFinish && (start?.distanceKm ?? Number.POSITIVE_INFINITY) > MAX_SNAP_DISTANCE_KM;
+  const endTooFar = hasFixedFinish && (end?.distanceKm ?? Number.POSITIVE_INFINITY) > MAX_SNAP_DISTANCE_KM;
+  if (!start || !end || startTooFar || endTooFar) {
     return failure("snap-distance", "起点或终点距离可比赛道路过远", 0);
   }
 
@@ -210,6 +219,7 @@ function appendAndValidateEdgeGeometry(
     const closesOnThisCoordinate = closesAtFinish && sameCoordinate(coordinate, fallbackEnd);
     if (
       revisitsExistingCoordinate(combined, coordinate, closesOnThisCoordinate) ||
+      createsForbiddenTopologyStep(combined, coordinate) ||
       createsSelfIntersection(combined, coordinate, closesOnThisCoordinate) ||
       createsLocalKnot(combined, coordinate, closesOnThisCoordinate)
     ) return null;
@@ -340,14 +350,50 @@ function calibratedRaceGradePercent(rasterSlopePercent: number): number {
   return Math.abs(rasterSlopePercent) * 0.22;
 }
 
-function snapToSuitableNode(graph: RoadGraph, coordinate: Coordinate) {
+function snapToSuitableNode(
+  graph: RoadGraph,
+  coordinate: Coordinate,
+  componentCapacityKm?: Map<string, number>,
+  minimumComponentKm = 0
+) {
   let best: { nodeId: string; distanceKm: number } | null = null;
   for (const node of graph.nodes.values()) {
     if (!(graph.adjacency.get(node.id) ?? []).some(edgeIsEligible)) continue;
+    if ((componentCapacityKm?.get(node.id) ?? Number.POSITIVE_INFINITY) < minimumComponentKm) continue;
     const distanceKm = haversineKm(coordinate, node.coordinate);
     if (!best || distanceKm < best.distanceKm) best = { nodeId: node.id, distanceKm };
   }
   return best;
+}
+
+function computeEligibleComponentCapacityKm(graph: RoadGraph): Map<string, number> {
+  const capacities = new Map<string, number>();
+  const visited = new Set<string>();
+
+  for (const node of graph.nodes.values()) {
+    if (visited.has(node.id)) continue;
+    const queue = [node.id];
+    const componentNodes: string[] = [];
+    const physicalEdges = new Map<string, number>();
+    visited.add(node.id);
+
+    while (queue.length > 0) {
+      const nodeId = queue.shift()!;
+      componentNodes.push(nodeId);
+      for (const edge of graph.adjacency.get(nodeId) ?? []) {
+        if (!edgeIsEligible(edge)) continue;
+        physicalEdges.set(getPhysicalEdgeId(edge), edge.lengthKm);
+        if (visited.has(edge.toNodeId)) continue;
+        visited.add(edge.toNodeId);
+        queue.push(edge.toNodeId);
+      }
+    }
+
+    const capacityKm = [...physicalEdges.values()].reduce((sum, lengthKm) => sum + lengthKm, 0);
+    componentNodes.forEach((nodeId) => capacities.set(nodeId, capacityKm));
+  }
+
+  return capacities;
 }
 
 function shortestDistancesTo(graph: RoadGraph, destinationNodeId: string): Map<string, number> {

@@ -194,6 +194,29 @@ describe("searchMarathonRoutes", () => {
     expect(result).toMatchObject({ ok: false, code: "no-compliant-route" });
   });
 
+  it("snaps an automatic start to the nearest component with marathon capacity", () => {
+    const graph = createEmptyGraph();
+    addNode(graph, { id: "small-a", coordinate: [114.3, 30.6] });
+    addNode(graph, { id: "small-b", coordinate: [114.301, 30.6] });
+    addEligibleEdge(graph, "small-edge", "small-a", "small-b", 1);
+
+    for (let index = 0; index <= 42; index++) {
+      addNode(graph, { id: `large-${index}`, coordinate: [114.31 + index * 0.0005, 30.61] });
+      if (index > 0) addEligibleEdge(graph, `large-edge-${index}`, `large-${index - 1}`, `large-${index}`, 1.005);
+    }
+
+    const result = searchMarathonRoutes(graph, {
+      startPoint: [114.3, 30.6],
+      objective: "operations",
+      maxRoutes: 1,
+      maxExpandedStates: 20_000
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.routes[0].nodeIds[0]).toBe("large-0");
+  });
+
   it("rejects an edge whose source geometry crosses an earlier route segment", () => {
     const graph = cycleGraph();
     const crossing = graph.edges.get("cycle-20")!;
@@ -216,7 +239,7 @@ describe("searchMarathonRoutes", () => {
     expect(result).toMatchObject({ ok: false, code: "no-compliant-route" });
   });
 
-  it("rejects roads already filtered by the competition suitability model", () => {
+  it("keeps event-level roads when calibrated raster slope remains acceptable", () => {
     const graph = cycleGraph();
     for (const edges of graph.adjacency.values()) {
       for (const edge of edges) {
@@ -240,7 +263,9 @@ describe("searchMarathonRoutes", () => {
       maxExpandedStates: 20_000
     });
 
-    expect(result).toMatchObject({ ok: false, code: "no-compliant-route" });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.routes[0].physicalEdgeIds).toContain("cycle-10");
   });
 
   it("rejects a paved residential road instead of using it to complete marathon distance", () => {

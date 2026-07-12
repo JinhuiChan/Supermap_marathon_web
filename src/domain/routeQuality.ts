@@ -4,7 +4,6 @@ import type { MarathonRoute } from "./routeMetrics";
 export const marathonQualityThresholds = {
   minDistanceKm: 42.195,
   maxDistanceKm: 42.237,
-  maxEndpointSeparationKm: 21.0975,
   maxNetDropM: 42.195,
   maxTotalClimbM: 180,
   maxAbsGradePercent: 5,

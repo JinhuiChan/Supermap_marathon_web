@@ -82,6 +82,28 @@ describe("pathToMarathonRoute provenance", () => {
     expect(route.metrics.roadAlignedRatio).toBeLessThan(1);
   });
 
+  it("marks neighborhood streets as unsuitable for a full-marathon course", () => {
+    const graph = createEmptyGraph();
+    addNode(graph, { id: "a", coordinate: [114.3, 30.6] });
+    addNode(graph, { id: "b", coordinate: [114.31, 30.6] });
+    addEdge(graph, edge({
+      id: "ab",
+      fromNodeId: "a",
+      toNodeId: "b",
+      roadLevel: "residential",
+      competitionSuitable: false,
+      coordinates: [[114.3, 30.6], [114.31, 30.6]]
+    }));
+
+    const route = pathToMarathonRoute({
+      nodeIds: ["a", "b"],
+      edgeIds: ["ab"],
+      totalLengthKm: 21.1
+    }, graph, 0);
+
+    expect(route.metrics.unsuitableEdgeCount).toBe(1);
+  });
+
   it("ends on the selected final road geometry when the terminal edge is clipped", () => {
     const graph = createEmptyGraph();
     addNode(graph, { id: "a", coordinate: [114.3, 30.6] });

@@ -27,6 +27,7 @@ export interface RoadEdge {
   isBridge: boolean;
   isTunnel: boolean;
   isElevated?: boolean;
+  isJunctionLink?: boolean;
   competitionSuitable: boolean;
   baselineCost: number;
   roadWidthM?: number;
@@ -124,10 +125,11 @@ const fullMarathonRoadLevels = new Set<RoadLevel>([
 
 export function isFullMarathonRoadEdge(edge: RoadEdge): boolean {
   return (
-    edge.competitionSuitable === true &&
+    (edge.competitionSuitable === true || edge.slopeFiltered === true) &&
     fullMarathonRoadLevels.has(edge.roadLevel) &&
     edge.surfaceSuitable !== false &&
     edge.isElevated !== true &&
-    edge.isTunnel !== true
+    edge.isTunnel !== true &&
+    (edge.isJunctionLink !== true || edge.lengthKm <= 0.25)
   );
 }

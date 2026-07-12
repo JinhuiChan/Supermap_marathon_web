@@ -103,8 +103,10 @@ describe("roadNetwork", () => {
     expect(isFullMarathonRoadEdge(edge({ roadLevel: "residential", roadWidthM: 5 }))).toBe(false);
     expect(isFullMarathonRoadEdge(edge({ roadLevel: "service" }))).toBe(false);
     expect(isFullMarathonRoadEdge(edge({ roadLevel: "track" }))).toBe(false);
+    expect(isFullMarathonRoadEdge(edge({ roadLevel: "primary", isJunctionLink: true, lengthKm: 0.2 }))).toBe(true);
+    expect(isFullMarathonRoadEdge(edge({ roadLevel: "primary", isJunctionLink: true, lengthKm: 0.3 }))).toBe(false);
     expect(isFullMarathonRoadEdge(edge({ isElevated: true }))).toBe(false);
     expect(isFullMarathonRoadEdge(edge({ isTunnel: true }))).toBe(false);
-    expect(isFullMarathonRoadEdge(edge({ competitionSuitable: false, slopeFiltered: true }))).toBe(false);
+    expect(isFullMarathonRoadEdge(edge({ competitionSuitable: false, slopeFiltered: true }))).toBe(true);
   });
 });

@@ -2051,10 +2051,22 @@ textarea {
   line-height: 1.5;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1480px) {
   .gis-map-stage {
-    grid-template-columns: 360px minmax(420px, 1fr);
+    grid-template-columns: minmax(260px, 300px) minmax(340px, 1fr);
     grid-template-areas: "left map";
+  }
+
+  .gis-app-header {
+    gap: 8px;
+  }
+
+  .gis-brand {
+    min-width: 200px;
+  }
+
+  .gis-mode-nav {
+    grid-template-columns: repeat(2, minmax(96px, 1fr));
   }
 
   .gis-map-stage .map-toolbar {

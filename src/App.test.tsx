@@ -11,7 +11,6 @@ describe("App", () => {
     expect(html).toContain("赛道分析");
     expect(html).toContain("核对硬规则");
     expect(html).toContain("竞速平坦");
-    expect(html).toContain("组织保障");
     expect(html).toContain("城市体验");
     expect(html).toContain("等待合规路线");
     expect(html).toContain("规划结果不替代 World Athletics / AIMS 认证测量");
@@ -37,7 +36,7 @@ describe("App", () => {
     );
 
     expect(html).toContain("gis-selection-panel");
-    expect(html).toContain("三种目标共享同一组硬性合规规则");
+    expect(html).toContain("两种目标共享同一组硬性合规规则");
     expect(html).toContain("重复道路 0%");
   });
 });

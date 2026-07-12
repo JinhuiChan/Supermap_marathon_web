@@ -7,6 +7,13 @@ import {
 } from "./roadNetworkGeoJson";
 
 describe("roadNetworkGeoJson", () => {
+  test("classifies short link roads by their parent road level", () => {
+    expect(mapOsmHighwayToRoadLevel("primary_link")).toBe("primary");
+    expect(mapOsmHighwayToRoadLevel("secondary_link")).toBe("secondary");
+    expect(mapOsmHighwayToRoadLevel("tertiary_link")).toBe("tertiary");
+    expect(mapOsmHighwayToRoadLevel("trunk_link")).toBe("trunk");
+    expect(mapOsmHighwayToRoadLevel("unclassified")).toBe("tertiary");
+  });
   test("builds a graph from a LineString road feature", () => {
     const graph = buildRoadGraphFromGeoJson({
       type: "FeatureCollection",
@@ -170,7 +177,7 @@ describe("roadNetworkGeoJson", () => {
     expect(mapOsmHighwayToRoadLevel("motorway")).toBe("motorway");
     expect(mapOsmHighwayToRoadLevel("cycleway")).toBe("greenway");
     expect(mapOsmHighwayToRoadLevel("living_street")).toBe("residential");
-    expect(mapOsmHighwayToRoadLevel("unclassified")).toBe("residential");
+    expect(mapOsmHighwayToRoadLevel("unclassified")).toBe("tertiary");
   });
 
   test("marks narrow local road types as unsuitable for international marathon routing", () => {
