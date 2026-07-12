@@ -27,7 +27,7 @@ export function analyzeRouteTopology(
   for (let index = 1; index < coordinates.length - 1; index++) {
     const angle = turnAngle(coordinates[index - 1], coordinates[index], coordinates[index + 1]);
     if (angle >= 75) sharpTurnCount += 1;
-    if (angle >= 165) hairpinTurnCount += 1;
+    if (angle >= 150) hairpinTurnCount += 1;
   }
 
   return {
@@ -56,7 +56,7 @@ function countParallelBacktracks(coordinates: Coordinate[]): number {
 }
 
 export function createsForbiddenTopologyStep(coordinates: Coordinate[], next: Coordinate): boolean {
-  if (coordinates.length >= 2 && turnAngle(coordinates.at(-2)!, coordinates.at(-1)!, next) >= 165) return true;
+  if (coordinates.length >= 2 && turnAngle(coordinates.at(-2)!, coordinates.at(-1)!, next) >= 150) return true;
   if (coordinates.length < 3) return false;
   const from = coordinates.at(-1)!;
   for (let index = 0; index < coordinates.length - 2; index++) {

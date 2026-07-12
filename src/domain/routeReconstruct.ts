@@ -40,17 +40,16 @@ function extractCoordinates(
   for (const [edgeIndex, edgeId] of path.edgeIds.entries()) {
     const edge = resolveEdge(graph, edgeId);
     if (!edge) continue;
-    const reversed = edgeId.endsWith("_rev");
     const edgeCoordinates = clipCoordinatesByFraction(
-      getDisplayCoordinatesForEdge(edge, reversed),
+      getDisplayCoordinatesForEdge(edge),
       edgeFractionForIndex(path, edgeIndex)
     );
     if (edgeCoordinates.length >= 2) {
       appendCoordinates(coords, edgeCoordinates);
       continue;
     }
-    const from = graph.nodes.get(reversed ? edge.toNodeId : edge.fromNodeId);
-    const to = graph.nodes.get(reversed ? edge.fromNodeId : edge.toNodeId);
+    const from = graph.nodes.get(edge.fromNodeId);
+    const to = graph.nodes.get(edge.toNodeId);
     if (!from || !to) continue;
     if (coords.length === 0 || !sameCoordinate(coords[coords.length - 1], from.coordinate)) {
       coords.push(from.coordinate);
@@ -60,9 +59,8 @@ function extractCoordinates(
   return coords;
 }
 
-function getDisplayCoordinatesForEdge(edge: RoadEdge, reversed: boolean): Coordinate[] {
-  const coordinates = edge.coordinates ?? [];
-  return reversed ? [...coordinates].reverse() : coordinates;
+function getDisplayCoordinatesForEdge(edge: RoadEdge): Coordinate[] {
+  return edge.coordinates ?? [];
 }
 
 function appendCoordinates(target: Coordinate[], coordinates: Coordinate[]): void {
@@ -330,9 +328,8 @@ function computeGeometryProvenance(path: GeneratedPath, graph: RoadGraph) {
   for (const [edgeIndex, edgeId] of path.edgeIds.entries()) {
     const edge = resolveEdge(graph, edgeId);
     if (!edge) continue;
-    const reversed = edgeId.endsWith("_rev");
     const fraction = edgeFractionForIndex(path, edgeIndex);
-    const edgeCoordinates = clipCoordinatesByFraction(getDisplayCoordinatesForEdge(edge, reversed), fraction);
+    const edgeCoordinates = clipCoordinatesByFraction(getDisplayCoordinatesForEdge(edge), fraction);
     const effectiveLengthKm = edge.lengthKm * fraction;
     if (edge.terrainMeasured || typeof edge.slopeMean === "number") measuredTerrainKm += effectiveLengthKm;
     if (!isFullMarathonRoadEdge(edge)) unsuitableEdgeCount += 1;

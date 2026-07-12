@@ -1,9 +1,9 @@
 import type { MarathonRoute } from "./routeMetrics";
 
 export function upsertGeneratedRoute(routes: MarathonRoute[], route: MarathonRoute): MarathonRoute[] {
-  const routeGeometryKey = geometryKey(route);
-  const withoutSameRoute = routes.filter((item) => item.id !== route.id && geometryKey(item) !== routeGeometryKey);
-  return [...withoutSameRoute, route];
+  // Only dedupe by ID — different route plans may share geometry near the start
+  const withoutSameId = routes.filter((item) => item.id !== route.id);
+  return [...withoutSameId, route];
 }
 
 function geometryKey(route: MarathonRoute): string {

@@ -1,4 +1,4 @@
-import { routeSelectionProfiles, type RouteSelectionProfile } from "../domain/routeMetrics";
+import { waypointRoutePlans, type WaypointRouteId } from "../data/profileRoutePlanner";
 
 export interface GisPlanningSettings {
   targetDistanceKm: number;
@@ -14,13 +14,11 @@ export interface GisPlanningSettings {
 }
 
 interface GisSelectionPanelProps {
-  activeProfile: RouteSelectionProfile;
   settings: GisPlanningSettings;
   canGenerate: boolean;
   generateDisabledReason?: string;
   isGenerating?: boolean;
-  onProfileChange: (profile: RouteSelectionProfile) => void;
-  onGenerateRoutes: () => void;
+  onGenerateRoute: (routeId: WaypointRouteId) => void;
 }
 
 export const defaultGisPlanningSettings: GisPlanningSettings = {
@@ -53,48 +51,42 @@ export const defaultGisPlanningSettings: GisPlanningSettings = {
 };
 
 export function GisSelectionPanel({
-  activeProfile,
   settings,
   canGenerate,
   generateDisabledReason,
   isGenerating = false,
-  onProfileChange,
-  onGenerateRoutes
+  onGenerateRoute
 }: GisSelectionPanelProps) {
   return (
-    <aside className="gis-selection-panel" aria-label="GIS 智能选型参数">
+    <aside className="gis-selection-panel" aria-label="武汉马拉松赛道选型">
       <div className="gis-panel-heading">
-        <span>规划合规优先</span>
-        <h2>赛道智能选型</h2>
-        <p>先通过统一质量闸门，再按赛事目标排序。未通过的连接线、短路线和漂移路线不会进入候选列表。</p>
+        <span>SuperMap WebGIS</span>
+        <h2>武汉马拉松赛道选型</h2>
+        <p>统一起点（三阳路沿江大道），途经点为廊道参考方向，路线由路网 Walk 算法沿合规道路生成。</p>
       </div>
 
       <section className="gis-tool-group gis-step-group">
-        <h3>1. 选择目标</h3>
-        <p className="gis-tool-hint">两种目标共享同一组硬性合规规则，仅改变合格路线的走廊与排序偏好。</p>
-        <div className="gis-profile-grid">
-          {routeSelectionProfiles.map((profile) => (
+        <h3>1. 选择路线</h3>
+        <div className="gis-waypoint-route-grid">
+          {waypointRoutePlans.map((plan) => (
             <button
               type="button"
-              className={`gis-profile-option ${profile.id === activeProfile ? "active" : ""}`}
-              aria-pressed={profile.id === activeProfile}
-              key={profile.id}
-              onClick={() => onProfileChange(profile.id)}
+              key={plan.id}
+              className="gis-waypoint-route-button"
+              disabled={!canGenerate || isGenerating}
+              onClick={() => onGenerateRoute(plan.id)}
+              style={{ borderLeftColor: plan.color }}
             >
-              <strong>{profile.label}</strong>
-              <span>{profile.description}</span>
+              <strong style={{ color: plan.color }}>{plan.name}</strong>
+              <span>{plan.targetDistanceKm.toFixed(1)} km · {plan.description}</span>
+              <small>{plan.waypoints.length} 个途经控制点 · {plan.note}</small>
             </button>
           ))}
         </div>
       </section>
 
       <section className="gis-tool-group gis-step-group">
-        <h3>2. 核对硬规则</h3>
-        <dl className="gis-constraint-list">
-          <div><dt>标准距离</dt><dd>{settings.targetDistanceKm.toFixed(3)} km</dd></div>
-          <div><dt>道路数据</dt><dd>{settings.constraints.corridor}</dd></div>
-          <div><dt>起终点</dt><dd>{settings.constraints.startFinish}</dd></div>
-        </dl>
+        <h3>2. 硬性合规规则</h3>
         <div className="gis-rule-grid" aria-label="路线硬性合规规则">
           {settings.constraints.routeRules.map((rule) => <span key={rule}>✓ {rule}</span>)}
         </div>
@@ -105,19 +97,7 @@ export function GisSelectionPanel({
 
       <section className="gis-tool-group gis-step-group gis-generate-step">
         <h3>3. 生成路线</h3>
-        <p className="gis-tool-hint">系统依次执行路网搜索、里程闭合和质量校验，只保存全部通过的方案。</p>
-        <button
-          type="button"
-          className="gis-generate-button"
-          disabled={!canGenerate || isGenerating}
-          title={!canGenerate ? generateDisabledReason : undefined}
-          onClick={onGenerateRoutes}
-        >
-          {isGenerating ? "正在搜索合规路线..." : "生成当前目标路线"}
-        </button>
-        {!canGenerate && !isGenerating && generateDisabledReason ? (
-          <p className="gis-generate-disabled-reason">{generateDisabledReason}</p>
-        ) : null}
+        <p className="gis-tool-hint">点击上方路线按钮即可生成。系统将途经点吸附到最近路网节点，分段生成子路径后拼接为完整路线，并通过距离容差和质量闸门校验。</p>
       </section>
     </aside>
   );

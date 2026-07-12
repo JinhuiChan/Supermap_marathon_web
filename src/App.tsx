@@ -17,13 +17,12 @@ import { RouteDetails } from "./components/RouteDetails";
 import { RouteQualityPanel } from "./components/RouteQualityPanel";
 import { SuperMapStatusPanel } from "./components/SuperMapStatusPanel";
 import { superMapConfig } from "./config/supermap";
-import { buildBestRouteForSelectionProfile } from "./data/profileRoutePlanner";
+import { buildWaypointRoute, waypointRoutePlans, type WaypointRouteId } from "./data/profileRoutePlanner";
 import { supportPoints } from "./data/supportPoints";
 import { upsertGeneratedRoute } from "./domain/routeCollection";
 import {
   compareRoutes,
-  type MarathonRoute,
-  type RouteSelectionProfile
+  type MarathonRoute
 } from "./domain/routeMetrics";
 import { Scene3DPanel } from "./map/components/Scene3DPanel";
 import { SuperMapMap, type MapLayerVisibility } from "./map/components/SuperMapMap";
@@ -36,11 +35,11 @@ const waitForUiFrame = () => new Promise<void>((resolve) => window.setTimeout(re
 
 export default function App({ initialLayerVisibility }: AppProps = {}) {
   const [workspaceMode, setWorkspaceMode] = useState<GisWorkspaceMode>("selection");
+  const [detailPanelOpen, setDetailPanelOpen] = useState(false);
   const [routes, setRoutes] = useState<MarathonRoute[]>([]);
   const [roadGeoJson, setRoadGeoJson] = useState<unknown>(null);
   const [generationStatus, setGenerationStatus] = useState("正在加载武汉道路矢量网络");
-  const [isGeneratingRoutes, setIsGeneratingRoutes] = useState(false);
-  const [selectionProfile, setSelectionProfile] = useState<RouteSelectionProfile>("pb-friendly");
+  const [isGenerating, setIsGenerating] = useState(false);
   const [activeRouteId, setActiveRouteId] = useState("");
   const [comparedRouteIds, setComparedRouteIds] = useState<string[]>([]);
   const [mapLayerVisibility, setMapLayerVisibility] = useState<MapLayerVisibility>(
@@ -60,10 +59,10 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
   );
   const rankedRoutes = useMemo(() => {
     const routeById = new Map(routes.map((route) => [route.id, route]));
-    return compareRoutes(routes, selectionProfile)
+    return compareRoutes(routes, "balanced")
       .map((score) => routeById.get(score.id))
       .filter((route): route is MarathonRoute => Boolean(route));
-  }, [routes, selectionProfile]);
+  }, [routes]);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,60 +89,55 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
     };
   }, []);
 
-  const generateProfileBestRoute = () => {
-    if (!roadGeoJson || isGeneratingRoutes) return;
+  const generateRoute = (routeId: WaypointRouteId) => {
+    if (!roadGeoJson || isGenerating) return;
 
-    setGenerationStatus("已接收生成任务，正在按当前选型目标计算最优路线");
-    setIsGeneratingRoutes(true);
+    const plan = waypointRoutePlans.find((p) => p.id === routeId);
+    if (!plan) return;
+
+    setGenerationStatus(`正在沿 ${plan.waypoints.length} 个途经点生成「${plan.name}」…`);
+    setIsGenerating(true);
 
     window.setTimeout(() => {
-      void runProfileBestRouteGeneration();
+      void runRouteGeneration(plan);
     }, 50);
   };
 
-  const runProfileBestRouteGeneration = async () => {
+  const runRouteGeneration = async (plan: typeof waypointRoutePlans[number]) => {
     if (!roadGeoJson) return;
 
     try {
-      setGenerationStatus("正在计算当前选型目标的阻力、POI 影响、参考廊道相似度和赛事约束");
       await waitForUiFrame();
 
-      const route = buildBestRouteForSelectionProfile(roadGeoJson, selectionProfile);
+      const route = buildWaypointRoute(roadGeoJson, plan, { maxAttempts: 5 });
       if (!route) {
-        setGenerationStatus("未生成符合当前选型目标和全马赛事约束的路线，请检查道路网络连通性、里程误差、坡度与禁用道路条件");
+        setGenerationStatus(`「${plan.name}」生成失败：路网数据在途经点之间无法连通，请检查道路覆盖范围`);
         return;
       }
 
       setRoutes((current) => upsertGeneratedRoute(current, route));
-      setGenerationStatus(`已生成并保存 ${route.name}，候选方案会保留其他选型目标的结果`);
+      setGenerationStatus(`已生成「${route.name}」(${route.lengthKm.toFixed(1)} km)`);
       setActiveRouteId(route.id);
-      setComparedRouteIds((current) => {
-        const next = current.filter((id) => id !== route.id);
-        return [...next.slice(-4), route.id];
-      });
+      setComparedRouteIds((current) => [...current.filter((id) => id !== route.id).slice(-4), route.id]);
     } catch {
-      setGenerationStatus("路网选线模型运行失败，请检查道路网络连通性");
+      setGenerationStatus("路线生成失败，请检查道路网络连通性");
     } finally {
-      setIsGeneratingRoutes(false);
+      setIsGenerating(false);
     }
   };
 
-  const applyRecommendation = (profile = selectionProfile) => {
-    const ranked = compareRoutes(routes, profile);
+  const applyRecommendation = () => {
+    const ranked = compareRoutes(routes, "balanced");
     if (ranked.length === 0) return;
     setActiveRouteId(ranked[0].id);
     setComparedRouteIds(ranked.slice(0, 3).map((route) => route.id));
-  };
-
-  const changeSelectionProfile = (profile: RouteSelectionProfile) => {
-    setSelectionProfile(profile);
-    setGenerationStatus("已切换选型目标；已生成的候选路线会继续保留，可继续生成当前目标的最优路线");
   };
 
   const analyzeRoute = (id: string) => {
     setActiveRouteId(id);
     setComparedRouteIds((current) => (current.includes(id) ? current : [...current.slice(-4), id]));
     setWorkspaceMode("analysis");
+    setDetailPanelOpen(true);
   };
 
   const toggleCompare = (id: string) => {
@@ -189,13 +183,11 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
         {workspaceMode === "selection" && (
           <aside className="gis-selection-dock" aria-label="智能选型工作区">
             <GisSelectionPanel
-              activeProfile={selectionProfile}
               settings={defaultGisPlanningSettings}
               canGenerate={Boolean(roadGeoJson)}
               generateDisabledReason={generateDisabledReason}
-              isGenerating={isGeneratingRoutes}
-              onProfileChange={changeSelectionProfile}
-              onGenerateRoutes={generateProfileBestRoute}
+              isGenerating={isGenerating}
+              onGenerateRoute={generateRoute}
             />
             <CandidateRouteDrawer
               routes={rankedRoutes}
@@ -218,7 +210,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
               <>
                 <RouteDetails route={activeRoute} />
                 <RouteAnalysisPanel route={activeRoute} supportPoints={supportPoints} />
-                <ComparisonPanel routes={comparedRoutes} selectionProfile={selectionProfile} />
+                <ComparisonPanel routes={comparedRoutes} selectionProfile="balanced" />
                 <ExportPanel routes={comparedRoutes} supportPoints={supportPoints} />
               </>
             ) : (
@@ -230,7 +222,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
           </aside>
         )}
 
-        <details className="gis-utility-details" aria-label="GIS 图层与服务" open>
+        <details className="gis-utility-details" aria-label="GIS 图层与服务">
           <summary>GIS 详情</summary>
           <aside className="gis-utility-dock">
             <RouteQualityPanel route={activeRoute} />

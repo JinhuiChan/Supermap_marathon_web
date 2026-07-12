@@ -51,7 +51,7 @@ export function RouteMap({ routes, activeRouteId, comparedRouteIds, onSelectRout
                   return (
                     <path
                       key={`${route.id}-dir-${index}`}
-                      d="M -1.4 -1.2 L 1.8 0 L -1.4 1.2 Z"
+                      d="M -2.8 -2.4 L 3.6 0 L -2.8 2.4 Z"
                       transform={`translate(${x} ${y}) rotate(${-marker.angleDeg})`}
                       fill={route.color}
                       opacity={isActive ? 0.92 : 0.45}

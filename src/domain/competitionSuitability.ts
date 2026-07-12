@@ -1,4 +1,4 @@
-import type { RoadEdge, RoadLevel } from "./roadNetwork";
+import { baseEdgeId, type RoadEdge, type RoadLevel } from "./roadNetwork";
 import type { Coordinate } from "./routeMetrics";
 import { haversineKm } from "./roadAttributes";
 
@@ -141,11 +141,11 @@ function countLocalKnots(coordinates: Coordinate[]): number {
       );
       if (second < first + 3) continue;
       if (closed && first === 0 && second === coordinates.length - 1) continue;
-      if (walkedKm < 0.25) continue;
-      if (walkedKm > 1.25) break;
+      if (walkedKm < 0.2) continue;
+      if (walkedKm > 1.5) break;
 
       const returnKm = haversineKm(coordinates[first], coordinates[second]);
-      if (returnKm < 0.16 && maxDistanceFromAnchorKm > 0.18) {
+      if (returnKm < 0.2 && maxDistanceFromAnchorKm > 0.14) {
         count += 1;
         break;
       }
@@ -177,8 +177,4 @@ function sameCoordinate(a: Coordinate, b: Coordinate): boolean {
 
 function roundRatio(value: number): number {
   return Math.round(clamp(value, 0, 1) * 100) / 100;
-}
-
-function baseEdgeId(edgeId: string): string {
-  return edgeId.endsWith("_rev") ? edgeId.slice(0, -4) : edgeId;
 }

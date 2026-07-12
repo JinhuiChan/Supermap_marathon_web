@@ -1,7 +1,83 @@
-import { buildOsmMarathonCandidateRoutes } from "./osmMarathonRoute";
+import { buildOsmMarathonCandidateRoutes, buildWaypointMarathonRoute } from "./osmMarathonRoute";
 import type { Coordinate, MarathonRoute, RouteSelectionProfile } from "../domain/routeMetrics";
 import { compareRoutes, scoreRouteForProfile } from "../domain/routeMetrics";
 import { haversineKm } from "../domain/roadAttributes";
+
+export interface WaypointRoutePlan {
+  id: string;
+  name: string;
+  color: string;
+  targetDistanceKm: number;
+  waypoints: Array<{ label: string; coordinate: Coordinate }>;
+  note: string;
+  description: string;
+}
+
+export const waypointRoutePlans: WaypointRoutePlan[] = [
+  {
+    id: "waypoint-east-lake",
+    name: "东湖线",
+    color: "#00a86b",
+    targetDistanceKm: 42.195,
+    description: "全马竞速 · 东湖绿道平缓环湖",
+    waypoints: [
+      { label: "起点：三阳路沿江大道", coordinate: [114.30230, 30.60287] },
+      { label: "江汉路步行街", coordinate: [114.2916, 30.6062] },
+      { label: "武胜路·江汉一桥", coordinate: [114.2685, 30.5971] },
+      { label: "龟山南路·长江大桥上桥口", coordinate: [114.2701, 30.5583] },
+      { label: "黄鹤楼南门·汉阳门江滩", coordinate: [114.3044, 30.5462] },
+      { label: "凌波门·东湖栈道", coordinate: [114.3586, 30.5682] },
+      { label: "东湖绿道·湖中道湖心岛", coordinate: [114.3864, 30.5896] },
+      { label: "华侨城白马道·湿地公园", coordinate: [114.4012, 30.6018] },
+      { label: "仁和路主干道交叉口", coordinate: [114.4163, 30.6105] },
+      { label: "终点：青山江滩", coordinate: [114.30933, 30.60991] }
+    ],
+    note: "22.5~36.5km 完整东湖环湖绿道，路面平整、长缓坡极少，后半程弯道少冲刺友好"
+  },
+  {
+    id: "waypoint-riverside",
+    name: "滨江线",
+    color: "#2563eb",
+    targetDistanceKm: 21.0975,
+    description: "半程滨江 · 汉口汉阳武昌江滩",
+    waypoints: [
+      { label: "起点：三阳路沿江大道", coordinate: [114.30230, 30.60287] },
+      { label: "汉口江滩·武汉科技馆", coordinate: [114.3061, 30.6103] },
+      { label: "江汉关钟楼", coordinate: [114.2892, 30.6074] },
+      { label: "南岸嘴·两江交汇观景台", coordinate: [114.2667, 30.5921] },
+      { label: "龟山·晴川阁", coordinate: [114.2690, 30.5647] },
+      { label: "武汉长江大桥·桥面观景段", coordinate: [114.2845, 30.5542] },
+      { label: "户部巷·汉阳门码头", coordinate: [114.3038, 30.5470] },
+      { label: "武昌临江大道·江滩折返点", coordinate: [114.3195, 30.5524] },
+      { label: "沙湖大桥", coordinate: [114.3276, 30.5578] },
+      { label: "终点：湖北省图书馆·书卷路", coordinate: [114.3317, 30.5615] }
+    ],
+    note: "80% 路段临江，长江+汉江双江景视野，串联三大江滩，难度适中"
+  },
+  {
+    id: "waypoint-city-scenic",
+    name: "城市景观线",
+    color: "#e85d04",
+    targetDistanceKm: 42.195,
+    description: "全域文旅 · 三镇地标全覆盖",
+    waypoints: [
+      { label: "起点：三阳路沿江大道", coordinate: [114.30230, 30.60287] },
+      { label: "中山大道·老汉口里份街区", coordinate: [114.2840, 30.6048] },
+      { label: "汉正街·商贸老街", coordinate: [114.2725, 30.5943] },
+      { label: "晴川阁·知音文化地标", coordinate: [114.2682, 30.5650] },
+      { label: "黄鹤楼景区正门", coordinate: [114.2860, 30.5526] },
+      { label: "楚河汉街中心栈道", coordinate: [114.3368, 30.5601] },
+      { label: "凌波门·东湖网红打卡点", coordinate: [114.3586, 30.5682] },
+      { label: "东湖樱花园·磨山景区", coordinate: [114.3742, 30.5830] },
+      { label: "欢乐谷·生态湿地", coordinate: [114.3987, 30.5985] },
+      { label: "青山红房子·工业文创街区", coordinate: [114.4132, 30.6130] },
+      { label: "终点：青山江滩滨江广场", coordinate: [114.30933, 30.60991] }
+    ],
+    note: "一城两江三镇四桥五湖全覆盖，历史、自然、工业、现代景观分层呈现"
+  }
+];
+
+export type WaypointRouteId = typeof waypointRoutePlans[number]["id"];
 
 interface ProfileRoutePlan {
   id: string;
@@ -161,4 +237,27 @@ function orderedPreferredCandidates(routes: MarathonRoute[], preferredIds: strin
     output.push(...routes.filter((route) => route.id === preferredId));
   }
   return output;
+}
+
+export function buildWaypointRoute(
+  geojson: unknown,
+  plan: WaypointRoutePlan,
+  options: { maxAttempts?: number } = {}
+): MarathonRoute | null {
+  const maxAttempts = options.maxAttempts ?? 8;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const route = buildWaypointMarathonRoute(geojson, {
+      waypoints: plan.waypoints.map((wp) => wp.coordinate),
+      targetDistanceKm: plan.targetDistanceKm,
+      salt: attempt,
+      id: plan.id,
+      name: plan.name,
+      color: plan.color,
+      note: plan.note
+    });
+    if (route) return route;
+  }
+
+  return null;
 }

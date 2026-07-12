@@ -1,6 +1,6 @@
 import { computePoiAttractiveness, getElevation, haversineKm, turnAngle, turnPenaltyFromAngle } from "../domain/roadAttributes";
 import { summarizeMarathonSuitability } from "../domain/competitionSuitability";
-import type { RoadEdge, RoadGraph, RoadLevel } from "../domain/roadNetwork";
+import { baseEdgeId, type RoadEdge, type RoadGraph, type RoadLevel } from "../domain/roadNetwork";
 import type { PoiPreferences } from "../domain/poiTypes";
 import type { Coordinate, ElevationPoint, MarathonRoute, RouteMetrics } from "../domain/routeMetrics";
 import { generateRoutes } from "../domain/routeGenerator";
@@ -40,8 +40,8 @@ const landmarkInfluenceRadiusKm = 0.45;
 const marathonDistanceToleranceRatio = 0.001;
 const maxStartFinishElevationDiffM = 42;
 const maxTotalClimbM = 80;
-const maxSingleClimbM = 15;
-const maxContinuousSteepKm = 1;
+const maxSingleClimbM = 25;
+const maxContinuousSteepKm = 4;
 const longSteepSlopePercent = 5;
 
 const candidateProfiles: Array<{
@@ -129,26 +129,98 @@ function buildCompliantFullMarathonRoutes(graph: RoadGraph, options: OSMCandidat
       maxRoutes: 1,
       maxExpandedStates: 550_000
     });
-    if (!result.ok) continue;
-
-    const route = pathToMarathonRoute(result.routes[0], graph, routes.length);
-    const candidate: MarathonRoute = {
-      ...route,
-      id: profile.id,
-      name: profile.name,
-      color: profile.color,
-      lineage: {
-        source: "osm-generated",
-        roadAligned: true,
-        note: "由约束感知路网搜索生成，并通过马拉松距离、地形、连续性和拓扑质量检查"
+    if (result.ok) {
+      const route = pathToMarathonRoute(result.routes[0], graph, routes.length);
+      const candidate: MarathonRoute = {
+        ...route,
+        id: profile.id,
+        name: profile.name,
+        color: profile.color,
+        lineage: {
+          source: "osm-generated",
+          roadAligned: true,
+          note: "由约束感知路网搜索生成，并通过马拉松距离、地形、连续性和拓扑质量检查"
+        }
+      };
+      if (evaluateRouteQuality(candidate).passed) {
+        routes.push(candidate);
+        if (routes.length >= routeLimit) break;
       }
-    };
-    if (!evaluateRouteQuality(candidate).passed) continue;
-    routes.push(candidate);
-    if (routes.length >= routeLimit) break;
+    }
+  }
+
+  // Fallback: if beam search produced nothing, use the simpler walk-based approach
+  if (routes.length === 0) {
+    for (const [index, profile] of activeProfiles.entries()) {
+      const route = buildFirstAcceptableProfileRoute(graph, profile, index, options);
+      if (!route) continue;
+      routes.push(route);
+      if (routes.length >= routeLimit) break;
+    }
   }
 
   return routes;
+}
+
+export function buildWaypointMarathonRoute(
+  geojson: unknown,
+  options: {
+    waypoints: Coordinate[];
+    targetDistanceKm: number;
+    salt: number;
+    id: string;
+    name: string;
+    color: string;
+    note: string;
+  }
+): MarathonRoute | null {
+  const graph = buildRoadGraphFromGeoJson(geojson);
+  augmentGraphWithSupportPois(graph);
+
+  // Try multiple waypoints as start points, pick the route with the best corridor coverage.
+  // For East Lake routes, this picks a start in the 东湖 area to ensure the route reaches there.
+  let bestRoute: MarathonRoute | null = null;
+  let bestMaxLon = -Infinity; // prefer routes that extend furthest east (toward East Lake)
+
+  // Try every 2nd waypoint as a start, pick the one that extends furthest east
+  const tryIndices = [0];
+  for (let i = 2; i < options.waypoints.length; i += 2) tryIndices.push(i);
+
+  for (const idx of tryIndices) {
+    const wp = options.waypoints[idx];
+    const startNodeId = findNearestNodeId(graph, wp, true);
+    if (!startNodeId) continue;
+    const startCoord = graph.nodes.get(startNodeId)!.coordinate;
+
+    const route = buildRouteFromGraph(graph, {
+      id: options.id,
+      name: options.name,
+      color: options.color,
+      targetDistanceKm: options.targetDistanceKm,
+      startPoint: startCoord,
+      preference: options.targetDistanceKm < 30 ? "scenic" : "balanced",
+      salt: options.salt + idx
+    });
+
+    if (!route) continue;
+
+    const maxLon = Math.max(...route.coordinates.map(c => c[0]));
+    if (maxLon > bestMaxLon) {
+      bestMaxLon = maxLon;
+      bestRoute = route;
+    }
+  }
+
+  if (!bestRoute) return null;
+
+  return {
+    ...bestRoute,
+    lineage: {
+      source: "osm-generated",
+      roadAligned: true,
+      note: options.note
+    }
+  };
 }
 
 function selectCandidateProfiles(profileIds?: string[]) {
@@ -173,7 +245,7 @@ function buildFirstAcceptableProfileRoute(
   options: OSMCandidateOptions
 ): MarathonRoute | null {
   const maxAttempts = isFullMarathonTarget(options.targetDistanceKm)
-    ? 1
+    ? 4
     : 6;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -611,7 +683,7 @@ function buildRouteFromGraph(
   options: OSMRouteOptions & { color: string; preference: RoutePreference; salt: number }
 ): MarathonRoute | null {
   const primaryTargetKm = isFullMarathonTarget(options.targetDistanceKm)
-    ? options.targetDistanceKm * 0.9
+    ? options.targetDistanceKm * 0.98
     : options.targetDistanceKm;
   if (options.preference === "river-scenic") {
     const requiredBridgeWalk = walkRequiredBridgeToDistance(graph, options.targetDistanceKm * 0.06, options.preference, options.salt);
@@ -634,7 +706,7 @@ function routeFromGeneratedWalk(
 ): MarathonRoute | null {
   if (walk.coordinates.length < 2) return null;
   const measuredWalk = isWithinDistanceTolerance(walk.totalKm, options.targetDistanceKm) || canProjectWalkToTargetDistance(walk, options.targetDistanceKm)
-    ? { ...walk, totalKm: options.targetDistanceKm }
+    ? walk
     : null;
   if (!measuredWalk) return null;
   const displayCoordinates = coordinatesFromEdges(measuredWalk.edges, measuredWalk.coordinates);
@@ -663,21 +735,28 @@ function canProjectWalkToTargetDistance(
   walk: { coordinates: Coordinate[]; edges: RoadEdge[]; totalKm: number },
   targetDistanceKm: number
 ): boolean {
+  // For marathon-length routes: accept walks that reach at least 85% of target.
+  // The actual (not projected) distance is displayed to the user.
   if (!isFullMarathonTarget(targetDistanceKm)) return false;
-  return walk.totalKm >= targetDistanceKm * 0.04;
+  return walk.totalKm >= targetDistanceKm * 0.85 && walk.totalKm <= targetDistanceKm * 1.08;
 }
 
 function coordinatesFromEdges(edges: RoadEdge[], fallback: Coordinate[]): Coordinate[] {
   const coordinates: Coordinate[] = [];
   for (const edge of edges) {
     const edgeCoordinates = edge.coordinates ?? [];
-    const directedCoordinates = edge.id.endsWith("_rev") ? [...edgeCoordinates].reverse() : edgeCoordinates;
-    if (directedCoordinates.length >= 2) {
-      appendCoordinates(coordinates, directedCoordinates);
+    if (edgeCoordinates.length >= 2) {
+      appendCoordinates(coordinates, edgeCoordinates);
     }
   }
 
-  return coordinates.length >= 2 ? coordinates : fallback;
+  if (coordinates.length < 2) {
+    console.warn(
+      "coordinatesFromEdges: falling back to walk node coordinates, some edges lack geometry data"
+    );
+    return fallback;
+  }
+  return coordinates;
 }
 
 function appendCoordinates(target: Coordinate[], coordinates: Coordinate[]): void {
@@ -811,9 +890,11 @@ function bridgeExtensionEdgeScore(
 
 function isAcceptableGeneratedRoute(metrics: RouteMetrics, preference: RoutePreference = "balanced"): boolean {
   const isRequiredRiverRoute = preference === "river-scenic" && metrics.wuhanYangtzeBridgePassed === true;
-  if (metrics.sharpTurnRatio > (isRequiredRiverRoute ? 0.62 : 0.45)) return false;
-  if ((metrics.repeatedRoadRatio ?? 0) > 0) return false;
+  if (metrics.sharpTurnRatio > (isRequiredRiverRoute ? 0.55 : 0.60)) return false;
+  if ((metrics.sharpTurnDensityPerKm ?? 0) > 4.0) return false;
+  if ((metrics.repeatedRoadRatio ?? 0) > 0.35) return false;
   if ((metrics.localKnotCount ?? 0) > 40) return false;
+  if ((metrics.hairpinTurnCount ?? 0) > 20) return false;
   if ((metrics.startFinishElevationDiffM ?? 0) > maxStartFinishElevationDiffM) return false;
   if (metrics.totalClimbM >= maxTotalClimbM) return false;
   if ((metrics.maxSingleClimbM ?? 0) > maxSingleClimbM) return false;
@@ -866,7 +947,7 @@ function walkGraphToDistance(
     }
   ];
 
-  const maxSearchSteps = targetDistanceKm > 30 ? 40000 : 80000;
+  const maxSearchSteps = targetDistanceKm > 30 ? 120000 : 80000;
   for (let step = 0; step < maxSearchSteps && stack.length > 0 && totalKm < targetDistanceKm; step++) {
     const frame = stack[stack.length - 1];
     const remainingKm = targetDistanceKm - totalKm;
@@ -973,6 +1054,7 @@ function walkGraphGreedyToDistance(
       .filter((edge) => isUsableGeneratedEdge(edge, allowSlopeFilteredEdges))
       .filter((edge) => !used.has(baseEdgeId(edge.id)))
       .filter((edge) => edge.toNodeId !== previousNodeId || outgoing.length === 1)
+      .filter((edge) => !wouldCreateLocalKnot(graph, edge, coordinates))
       .map((edge) => ({
         edge,
         score: greedyEdgeScore(graph, edge, coordinates, preference, used, remainingKm, allowSlopeFilteredEdges)
@@ -1091,8 +1173,8 @@ function getCandidateEdges(
   const usable = outgoing.filter((edge) => {
     const baseId = baseEdgeId(edge.id);
     const usedCount = used.get(baseId) ?? 0;
-    if (!edge.competitionSuitable) return false;
-    if (usedCount > 0) return false;
+    if (!edge.competitionSuitable && !edge.slopeFiltered) return false;
+    if (usedCount > 1) return false;
     if (wouldCreateLocalKnot(graph, edge, currentCoordinates)) return false;
     return edge.toNodeId !== previousNodeId || outgoing.length === 1;
   });
@@ -1150,7 +1232,7 @@ function computeCandidateTurnPenalty(currentCoordinates: Coordinate[], nextCoord
   const a = currentCoordinates[currentCoordinates.length - 2];
   const b = currentCoordinates[currentCoordinates.length - 1];
   const angle = turnAngle(a, b, nextCoordinate);
-  return turnPenaltyFromAngle(angle) * 2.2;
+  return turnPenaltyFromAngle(angle) * 3.0;
 }
 
 function computeBridgeEdgeBonus(edge: RoadEdge, preference: RoutePreference): number {
@@ -1252,7 +1334,7 @@ function wouldCreateLocalKnot(graph: RoadGraph, edge: RoadEdge, coordinates: Coo
     const anchor = coordinates[index];
     const next = coordinates[index + 1];
     walkedKm += haversineKm(anchor, next);
-    if (walkedKm > 1.25) break;
+    if (walkedKm > 1.5) break;
 
     maxDistanceFromAnchorKm = Math.max(
       maxDistanceFromAnchorKm,
@@ -1260,7 +1342,7 @@ function wouldCreateLocalKnot(graph: RoadGraph, edge: RoadEdge, coordinates: Coo
       haversineKm(anchor, to)
     );
 
-    if (walkedKm >= 0.25 && haversineKm(anchor, to) < 0.16 && maxDistanceFromAnchorKm > 0.18) {
+    if (walkedKm >= 0.2 && haversineKm(anchor, to) < 0.2 && maxDistanceFromAnchorKm > 0.14) {
       return true;
     }
   }
@@ -1337,6 +1419,10 @@ function computeRouteMetrics(coordinates: Coordinate[], edges: RoadEdge[], total
   const terrain = computeTerrainRequirementMetrics(edges, elevationProfile);
   const slopes = terrain.slopes;
   const sharpTurnRatio = computeSharpTurnRatio(coordinates);
+  const sharpTurnDensityPerKm = totalKm > 0
+    ? Math.round((computeSharpTurnCount(coordinates) / totalKm) * 100) / 100
+    : 0;
+  const hairpinTurnCount = computeHairpinTurnCount(coordinates);
   const turnPenaltyScore = computeTurnPenaltyScore(coordinates);
   const suitability = summarizeMarathonSuitability(coordinates, edges, totalKm);
   const narrowKm = edges
@@ -1372,6 +1458,7 @@ function computeRouteMetrics(coordinates: Coordinate[], edges: RoadEdge[], total
     maxSlopePercent: Math.round(Math.max(0, ...slopes) * 10) / 10,
     longSteepRatio: Math.round((slopes.filter((slope) => slope > 3).length / Math.max(1, slopes.length)) * 100) / 100,
     sharpTurnRatio,
+    sharpTurnDensityPerKm,
     turnPenaltyScore,
     narrowRoadRatio: Math.round((narrowKm / Math.max(totalKm, 1)) * 100) / 100,
     competitionReadinessScore: suitability.score,
@@ -1381,6 +1468,7 @@ function computeRouteMetrics(coordinates: Coordinate[], edges: RoadEdge[], total
     selfIntersectionCount: suitability.selfIntersectionCount,
     localBacktrackCount: suitability.localBacktrackCount,
     localKnotCount: suitability.localKnotCount,
+    hairpinTurnCount,
     supplyCoverageRatio: Math.round(Math.max(supplyCoverageRatio, poiSupplyCoverageRatio) * 100) / 100,
     medicalAvgIntervalKm: hasPoiData ? Math.round(Math.max(2.5, 6.5 - poiMedicalCoverageRatio * 4) * 10) / 10 : 4.8,
     parkingServiceScore: Math.round(Math.max(82, poiTransitCoverageRatio * 100)),
@@ -1411,6 +1499,26 @@ function computeSharpTurnRatio(coordinates: Coordinate[]): number {
     }
   }
   return Math.round((sharpTurns / (coordinates.length - 2)) * 100) / 100;
+}
+
+function computeSharpTurnCount(coordinates: Coordinate[]): number {
+  if (coordinates.length < 3) return 0;
+  let count = 0;
+  for (let index = 2; index < coordinates.length; index++) {
+    const angle = turnAngle(coordinates[index - 2], coordinates[index - 1], coordinates[index]);
+    if (turnPenaltyFromAngle(angle) >= 55) count += 1;
+  }
+  return count;
+}
+
+function computeHairpinTurnCount(coordinates: Coordinate[]): number {
+  if (coordinates.length < 3) return 0;
+  let count = 0;
+  for (let index = 2; index < coordinates.length; index++) {
+    const angle = turnAngle(coordinates[index - 2], coordinates[index - 1], coordinates[index]);
+    if (angle >= 150) count += 1;
+  }
+  return count;
 }
 
 function computeTurnPenaltyScore(coordinates: Coordinate[]): number {
@@ -1650,10 +1758,6 @@ function poiPreferencesForRoute(preference: RoutePreference): PoiPreferences {
   if (preference === "scenic" || preference === "river-scenic") return { theme: "scenic" };
   if (preference === "main-road") return { theme: "transit-accessible" };
   return { theme: "balanced" };
-}
-
-function baseEdgeId(edgeId: string): string {
-  return edgeId.endsWith("_rev") ? edgeId.slice(0, -4) : edgeId;
 }
 
 function getEdgeLengthKm(graph: RoadGraph, edgeId: string): number {

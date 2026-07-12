@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { superMapConfig } from "../../config/supermap";
+import { waypointRoutePlans } from "../../data/profileRoutePlanner";
 import { wuhanLandmarkPoiLabels } from "../../data/wuhanLandmarks";
-import type { MarathonRoute } from "../../domain/routeMetrics";
+import type { Coordinate, MarathonRoute } from "../../domain/routeMetrics";
 import { fetchIserverPoiLabels } from "../../services/iserverPoi";
 import { RouteMap } from "../../components/RouteMap";
 import { loadScript, loadStylesheet } from "../core/loadScript";
@@ -237,6 +238,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
         engine.initialize();
         engine.onRouteClick((id) => onSelectRef.current(id));
         engine.setRoutes(visibleRoutes);
+        engine.setWaypointMarkers(buildWaypointMarkers(visibleRoutes));
         engine.setPoiLabels(poiLabels);
         engine.setVectorBasemapFeatures(vectorBasemapFeatures);
         engine.setRoadNetwork(roadNetworkFeatures);
@@ -272,6 +274,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
     const engine = engineRef.current;
     if (!engine || phase !== "ready") return;
     engine.setRoutes(visibleRoutes);
+    engine.setWaypointMarkers(buildWaypointMarkers(visibleRoutes));
     scheduleViewportRefresh(engine, visibleRoutes);
   }, [visibleRoutes, phase]);
 
@@ -332,4 +335,21 @@ export function SuperMapMap(props: SuperMapMapProps) {
       <div ref={containerRef} className="iclient-map-container" />
     </section>
   );
+}
+
+function buildWaypointMarkers(routes: MarathonRoute[]): Array<{ routeId: string; color: string; label: string; coordinate: Coordinate }> {
+  const markers: Array<{ routeId: string; color: string; label: string; coordinate: Coordinate }> = [];
+  const routeIds = new Set(routes.map((r) => r.id));
+  for (const plan of waypointRoutePlans) {
+    if (!routeIds.has(plan.id)) continue;
+    for (const wp of plan.waypoints) {
+      markers.push({
+        routeId: plan.id,
+        color: plan.color,
+        label: wp.label,
+        coordinate: wp.coordinate
+      });
+    }
+  }
+  return markers;
 }

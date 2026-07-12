@@ -1,4 +1,4 @@
-import type { RoadEdge, RoadGraph } from "./roadNetwork";
+import { baseEdgeId, type RoadEdge, type RoadGraph } from "./roadNetwork";
 import type { RouteConstraints } from "./routeConstraints";
 import { edgeInZone, snapToNearestNode } from "./routeConstraints";
 import { haversineKm, qualityMultiplier } from "./roadAttributes";
@@ -28,10 +28,6 @@ export interface GeneratedPath {
   edgeIds: string[];
   totalLengthKm: number;
   terminalEdgeFraction?: number;
-}
-
-function baseEdgeId(edgeId: string): string {
-  return edgeId.endsWith("_rev") ? edgeId.slice(0, -4) : edgeId;
 }
 
 function resolveEdge(graph: RoadGraph, edgeId: string): RoadEdge | undefined {

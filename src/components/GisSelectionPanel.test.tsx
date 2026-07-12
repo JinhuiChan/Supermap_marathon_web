@@ -5,11 +5,9 @@ import { GisSelectionPanel, defaultGisPlanningSettings } from "./GisSelectionPan
 function renderPanel(overrides: Partial<Parameters<typeof GisSelectionPanel>[0]> = {}) {
   return renderToStaticMarkup(
     <GisSelectionPanel
-      activeProfile="pb-friendly"
       settings={defaultGisPlanningSettings}
       canGenerate
-      onProfileChange={() => {}}
-      onGenerateRoutes={() => {}}
+      onGenerateRoute={() => {}}
       {...overrides}
     />
   );

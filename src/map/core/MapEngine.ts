@@ -41,6 +41,7 @@ export class MapEngine {
   private routeLayers: Map<string, unknown> = new Map();
   private routeDirectionLayers: Map<string, unknown[]> = new Map();
   private routeEndpointLayers: unknown[] = [];
+  private waypointMarkerLayers: unknown[] = [];
   private supportPointLayers: unknown[] = [];
   private poiLabelLayers: unknown[] = [];
   private vectorBasemapLayers: unknown[] = [];
@@ -393,13 +394,13 @@ export class MapEngine {
     const marker = L.marker as ((latlng: [number, number], opts?: Record<string, unknown>) => unknown) | undefined;
     if (!divIcon || !marker) return [];
 
-    const markerCount = isActive ? 12 : 4;
+    const markerCount = isActive ? 16 : 8;
     return buildRouteDirectionMarkers(route, markerCount).map((direction) => {
       const icon = divIcon({
         className: "route-direction-icon",
         html: `<span style="border-left-color:${route.color}; opacity:${isActive ? 1 : 0.45}; transform: rotate(${direction.angleDeg}deg)"></span>`,
-        iconSize: [18, 18],
-        iconAnchor: [9, 9]
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
       });
       const layer = marker([direction.coordinate[1], direction.coordinate[0]], {
         icon,
@@ -476,6 +477,45 @@ export class MapEngine {
       }
     }
     this.routeEndpointLayers = [];
+  }
+
+  setWaypointMarkers(waypoints: Array<{ routeId: string; color: string; label: string; coordinate: Coordinate }>): void {
+    if (this.destroyed || !this.map) return;
+    this.clearWaypointMarkers();
+
+    const L = (window as unknown as Record<string, unknown>).L as Record<string, unknown> | undefined;
+    if (!L) return;
+    const divIcon = L.divIcon as ((opts: Record<string, unknown>) => unknown) | undefined;
+    const marker = L.marker as ((latlng: [number, number], opts?: Record<string, unknown>) => unknown) | undefined;
+    if (!divIcon || !marker) return;
+
+    for (const wp of waypoints) {
+      const icon = divIcon({
+        className: `waypoint-marker`,
+        html: `<span style="background:${wp.color}; box-shadow: 0 0 0 2px ${wp.color}33"></span>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+      });
+      const layer = marker([wp.coordinate[1], wp.coordinate[0]], {
+        icon,
+        pane: "planning-point-pane",
+        interactive: true,
+        keyboard: false
+      });
+      const m = layer as { addTo?: (m: unknown) => unknown; bindTooltip?: (t: string, o?: Record<string, unknown>) => unknown };
+      m.bindTooltip?.(wp.label, { direction: "right", permanent: false, className: "waypoint-label" });
+      m.addTo?.(this.map);
+      this.waypointMarkerLayers.push(layer);
+    }
+  }
+
+  private clearWaypointMarkers(): void {
+    for (const layer of this.waypointMarkerLayers) {
+      if (this.map) {
+        (this.map as { removeLayer?: (l: unknown) => void }).removeLayer?.(layer);
+      }
+    }
+    this.waypointMarkerLayers = [];
   }
 
   private renderSupportPoints(): void {

@@ -99,7 +99,9 @@ export function turnPenaltyFromAngle(angle: number): number {
   if (angle < 75) return ((angle - 45) / 30) * 35;
   if (angle < 105) return 55 + (1 - Math.abs(angle - 90) / 15) * 20;
   if (angle < 135) return 75 + ((angle - 105) / 30) * 20;
-  return 100;
+  // 135°+ is near U-turn territory — escalate sharply
+  if (angle < 155) return 95 + ((angle - 135) / 20) * 85;
+  return 200;  // near-hairpin: very heavy penalty
 }
 
 export function computePoiAttractiveness(

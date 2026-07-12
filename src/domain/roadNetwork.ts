@@ -134,3 +134,7 @@ export function isFullMarathonRoadEdge(edge: RoadEdge): boolean {
     (edge.isJunctionLink !== true || edge.lengthKm <= 0.25)
   );
 }
+
+export function baseEdgeId(edgeId: string): string {
+  return edgeId.endsWith("_rev") ? edgeId.slice(0, -4) : edgeId;
+}

@@ -435,14 +435,14 @@ function createsLocalKnot(coordinates: Coordinate[], next: Coordinate, closesAtF
 
   for (let index = coordinates.length - 2; index >= 0; index--) {
     walkedKm += haversineKm(coordinates[index], coordinates[index + 1]);
-    if (walkedKm > 1.25) break;
-    if (walkedKm < 0.25 || (closesAtFinish && index === 0)) continue;
+    if (walkedKm > 1.5) break;
+    if (walkedKm < 0.2 || (closesAtFinish && index === 0)) continue;
 
     const anchor = coordinates[index];
-    if (haversineKm(anchor, next) >= 0.16) continue;
+    if (haversineKm(anchor, next) >= 0.2) continue;
     const excursionKm = [...coordinates.slice(index + 1), next]
       .reduce((maximum, coordinate) => Math.max(maximum, haversineKm(anchor, coordinate)), 0);
-    if (excursionKm > 0.18) return true;
+    if (excursionKm > 0.14) return true;
   }
   return false;
 }
