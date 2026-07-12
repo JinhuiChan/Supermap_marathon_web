@@ -108,5 +108,6 @@ describe("roadNetwork", () => {
     expect(isFullMarathonRoadEdge(edge({ isElevated: true }))).toBe(false);
     expect(isFullMarathonRoadEdge(edge({ isTunnel: true }))).toBe(false);
     expect(isFullMarathonRoadEdge(edge({ competitionSuitable: false, slopeFiltered: true }))).toBe(true);
+    expect(isFullMarathonRoadEdge(edge({ competitionSuitable: false, slopeFiltered: true, roadWidthM: 5 }))).toBe(false);
   });
 });

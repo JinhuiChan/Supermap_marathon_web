@@ -127,6 +127,7 @@ export function isFullMarathonRoadEdge(edge: RoadEdge): boolean {
   return (
     (edge.competitionSuitable === true || edge.slopeFiltered === true) &&
     fullMarathonRoadLevels.has(edge.roadLevel) &&
+    (edge.roadWidthM ?? 6) >= 6 &&
     edge.surfaceSuitable !== false &&
     edge.isElevated !== true &&
     edge.isTunnel !== true &&

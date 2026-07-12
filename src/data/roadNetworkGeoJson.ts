@@ -262,13 +262,13 @@ function addLineToGraph(
     const terrainMeasured = slopeMean !== null;
     const baseCompetitionSuitable = explicitControlOk ?? (isCompetitionSuitableRoadLevel(roadLevel) || roadLevel === "greenway");
     const slopeTooSteepForMarathon = !isRequiredRiverBridge && slopeMean !== null && Math.abs(slopeMean) > 5;
-    const competitionSuitable =
+    const nonSlopeCompetitionSuitable =
       (isRequiredRiverBridge || baseCompetitionSuitable) &&
       roadWidthM >= MIN_MARATHON_ROAD_WIDTH_M &&
       surfaceSuitable &&
       !isElevated &&
-      !(isTunnel && lengthKm >= LONG_TUNNEL_KM) &&
-      !slopeTooSteepForMarathon;
+      !(isTunnel && lengthKm >= LONG_TUNNEL_KM);
+    const competitionSuitable = nonSlopeCompetitionSuitable && !slopeTooSteepForMarathon;
     const hasDecomposedImpedance =
       baseImpedance !== null || slopeImpedance !== null || constraintImpedance !== null || typeof properties.slope_source === "string";
     const slopePenalty = hasDecomposedImpedance
@@ -300,7 +300,7 @@ function addLineToGraph(
       roadWidthM,
       roadName,
       isRequiredRiverBridge,
-      slopeFiltered: slopeTooSteepForMarathon,
+      slopeFiltered: slopeTooSteepForMarathon && nonSlopeCompetitionSuitable,
       coordinates: [from, to],
       surfaceSuitable,
       terrainMeasured,

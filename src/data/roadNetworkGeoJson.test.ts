@@ -257,7 +257,7 @@ describe("roadNetworkGeoJson", () => {
             control_ok: 0,
             impedance: 72,
             suitability: 28,
-            slope_mean: 4.5
+            slope_mean: 6
           },
           geometry: { type: "LineString", coordinates: [[114.3, 30.6], [114.31, 30.6]] }
         }
@@ -266,13 +266,14 @@ describe("roadNetworkGeoJson", () => {
 
     const edge = [...graph.edges.values()][0];
     expect(edge.competitionSuitable).toBe(false);
+    expect(edge.slopeFiltered).toBe(false);
     expect(edge.baselineCost).toBeGreaterThan(edge.lengthKm * 1.72);
     expect(edge.impedanceBreakdown).toMatchObject({
       explicit: 72,
       constraint: 80
     });
     expect(edge.suitabilityScore).toBe(28);
-    expect(edge.slopeMean).toBe(4.5);
+    expect(edge.slopeMean).toBe(6);
   });
 
   test("adds slope resistance when explicit impedance is not present", () => {
