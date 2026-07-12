@@ -27,6 +27,7 @@ export interface GeneratedPath {
   nodeIds: string[];
   edgeIds: string[];
   totalLengthKm: number;
+  terminalEdgeFraction?: number;
 }
 
 function baseEdgeId(edgeId: string): string {

@@ -36,11 +36,14 @@ function extractCoordinates(
   graph: RoadGraph
 ): Coordinate[] {
   const coords: Coordinate[] = [];
-  for (const edgeId of path.edgeIds) {
+  for (const [edgeIndex, edgeId] of path.edgeIds.entries()) {
     const edge = resolveEdge(graph, edgeId);
     if (!edge) continue;
     const reversed = edgeId.endsWith("_rev");
-    const edgeCoordinates = getDisplayCoordinatesForEdge(edge, reversed);
+    const edgeCoordinates = clipCoordinatesByFraction(
+      getDisplayCoordinatesForEdge(edge, reversed),
+      edgeFractionForIndex(path, edgeIndex)
+    );
     if (edgeCoordinates.length >= 2) {
       appendCoordinates(coords, edgeCoordinates);
       continue;
@@ -111,7 +114,12 @@ function computeMetrics(
   profile: ElevationPoint[]
 ): RouteMetrics {
   const edges = path.edgeIds
-    .map((eid) => resolveEdge(graph, eid))
+    .map((eid, edgeIndex) => {
+      const edge = resolveEdge(graph, eid);
+      if (!edge) return undefined;
+      const fraction = edgeFractionForIndex(path, edgeIndex);
+      return fraction < 1 ? { ...edge, lengthKm: edge.lengthKm * fraction } : edge;
+    })
     .filter(Boolean) as RoadEdge[];
 
   // totalClimbM
@@ -313,16 +321,18 @@ function computeGeometryProvenance(path: GeneratedPath, graph: RoadGraph) {
   let unsuitableEdgeCount = 0;
   let previousEnd: Coordinate | null = null;
 
-  for (const edgeId of path.edgeIds) {
+  for (const [edgeIndex, edgeId] of path.edgeIds.entries()) {
     const edge = resolveEdge(graph, edgeId);
     if (!edge) continue;
     const reversed = edgeId.endsWith("_rev");
-    const edgeCoordinates = getDisplayCoordinatesForEdge(edge, reversed);
-    if (edge.terrainMeasured || typeof edge.slopeMean === "number") measuredTerrainKm += edge.lengthKm;
+    const fraction = edgeFractionForIndex(path, edgeIndex);
+    const edgeCoordinates = clipCoordinatesByFraction(getDisplayCoordinatesForEdge(edge, reversed), fraction);
+    const effectiveLengthKm = edge.lengthKm * fraction;
+    if (edge.terrainMeasured || typeof edge.slopeMean === "number") measuredTerrainKm += effectiveLengthKm;
     if (!isEventUsableRoadEdge(edge) || edge.surfaceSuitable === false) unsuitableEdgeCount += 1;
     if (edgeCoordinates.length < 2) continue;
 
-    sourceGeometryKm += edge.lengthKm;
+    sourceGeometryKm += effectiveLengthKm;
     const start = edgeCoordinates[0];
     if (previousEnd) maxContinuityGapKm = Math.max(maxContinuityGapKm, haversineKm(previousEnd, start));
     previousEnd = edgeCoordinates.at(-1)!;
@@ -336,6 +346,39 @@ function computeGeometryProvenance(path: GeneratedPath, graph: RoadGraph) {
     unsuitableEdgeCount,
     roadAlignedRatio: roundRatio(sourceGeometryKm / (routeKm + discontinuityKm))
   };
+}
+
+function edgeFractionForIndex(path: GeneratedPath, edgeIndex: number): number {
+  return edgeIndex === path.edgeIds.length - 1
+    ? Math.max(0, Math.min(1, path.terminalEdgeFraction ?? 1))
+    : 1;
+}
+
+function clipCoordinatesByFraction(coordinates: Coordinate[], fraction: number): Coordinate[] {
+  if (coordinates.length < 2 || fraction >= 1) return [...coordinates];
+  if (fraction <= 0) return coordinates.length ? [coordinates[0]] : [];
+  const lengths = coordinates.slice(1).map((coordinate, index) => haversineKm(coordinates[index], coordinate));
+  const targetKm = lengths.reduce((sum, length) => sum + length, 0) * fraction;
+  const output: Coordinate[] = [coordinates[0]];
+  let walkedKm = 0;
+
+  for (let index = 0; index < lengths.length; index++) {
+    const segmentKm = lengths[index];
+    if (walkedKm + segmentKm < targetKm) {
+      output.push(coordinates[index + 1]);
+      walkedKm += segmentKm;
+      continue;
+    }
+    const localFraction = segmentKm <= 0 ? 0 : (targetKm - walkedKm) / segmentKm;
+    const from = coordinates[index];
+    const to = coordinates[index + 1];
+    output.push([
+      from[0] + (to[0] - from[0]) * localFraction,
+      from[1] + (to[1] - from[1]) * localFraction
+    ]);
+    break;
+  }
+  return output;
 }
 
 function roundRatio(value: number): number {

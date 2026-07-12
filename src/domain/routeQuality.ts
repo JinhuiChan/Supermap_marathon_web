@@ -15,7 +15,6 @@ export const marathonQualityThresholds = {
 
 export type RouteQualityIssueCode =
   | "distance"
-  | "endpoint-separation"
   | "net-drop"
   | "total-climb"
   | "max-grade"
@@ -51,9 +50,6 @@ export function evaluateRouteQuality(route: MarathonRoute): RouteQualityReport {
 
   if (route.lengthKm < marathonQualityThresholds.minDistanceKm || route.lengthKm > marathonQualityThresholds.maxDistanceKm) {
     addIssue(issues, "distance", "规划里程", route.lengthKm, marathonQualityThresholds.maxDistanceKm);
-  }
-  if (endpointSeparationKm > marathonQualityThresholds.maxEndpointSeparationKm) {
-    addIssue(issues, "endpoint-separation", "起终点直线距离", endpointSeparationKm, marathonQualityThresholds.maxEndpointSeparationKm);
   }
   if ((metrics.netElevationDropM ?? Number.POSITIVE_INFINITY) > marathonQualityThresholds.maxNetDropM) {
     addIssue(issues, "net-drop", "起终点净下降", metrics.netElevationDropM ?? false, marathonQualityThresholds.maxNetDropM);

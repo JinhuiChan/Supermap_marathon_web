@@ -90,15 +90,42 @@ describe("searchMarathonRoutes", () => {
     expect(first.routes[0].physicalEdgeIds).not.toContain("steep-shortcut");
   });
 
-  it("rejects endpoints farther apart than half the marathon distance before searching", () => {
-    const graph = cycleGraph();
+  it("does not reject distant endpoints when a compliant road path connects them", () => {
+    const graph = createEmptyGraph();
+    for (let index = 0; index <= 42; index++) {
+      addNode(graph, { id: `far-${index}`, coordinate: [114 + index * (0.3 / 42), 30.6] });
+      if (index > 0) addEligibleEdge(graph, `far-edge-${index}`, `far-${index - 1}`, `far-${index}`, 1.005);
+    }
     const result = searchMarathonRoutes(graph, {
-      startPoint: [114, 30.6],
-      endPoint: [114.3, 30.6],
-      objective: "operations"
+      startPoint: graph.nodes.get("far-0")!.coordinate,
+      endPoint: graph.nodes.get("far-42")!.coordinate,
+      objective: "operations",
+      maxRoutes: 1,
+      maxExpandedStates: 20_000
     });
 
-    expect(result).toMatchObject({ ok: false, code: "endpoint-separation", expandedStates: 0 });
+    expect(result.ok).toBe(true);
+  });
+
+  it("clips the terminal event road edge to close exactly at 42.195 km", () => {
+    const graph = createEmptyGraph();
+    for (let index = 0; index <= 42; index++) {
+      addNode(graph, { id: `clip-${index}`, coordinate: [114.3 + index * 0.001, 30.6] });
+      if (index > 0) addEligibleEdge(graph, `clip-edge-${index}`, `clip-${index - 1}`, `clip-${index}`, 1.01);
+    }
+
+    const result = searchMarathonRoutes(graph, {
+      startPoint: graph.nodes.get("clip-0")!.coordinate,
+      objective: "race-fast",
+      maxRoutes: 1,
+      maxExpandedStates: 20_000
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.routes[0].totalLengthKm).toBe(42.195);
+    expect(result.routes[0].terminalEdgeFraction).toBeGreaterThan(0);
+    expect(result.routes[0].terminalEdgeFraction).toBeLessThan(1);
   });
 
   it("returns a structured failure when no simple path can reach marathon distance", () => {

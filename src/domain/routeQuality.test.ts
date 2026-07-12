@@ -54,12 +54,13 @@ describe("evaluateRouteQuality", () => {
     expect(issueCodes(validRoute({ lengthKm: 42.238 }))).toContain("distance");
   });
 
-  it("rejects start and finish points farther apart than half the marathon distance", () => {
+  it("does not constrain the straight-line distance between start and finish", () => {
     const route = validRoute({
       coordinates: [[114.1, 30.6], [114.4, 30.6]]
     });
 
-    expect(issueCodes(route)).toContain("endpoint-separation");
+    expect(evaluateRouteQuality(route).passed).toBe(true);
+    expect(issueCodes(route)).not.toContain("endpoint-separation");
   });
 
   it("rejects excessive downhill and climbing terrain", () => {

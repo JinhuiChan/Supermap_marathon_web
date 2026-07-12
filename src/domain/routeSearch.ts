@@ -18,13 +18,14 @@ export interface SearchedPath {
   edgeIds: string[];
   physicalEdgeIds: string[];
   totalLengthKm: number;
+  terminalEdgeFraction?: number;
 }
 
 export type MarathonSearchResult =
   | { ok: true; routes: SearchedPath[]; expandedStates: number }
   | {
       ok: false;
-      code: "endpoint-separation" | "snap-distance" | "no-compliant-route";
+      code: "snap-distance" | "no-compliant-route";
       message: string;
       expandedStates: number;
       diagnostics?: { maxReachedKm: number; maxReachedNodeId: string };
@@ -45,15 +46,6 @@ const MAX_SNAP_DISTANCE_KM = 1.5;
 
 export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRequest): MarathonSearchResult {
   const hasFixedFinish = Boolean(request.endPoint);
-  const separationKm = request.endPoint ? haversineKm(request.startPoint, request.endPoint) : 0;
-  if (request.endPoint && separationKm > marathonQualityThresholds.maxEndpointSeparationKm) {
-    return failure(
-      "endpoint-separation",
-      `起终点直线距离 ${separationKm.toFixed(3)} km，超过 21.0975 km 上限`,
-      0
-    );
-  }
-
   const start = snapToSuitableNode(graph, request.startPoint);
   const end = request.endPoint ? snapToSuitableNode(graph, request.endPoint) : start;
   if (!start || !end || start.distanceKm > MAX_SNAP_DISTANCE_KM || end.distanceKm > MAX_SNAP_DISTANCE_KM) {
@@ -104,21 +96,49 @@ export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRe
           maxReachedKm = nextLengthKm;
           maxReachedNodeId = nextNodeId;
         }
-        if (nextLengthKm > marathonQualityThresholds.maxDistanceKm) continue;
-        const nextCoordinate = graph.nodes.get(nextNodeId)?.coordinate;
+        const crossesDynamicFinish = !hasFixedFinish &&
+          state.totalLengthKm < marathonQualityThresholds.minDistanceKm &&
+          nextLengthKm >= marathonQualityThresholds.minDistanceKm;
+        const terminalEdgeFraction = crossesDynamicFinish
+          ? (marathonQualityThresholds.minDistanceKm - state.totalLengthKm) / edge.lengthKm
+          : undefined;
+        if (!crossesDynamicFinish && nextLengthKm > marathonQualityThresholds.maxDistanceKm) continue;
+        const fullNextCoordinate = graph.nodes.get(nextNodeId)?.coordinate;
+        const edgeForValidation = terminalEdgeFraction === undefined
+          ? edge
+          : { ...edge, coordinates: clipCoordinatesByFraction(edge.coordinates ?? [], terminalEdgeFraction) };
+        const nextCoordinate = terminalEdgeFraction === undefined
+          ? fullNextCoordinate
+          : edgeForValidation.coordinates?.at(-1);
         const closesAtFinish = hasFixedFinish && nextNodeId === end.nodeId;
         if (state.visitedNodeIds.has(nextNodeId) && !closesAtFinish) continue;
         const nextCoordinates = nextCoordinate
-          ? appendAndValidateEdgeGeometry(state.coordinates, edge, nextCoordinate, closesAtFinish)
+          ? appendAndValidateEdgeGeometry(state.coordinates, edgeForValidation, nextCoordinate, closesAtFinish)
           : null;
         if (
           !nextCoordinate ||
           !nextCoordinates
         ) continue;
 
+        if (crossesDynamicFinish && terminalEdgeFraction !== undefined) {
+          const completed = toSearchedPath(
+            state,
+            edge,
+            physicalEdgeId,
+            marathonQualityThresholds.minDistanceKm,
+            terminalEdgeFraction
+          );
+          const key = `${completed.physicalEdgeIds.join("|")}|${terminalEdgeFraction.toFixed(6)}`;
+          if (!routeKeys.has(key)) {
+            routeKeys.add(key);
+            routes.push(completed);
+          }
+          continue;
+        }
+
         const finishesDynamically = !hasFixedFinish &&
           nextLengthKm >= marathonQualityThresholds.minDistanceKm &&
-          haversineKm(request.startPoint, nextCoordinate) <= marathonQualityThresholds.maxEndpointSeparationKm;
+          nextLengthKm <= marathonQualityThresholds.maxDistanceKm;
         if ((hasFixedFinish && nextNodeId === end.nodeId) || finishesDynamically) {
           if (nextLengthKm < marathonQualityThresholds.minDistanceKm) continue;
           const completed = toSearchedPath(state, edge, physicalEdgeId, nextLengthKm);
@@ -217,14 +237,47 @@ function toSearchedPath(
   state: SearchState,
   edge: RoadEdge,
   physicalEdgeId: string,
-  totalLengthKm: number
+  totalLengthKm: number,
+  terminalEdgeFraction?: number
 ): SearchedPath {
   return {
     nodeIds: [...state.nodeIds, edge.toNodeId],
     edgeIds: [...state.edgeIds, edge.id],
     physicalEdgeIds: [...state.physicalEdgeIds, physicalEdgeId],
-    totalLengthKm: Math.round(totalLengthKm * 1000) / 1000
+    totalLengthKm: Math.round(totalLengthKm * 1000) / 1000,
+    ...(terminalEdgeFraction === undefined ? {} : { terminalEdgeFraction })
   };
+}
+
+function clipCoordinatesByFraction(coordinates: Coordinate[], fraction: number): Coordinate[] {
+  if (coordinates.length < 2 || fraction >= 1) return [...coordinates];
+  if (fraction <= 0) return coordinates.length ? [coordinates[0]] : [];
+  const segmentLengths = coordinates.slice(1).map((coordinate, index) =>
+    haversineKm(coordinates[index], coordinate)
+  );
+  const totalKm = segmentLengths.reduce((sum, length) => sum + length, 0);
+  const targetKm = totalKm * fraction;
+  const clipped: Coordinate[] = [coordinates[0]];
+  let walkedKm = 0;
+
+  for (let index = 0; index < segmentLengths.length; index++) {
+    const segmentKm = segmentLengths[index];
+    if (walkedKm + segmentKm < targetKm) {
+      clipped.push(coordinates[index + 1]);
+      walkedKm += segmentKm;
+      continue;
+    }
+    const localFraction = segmentKm <= 0 ? 0 : (targetKm - walkedKm) / segmentKm;
+    const from = coordinates[index];
+    const to = coordinates[index + 1];
+    clipped.push([
+      from[0] + (to[0] - from[0]) * localFraction,
+      from[1] + (to[1] - from[1]) * localFraction
+    ]);
+    break;
+  }
+
+  return clipped;
 }
 
 function selectBeam(states: SearchState[], lowerBounds: Map<string, number>, hasFixedFinish: boolean): SearchState[] {
@@ -373,7 +426,7 @@ function getPhysicalEdgeId(edge: RoadEdge): string {
 }
 
 function failure(
-  code: "endpoint-separation" | "snap-distance" | "no-compliant-route",
+  code: "snap-distance" | "no-compliant-route",
   message: string,
   expandedStates: number,
   diagnostics?: { maxReachedKm: number; maxReachedNodeId: string }
