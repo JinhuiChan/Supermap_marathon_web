@@ -1,4 +1,4 @@
-export type BasemapMode = "localVector" | "online" | "supermapDem";
+export type BasemapMode = "supermapDem";
 
 const iServerBaseUrl = "http://127.0.0.1:8090/iserver";
 
@@ -10,15 +10,6 @@ export const superMapConfig = {
   leafletCssUrl: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
 
   defaultBasemap: "supermapDem" as BasemapMode,
-  localVectorBasemap: {
-    name: "本地仿 OSM 矢量底图",
-    attribution: "Local OSM/SuperMap vector layers"
-  },
-  onlineBasemap: {
-    name: "在线真实地图",
-    tileUrl: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: "© OpenStreetMap contributors"
-  },
 
   serviceUrls: {
     roadMapWms: `${iServerBaseUrl}/services/map-wuhan-road-network/wms111`,
@@ -41,9 +32,7 @@ export const superMapConfig = {
 
   expectedMapServiceUrl: `${iServerBaseUrl}/services/map-wuhan-road-network/rest/maps/road_network_osm%40wuhan_marathon_base`,
   expectedSceneServiceUrl: `${iServerBaseUrl}/services/3D-wuhan-marathon/rest/realspace`,
-
-  fallbackMapService: `${iServerBaseUrl}/services/map-world/rest`,
-  fallbackSceneService: `${iServerBaseUrl}/services/3D-CBD/rest`,
+  basemapPolicy: "比赛底图严格使用 iDesktopX 制图后发布到 iServer 的 WMS 服务。",
 
   displayRoadNetworkGeoJsonUrl: "data/local-wuhan-road-network-osm.geojson",
   routingRoadNetworkGeoJsonUrl: "data/local-wuhan-marathon-area-roads.geojson",

@@ -83,11 +83,7 @@ export function Scene3DPanel() {
 
           <dl className="service-list">
             <div>
-              <dt>三维场景服务</dt>
-              <dd>{superMapConfig.fallbackSceneService}</dd>
-            </div>
-            <div>
-              <dt>目标服务（待发布）</dt>
+              <dt>目标三维场景服务</dt>
               <dd>{superMapConfig.expectedSceneServiceUrl}</dd>
             </div>
           </dl>

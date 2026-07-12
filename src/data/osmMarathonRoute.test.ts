@@ -69,7 +69,7 @@ describe("osmMarathonRoute", () => {
     expect(route?.coordinates.length).toBeGreaterThan(3);
   });
 
-  test("builds three named candidate routes from one OSM road network", () => {
+  test("builds named candidate routes from one OSM road network", () => {
     const routes = buildOsmMarathonCandidateRoutes(smallRoadNetwork, {
       targetDistanceKm: 5,
       startPoint: [114.3, 30.6]
@@ -85,6 +85,52 @@ describe("osmMarathonRoute", () => {
     expect(routes.every((route) => route.lengthKm > 4.5 && route.lengthKm < 5.5)).toBe(true);
   });
 
+  test("can limit generated candidate profiles when the caller only needs the first route", () => {
+    const routes = buildOsmMarathonCandidateRoutes(smallRoadNetwork, {
+      targetDistanceKm: 5,
+      startPoint: [114.3, 30.6],
+      maxRoutes: 1
+    });
+
+    expect(routes).toHaveLength(1);
+    expect(routes[0].id).toBe("osm-balanced");
+  });
+
+  test("does not inflate a short bridge check line into a full marathon candidate", () => {
+    const shortBridgeOnlyNetwork = {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: {
+            highway: "trunk",
+            bridge: "T",
+            name: "武汉长江大桥",
+            control_ok: 0,
+            slope_mean: 8
+          },
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [114.275, 30.557],
+              [114.288, 30.549],
+              [114.295, 30.547]
+            ]
+          }
+        }
+      ]
+    };
+
+    const routes = buildOsmMarathonCandidateRoutes(shortBridgeOnlyNetwork, {
+      targetDistanceKm: 42.195,
+      startPoint: [114.2955, 30.5488],
+      maxRoutes: 1,
+      profileIds: ["osm-river-scenic"]
+    });
+
+    expect(routes).toHaveLength(0);
+  });
+
   test("builds candidate routes between user-selected start and finish points", () => {
     const endPoint: [number, number] = [114.3, 30.61];
     const routes = buildOsmMarathonCandidateRoutes(smallRoadNetwork, {
@@ -98,20 +144,74 @@ describe("osmMarathonRoute", () => {
     expect(haversineKm(routes[0].coordinates.at(-1) ?? [0, 0], endPoint)).toBeLessThan(0.2);
   });
 
-  test("returns a non-zero road-aligned route for same-point user loops", () => {
+  test("does not extend user-constrained routes by reusing the same road segment", () => {
+    const routes = buildOsmMarathonCandidateRoutes(smallRoadNetwork, {
+      targetDistanceKm: 5,
+      startPoint: [114.3, 30.6],
+      endPoint: [114.3, 30.61]
+    });
+
+    expect(routes.length).toBeGreaterThan(0);
+    expect(routes[0].metrics.repeatedRoadRatio ?? 0).toBe(0);
+  });
+
+  test("prefers a Wuhan landmark corridor when an otherwise similar branch is available", () => {
+    const landmarkChoiceNetwork = {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { highway: "primary", name: "arterial away from landmark" },
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [114.3, 30.545],
+              [114.3, 30.555],
+              [114.3, 30.565]
+            ]
+          }
+        },
+        {
+          type: "Feature",
+          properties: { highway: "secondary", name: "yellow crane tower corridor" },
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [114.3, 30.545],
+              [114.3063, 30.5448],
+              [114.3163, 30.5448],
+              [114.3263, 30.5448]
+            ]
+          }
+        }
+      ]
+    };
+
+    const route = buildOsmMarathonTestRoute(landmarkChoiceNetwork, {
+      id: "landmark-choice",
+      name: "Landmark choice",
+      targetDistanceKm: 1.7,
+      startPoint: [114.3, 30.545]
+    });
+
+    expect(route).not.toBeNull();
+    const nearestLandmarkKm = Math.min(
+      ...route!.coordinates.map((coordinate) => haversineKm(coordinate, [114.3063, 30.5448]))
+    );
+    expect(nearestLandmarkKm).toBeLessThan(0.15);
+  });
+
+  test("rejects same-point full marathon loops when the road network cannot meet race requirements", () => {
     const routes = buildOsmMarathonCandidateRoutes(smallRoadNetwork, {
       targetDistanceKm: 42.195,
       startPoint: [114.3, 30.6],
       endPoint: [114.3, 30.6]
     });
 
-    expect(routes.length).toBeGreaterThan(0);
-    expect(routes[0].lengthKm).toBeGreaterThan(1);
-    expect(routes[0].lineage?.roadAligned).toBe(true);
-    expect(haversineKm(routes[0].coordinates.at(-1) ?? [0, 0], [114.3, 30.6])).toBeLessThan(0.5);
+    expect(routes).toHaveLength(0);
   });
 
-  test("uses a bridge segment for disconnected cross-river review routes", () => {
+  test("rejects disconnected cross-river roads instead of drawing review fly-lines", () => {
     const disconnectedCrossRiverNetwork = {
       type: "FeatureCollection",
       features: [
@@ -139,12 +239,7 @@ describe("osmMarathonRoute", () => {
       endPoint: [114.34, 30.54]
     });
 
-    expect(routes.length).toBeGreaterThan(0);
-    expect(routes[0].lineage?.note).toContain("桥");
-    expect(routes[0].lengthKm).toBeGreaterThan(35);
-    expect(routes[0].lengthKm).toBeLessThan(45);
-    expect(routes[0].coordinates.some((coordinate) => coordinate[1] < 30.56)).toBe(true);
-    expect(haversineKm(routes[0].coordinates.at(-1) ?? [0, 0], [114.34, 30.54])).toBeLessThan(0.5);
+    expect(routes).toHaveLength(0);
   });
 
   test("keeps cross-river user routing connected through bridge roads", () => {
@@ -241,6 +336,38 @@ describe("osmMarathonRoute", () => {
 
     expect(route).not.toBeNull();
     expect(route?.metrics.narrowRoadRatio).toBe(0);
+  });
+
+  test("rejects generated routes that break marathon elevation requirements", () => {
+    const steepRoadNetwork = {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { highway: "primary" },
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [114.37, 30.55],
+              [114.38, 30.55],
+              [114.39, 30.55],
+              [114.4, 30.55],
+              [114.41, 30.55],
+              [114.42, 30.55]
+            ]
+          }
+        }
+      ]
+    };
+
+    const route = buildOsmMarathonTestRoute(steepRoadNetwork, {
+      id: "steep-test",
+      name: "Steep test",
+      targetDistanceKm: 3,
+      startPoint: [114.37, 30.55]
+    });
+
+    expect(route).toBeNull();
   });
 
   test("does not create a marathon route by repeatedly overlapping the same road", () => {
@@ -361,6 +488,54 @@ describe("osmMarathonRoute", () => {
     });
 
     expect(route).toBeNull();
+  });
+
+  test("avoids compact junction knots when a continuous corridor is available", () => {
+    const junctionKnotNetwork = {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { highway: "primary", name: "continuous arterial" },
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [114.3, 30.6],
+              [114.305, 30.6],
+              [114.31, 30.6],
+              [114.315, 30.6],
+              [114.32, 30.6],
+              [114.325, 30.6],
+              [114.33, 30.6]
+            ]
+          }
+        },
+        {
+          type: "Feature",
+          properties: { highway: "primary", name: "short triangular junction loop" },
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [114.305, 30.6],
+              [114.307, 30.602],
+              [114.309, 30.6002],
+              [114.3056, 30.6001]
+            ]
+          }
+        }
+      ]
+    };
+
+    const route = buildOsmMarathonTestRoute(junctionKnotNetwork, {
+      id: "junction-knot-test",
+      name: "Junction knot test",
+      targetDistanceKm: 2.3,
+      startPoint: [114.3, 30.6]
+    });
+
+    expect(route).not.toBeNull();
+    expect(route?.metrics.localKnotCount ?? 0).toBe(0);
+    expect(route?.coordinates).not.toContainEqual([114.307, 30.602]);
   });
 
   test("avoids short dead-end branches when a continuous arterial path is available", () => {

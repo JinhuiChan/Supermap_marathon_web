@@ -124,10 +124,6 @@ export function SuperMapStatusPanel() {
           <dd title={superMapConfig.wmsMapUrl}>图层 {superMapConfig.wmsLayerName} · iDesktop 发布图</dd>
         </div>
         <div>
-          <dt>备用在线底图</dt>
-          <dd>{superMapConfig.onlineBasemap.name} · OpenStreetMap</dd>
-        </div>
-        <div>
           <dt>约束图层服务</dt>
           <dd title={superMapConfig.serviceUrls.constraintMapRest}>map-wuhan-constraints</dd>
         </div>
@@ -154,7 +150,7 @@ export function SuperMapStatusPanel() {
       </dl>
 
       <p className="integration-note">
-        地图面板默认使用 iDesktop 发布到 iServer 的武汉道路 WMS 地图；候选路线、路网、约束和服务点由前端矢量图层叠加。
+        地图面板默认使用 iDesktop 发布到 iServer 的武汉道路 WMS 地图；候选路线、路网、约束和 POI 由前端矢量图层叠加。
         上次检测：{lastCheck}
       </p>
     </section>

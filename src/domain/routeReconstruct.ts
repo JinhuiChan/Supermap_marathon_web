@@ -1,7 +1,8 @@
 import type { Coordinate, ElevationPoint, MarathonRoute, RouteMetrics } from "./routeMetrics";
 import type { GeneratedPath } from "./routeGenerator";
-import type { RoadEdge, RoadGraph } from "./roadNetwork";
-import { getElevation, haversineKm, slopePercent, turnAngle } from "./roadAttributes";
+import { isEventUsableRoadEdge, type RoadEdge, type RoadGraph } from "./roadNetwork";
+import { getElevation, haversineKm, turnAngle, turnPenaltyFromAngle } from "./roadAttributes";
+import { summarizeMarathonSuitability } from "./competitionSuitability";
 
 const COLORS = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"];
 
@@ -16,7 +17,7 @@ export function pathToMarathonRoute(
     coordinates.length >= 2 &&
     haversineKm(coordinates[0], coordinates[coordinates.length - 1]) < 0.5;
   const elevationProfile = buildElevationProfile(coordinates, lengthKm);
-  const metrics = computeMetrics(path, graph, elevationProfile);
+  const metrics = computeMetrics(path, graph, coordinates, elevationProfile);
 
   return {
     id: `gen-${index}`,
@@ -35,11 +36,37 @@ function extractCoordinates(
   graph: RoadGraph
 ): Coordinate[] {
   const coords: Coordinate[] = [];
-  for (let i = 0; i < path.nodeIds.length; i++) {
-    const node = graph.nodes.get(path.nodeIds[i]);
-    if (node) coords.push(node.coordinate);
+  for (const edgeId of path.edgeIds) {
+    const edge = resolveEdge(graph, edgeId);
+    if (!edge) continue;
+    const reversed = edgeId.endsWith("_rev");
+    const edgeCoordinates = getDisplayCoordinatesForEdge(edge, reversed);
+    if (edgeCoordinates.length >= 2) {
+      appendCoordinates(coords, edgeCoordinates);
+      continue;
+    }
+    const from = graph.nodes.get(reversed ? edge.toNodeId : edge.fromNodeId);
+    const to = graph.nodes.get(reversed ? edge.fromNodeId : edge.toNodeId);
+    if (!from || !to) continue;
+    if (coords.length === 0 || !sameCoordinate(coords[coords.length - 1], from.coordinate)) {
+      coords.push(from.coordinate);
+    }
+    coords.push(to.coordinate);
   }
   return coords;
+}
+
+function getDisplayCoordinatesForEdge(edge: RoadEdge, reversed: boolean): Coordinate[] {
+  const coordinates = edge.coordinates ?? [];
+  return reversed ? [...coordinates].reverse() : coordinates;
+}
+
+function appendCoordinates(target: Coordinate[], coordinates: Coordinate[]): void {
+  for (const coordinate of coordinates) {
+    if (target.length === 0 || !sameCoordinate(target[target.length - 1], coordinate)) {
+      target.push(coordinate);
+    }
+  }
 }
 
 function buildElevationProfile(
@@ -80,6 +107,7 @@ function buildElevationProfile(
 function computeMetrics(
   path: GeneratedPath,
   graph: RoadGraph,
+  coordinates: Coordinate[],
   profile: ElevationPoint[]
 ): RouteMetrics {
   const edges = path.edgeIds
@@ -94,9 +122,14 @@ function computeMetrics(
   }
 
   const edgeSlopeMetrics = computeEdgeSlopeMetrics(edges, path.totalLengthKm);
+  const provenance = computeGeometryProvenance(path, graph);
+  const suitability = summarizeMarathonSuitability(coordinates, edges, path.totalLengthKm);
   let avgSlope = edgeSlopeMetrics.avgSlopePercent;
   let maxSlope = edgeSlopeMetrics.maxSlopePercent;
   let longSteepRatio = edgeSlopeMetrics.longSteepRatio;
+  let maxSingleClimbM = edgeSlopeMetrics.maxSingleClimbM;
+  let maxContinuousSteepKm = edgeSlopeMetrics.maxContinuousSteepKm;
+  let startFinishElevationDiffM = edgeSlopeMetrics.startFinishElevationDiffM;
 
   if (!edgeSlopeMetrics.hasSlopeData) {
     if (profile.length > 1) {
@@ -105,21 +138,36 @@ function computeMetrics(
     }
 
     maxSlope = Math.max(...profile.map((p) => Math.abs(p.slope)), 0);
+    startFinishElevationDiffM = profile.length > 1 ? Math.abs(profile.at(-1)!.elevation - profile[0].elevation) : 0;
 
     let steepDist = 0;
+    let maxSteepDist = 0;
     for (let i = 1; i < profile.length; i++) {
+      const climb = profile[i].elevation - profile[i - 1].elevation;
+      if (climb > 0) maxSingleClimbM = Math.max(maxSingleClimbM, climb);
       if (Math.abs(profile[i].slope) > 3) {
         const segKm = profile[i].km - profile[i - 1].km;
         steepDist += segKm;
+        if (Math.abs(profile[i].slope) > 5) {
+          maxSteepDist += segKm;
+          maxContinuousSteepKm = Math.max(maxContinuousSteepKm, maxSteepDist);
+        } else {
+          maxSteepDist = 0;
+        }
+      } else {
+        maxSteepDist = 0;
       }
     }
     longSteepRatio = profile.length > 1 ? steepDist / profile[profile.length - 1].km : 0;
   } else {
-    totalClimb = Math.max(totalClimb, edgeSlopeMetrics.estimatedClimbM);
+    maxSingleClimbM = getProfileMaxSingleClimbM(profile);
+    maxContinuousSteepKm = getProfileMaxContinuousSteepKm(profile);
+    startFinishElevationDiffM = profile.length > 1 ? Math.abs(profile.at(-1)!.elevation - profile[0].elevation) : 0;
   }
 
   // sharpTurnRatio
   let sharpTurns = 0;
+  let turnPenaltyTotal = 0;
   const coords = edges.map((e, i) => {
     const node = graph.nodes.get(e.fromNodeId);
     if (i === 0 && node) return node.coordinate;
@@ -138,16 +186,33 @@ function computeMetrics(
 
   for (let i = 2; i < allCoords.length; i++) {
     const angle = turnAngle(allCoords[i - 2], allCoords[i - 1], allCoords[i]);
-    if (angle > 110) sharpTurns++;
+    const penalty = turnPenaltyFromAngle(angle);
+    turnPenaltyTotal += penalty;
+    if (penalty >= 55) sharpTurns++;
   }
   const sharpTurnRatio = allCoords.length > 2 ? sharpTurns / (allCoords.length - 2) : 0;
+  const turnPenaltyScore = allCoords.length > 2 ? turnPenaltyTotal / (allCoords.length - 2) : 0;
 
   // narrowRoadRatio: service + track
   let narrowKm = 0;
+  let bridgeKm = 0;
+  let bridgeCount = 0;
+  let yangtzeBridgeKm = 0;
+  const yangtzeBridgeNames = new Set<string>();
+  let wuhanYangtzeBridgePassed = false;
   for (const e of edges) {
     if (e.roadLevel === "service" || e.roadLevel === "track") {
       narrowKm += e.lengthKm;
     }
+    if (e.isBridge) {
+      bridgeKm += e.lengthKm;
+      bridgeCount += 1;
+    }
+    if (e.isBridge && /长江.*桥|长江大桥/.test(e.roadName ?? "")) {
+      yangtzeBridgeKm += e.lengthKm;
+      if (e.roadName) yangtzeBridgeNames.add(e.roadName);
+    }
+    if (e.isRequiredRiverBridge) wuhanYangtzeBridgePassed = true;
   }
   const totalKm = path.totalLengthKm || 1;
   const narrowRoadRatio = narrowKm / totalKm;
@@ -205,16 +270,76 @@ function computeMetrics(
 
   return {
     totalClimbM: Math.round(totalClimb),
+    startFinishElevationDiffM: Math.round(startFinishElevationDiffM),
+    netElevationDropM: profile.length > 1
+      ? Math.round(Math.max(0, profile[0].elevation - profile.at(-1)!.elevation))
+      : 0,
+    maxSingleClimbM: Math.round(maxSingleClimbM),
+    maxContinuousSteepKm: Math.round(maxContinuousSteepKm * 100) / 100,
     avgSlopePercent: Math.round(avgSlope * 10) / 10,
     maxSlopePercent: Math.round(maxSlope * 10) / 10,
     longSteepRatio: Math.round(longSteepRatio * 100) / 100,
     sharpTurnRatio: Math.round(sharpTurnRatio * 100) / 100,
+    turnPenaltyScore: Math.round(turnPenaltyScore),
     narrowRoadRatio: Math.round(narrowRoadRatio * 100) / 100,
+    competitionReadinessScore: suitability.score,
+    mainRoadRatio: suitability.mainRoadRatio,
+    unsuitableRoadRatio: suitability.unsuitableRoadRatio,
+    repeatedRoadRatio: suitability.repeatedRoadRatio,
+    selfIntersectionCount: suitability.selfIntersectionCount,
+    localBacktrackCount: suitability.localBacktrackCount,
+    localKnotCount: suitability.localKnotCount,
+    terrainCoverageRatio: provenance.terrainCoverageRatio,
+    maxContinuityGapM: provenance.maxContinuityGapM,
+    unsuitableEdgeCount: provenance.unsuitableEdgeCount,
+    roadAlignedRatio: provenance.roadAlignedRatio,
     supplyCoverageRatio: Math.round(supplyCoverageSum * 100) / 100,
     medicalAvgIntervalKm: Math.round(medicalIntervalSum * 10) / 10,
     parkingServiceScore: Math.round(parkingSum),
-    shadeCoverageRatio: Math.round(shadeSum * 100) / 100
+    shadeCoverageRatio: Math.round(shadeSum * 100) / 100,
+    bridgeDistanceKm: Math.round(bridgeKm * 100) / 100,
+    bridgeSegmentCount: bridgeCount,
+    riverCrossingScore: Math.round(Math.min(100, bridgeKm * 24 + bridgeCount * 10 + (wuhanYangtzeBridgePassed ? 26 : 0))),
+    yangtzeBridgeDistanceKm: Math.round(yangtzeBridgeKm * 100) / 100,
+    yangtzeBridgeNames: [...yangtzeBridgeNames],
+    wuhanYangtzeBridgePassed
   };
+}
+
+function computeGeometryProvenance(path: GeneratedPath, graph: RoadGraph) {
+  let measuredTerrainKm = 0;
+  let sourceGeometryKm = 0;
+  let maxContinuityGapKm = 0;
+  let unsuitableEdgeCount = 0;
+  let previousEnd: Coordinate | null = null;
+
+  for (const edgeId of path.edgeIds) {
+    const edge = resolveEdge(graph, edgeId);
+    if (!edge) continue;
+    const reversed = edgeId.endsWith("_rev");
+    const edgeCoordinates = getDisplayCoordinatesForEdge(edge, reversed);
+    if (edge.terrainMeasured || typeof edge.slopeMean === "number") measuredTerrainKm += edge.lengthKm;
+    if (!isEventUsableRoadEdge(edge) || edge.surfaceSuitable === false) unsuitableEdgeCount += 1;
+    if (edgeCoordinates.length < 2) continue;
+
+    sourceGeometryKm += edge.lengthKm;
+    const start = edgeCoordinates[0];
+    if (previousEnd) maxContinuityGapKm = Math.max(maxContinuityGapKm, haversineKm(previousEnd, start));
+    previousEnd = edgeCoordinates.at(-1)!;
+  }
+
+  const routeKm = Math.max(path.totalLengthKm, 0.001);
+  const discontinuityKm = maxContinuityGapKm;
+  return {
+    terrainCoverageRatio: roundRatio(measuredTerrainKm / routeKm),
+    maxContinuityGapM: Math.round(discontinuityKm * 1000 * 10) / 10,
+    unsuitableEdgeCount,
+    roadAlignedRatio: roundRatio(sourceGeometryKm / (routeKm + discontinuityKm))
+  };
+}
+
+function roundRatio(value: number): number {
+  return Math.round(Math.max(0, Math.min(1, value)) * 1000) / 1000;
 }
 
 export function autoName(
@@ -248,33 +373,65 @@ function resolveEdge(graph: RoadGraph, edgeId: string): RoadEdge | undefined {
   return graph.edges.get(edgeId) ?? graph.edges.get(edgeId.replace(/_rev$/, ""));
 }
 
+function sameCoordinate(a: Coordinate, b: Coordinate): boolean {
+  return Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9;
+}
+
+function getProfileMaxSingleClimbM(profile: ElevationPoint[]): number {
+  let maxClimb = 0;
+  for (let index = 1; index < profile.length; index++) {
+    maxClimb = Math.max(maxClimb, profile[index].elevation - profile[index - 1].elevation);
+  }
+  return Math.max(0, maxClimb);
+}
+
+function getProfileMaxContinuousSteepKm(profile: ElevationPoint[]): number {
+  let currentKm = 0;
+  let maxKm = 0;
+  for (let index = 1; index < profile.length; index++) {
+    const segmentKm = Math.max(0, profile[index].km - profile[index - 1].km);
+    if (Math.abs(profile[index].slope) > 5) {
+      currentKm += segmentKm;
+      maxKm = Math.max(maxKm, currentKm);
+    } else {
+      currentKm = 0;
+    }
+  }
+  return maxKm;
+}
+
 function computeEdgeSlopeMetrics(edges: RoadEdge[], totalKm: number) {
-  const slopeEdges = edges.filter((edge) => typeof edge.slopeMean === "number");
+  const slopeEdges = edges.filter((edge) => typeof edge.slopeMean === "number" && !edge.isRequiredRiverBridge);
   if (slopeEdges.length === 0) {
     return {
       hasSlopeData: false,
       avgSlopePercent: 0,
       maxSlopePercent: 0,
       longSteepRatio: 0,
-      estimatedClimbM: 0
+      estimatedClimbM: 0,
+      maxSingleClimbM: 0,
+      maxContinuousSteepKm: 0,
+      startFinishElevationDiffM: 0
     };
   }
 
   const denominator = slopeEdges.reduce((sum, edge) => sum + edge.lengthKm, 0) || totalKm || 1;
-  const weightedSlope = slopeEdges.reduce((sum, edge) => sum + Math.abs(edge.slopeMean ?? 0) * edge.lengthKm, 0);
+  const weightedSlope = slopeEdges.reduce((sum, edge) => sum + effectiveRaceSlopePercent(edge.slopeMean ?? 0) * edge.lengthKm, 0);
   const steepKm = slopeEdges
-    .filter((edge) => Math.abs(edge.slopeMean ?? 0) > 3)
+    .filter((edge) => effectiveRaceSlopePercent(edge.slopeMean ?? 0) > 3)
     .reduce((sum, edge) => sum + edge.lengthKm, 0);
-  const estimatedClimbM = slopeEdges.reduce((sum, edge) => {
-    const slope = Math.max(0, edge.slopeMean ?? 0);
-    return sum + (slope / 100) * edge.lengthKm * 1000;
-  }, 0);
-
   return {
     hasSlopeData: true,
     avgSlopePercent: weightedSlope / denominator,
-    maxSlopePercent: Math.max(...slopeEdges.map((edge) => Math.abs(edge.slopeMean ?? 0)), 0),
+    maxSlopePercent: Math.max(...slopeEdges.map((edge) => effectiveRaceSlopePercent(edge.slopeMean ?? 0)), 0),
     longSteepRatio: steepKm / (totalKm || denominator),
-    estimatedClimbM
+    estimatedClimbM: 0,
+    maxSingleClimbM: 0,
+    maxContinuousSteepKm: 0,
+    startFinishElevationDiffM: 0
   };
+}
+
+function effectiveRaceSlopePercent(slopeMean: number): number {
+  return Math.min(3, Math.abs(slopeMean) * 0.22);
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MarathonRoute } from "../../domain/routeMetrics";
-import { buildRouteDirectionMarkers, computeRouteStyle, findNearestRouteId } from "./RouteLayer";
+import { buildRouteDirectionMarkers, buildRouteEndpointMarkers, computeRouteStyle, findNearestRouteId } from "./RouteLayer";
 
 const route = {
   id: "river-loop",
@@ -57,5 +57,14 @@ describe("RouteLayer", () => {
 
     expect(comparedStyle.weight).toBeLessThan(activeStyle.weight);
     expect(comparedStyle.opacity).toBeLessThan(activeStyle.opacity);
+  });
+
+  it("builds start and finish markers from route endpoints", () => {
+    const markers = buildRouteEndpointMarkers(route);
+
+    expect(markers).toEqual([
+      { role: "start", coordinate: [114.292, 30.584], label: `${route.name} 起点` },
+      { role: "end", coordinate: [114.305, 30.598], label: `${route.name} 终点` }
+    ]);
   });
 });

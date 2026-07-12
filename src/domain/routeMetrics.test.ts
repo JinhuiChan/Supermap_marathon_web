@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareRoutes, getDifficultyLabel, scoreRoute } from "./routeMetrics";
+import { compareRoutes, getDifficultyLabel, routeSelectionProfiles, scoreRoute, scoreRouteForProfile } from "./routeMetrics";
 
 const easyRoute = {
   id: "easy",
@@ -21,6 +21,7 @@ const easyRoute = {
     maxSlopePercent: 2.4,
     longSteepRatio: 0.04,
     sharpTurnRatio: 0.08,
+    turnPenaltyScore: 14,
     narrowRoadRatio: 0.06,
     supplyCoverageRatio: 0.92,
     medicalAvgIntervalKm: 4.2,
@@ -130,5 +131,74 @@ describe("routeMetrics", () => {
 
     expect(compareRoutes([tangledRoute, venueReadyRoute])[0].id).toBe("venue-ready");
     expect(scoreRoute(tangledRoute).recommendationScore).toBeLessThan(scoreRoute(venueReadyRoute).recommendationScore);
+  });
+
+  it("offers only the three decision-ready route objectives", () => {
+    expect(routeSelectionProfiles.map((profile) => profile.id)).toEqual([
+      "pb-friendly",
+      "support-first",
+      "scenic"
+    ]);
+    expect(routeSelectionProfiles.map((profile) => profile.label)).toEqual([
+      "竞速平坦",
+      "组织保障",
+      "城市体验"
+    ]);
+  });
+
+  it("prioritizes landmark exposure for city experience without requiring a bridge", () => {
+    const bridgeScenicRoute = {
+      ...easyRoute,
+      id: "bridge-scenic",
+      metrics: {
+        ...easyRoute.metrics,
+        bridgeDistanceKm: 2.8,
+        bridgeSegmentCount: 2,
+        riverCrossingScore: 92,
+        landmarkCoverageScore: 84,
+        shadeCoverageRatio: 0.7
+      }
+    };
+    const inlandRoute = {
+      ...easyRoute,
+      id: "inland",
+      metrics: {
+        ...easyRoute.metrics,
+        bridgeDistanceKm: 0,
+        bridgeSegmentCount: 0,
+        riverCrossingScore: 8,
+        landmarkCoverageScore: 35,
+        shadeCoverageRatio: 0.75
+      }
+    };
+
+    expect(compareRoutes([inlandRoute, bridgeScenicRoute], "scenic")[0].id).toBe("bridge-scenic");
+    expect(scoreRouteForProfile(bridgeScenicRoute, "scenic").profileScore).toBeGreaterThan(
+      scoreRouteForProfile(inlandRoute, "scenic").profileScore
+    );
+  });
+
+  it("penalizes right-angle and acute zigzag turns more strongly", () => {
+    const smoothRoute = {
+      ...easyRoute,
+      id: "smooth",
+      metrics: {
+        ...easyRoute.metrics,
+        sharpTurnRatio: 0.03,
+        turnPenaltyScore: 6
+      }
+    };
+    const angularRoute = {
+      ...easyRoute,
+      id: "angular",
+      metrics: {
+        ...easyRoute.metrics,
+        sharpTurnRatio: 0.2,
+        turnPenaltyScore: 78
+      }
+    };
+
+    expect(scoreRoute(angularRoute).difficultyScore - scoreRoute(smoothRoute).difficultyScore).toBeGreaterThanOrEqual(12);
+    expect(compareRoutes([angularRoute, smoothRoute], "pb-friendly")[0].id).toBe("smooth");
   });
 });

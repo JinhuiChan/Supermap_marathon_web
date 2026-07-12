@@ -8,10 +8,19 @@ export interface ElevationPoint {
 
 export interface RouteMetrics {
   totalClimbM: number;
+  startFinishElevationDiffM?: number;
+  netElevationDropM?: number;
+  maxSingleClimbM?: number;
+  maxContinuousSteepKm?: number;
+  terrainCoverageRatio?: number;
+  maxContinuityGapM?: number;
+  unsuitableEdgeCount?: number;
+  roadAlignedRatio?: number;
   avgSlopePercent: number;
   maxSlopePercent: number;
   longSteepRatio: number;
   sharpTurnRatio: number;
+  turnPenaltyScore?: number;
   narrowRoadRatio: number;
   competitionReadinessScore?: number;
   mainRoadRatio?: number;
@@ -19,10 +28,19 @@ export interface RouteMetrics {
   repeatedRoadRatio?: number;
   selfIntersectionCount?: number;
   localBacktrackCount?: number;
+  localKnotCount?: number;
   supplyCoverageRatio: number;
   medicalAvgIntervalKm: number;
   parkingServiceScore: number;
   shadeCoverageRatio: number;
+  landmarkCoverageScore?: number;
+  landmarkPassedCount?: number;
+  bridgeDistanceKm?: number;
+  bridgeSegmentCount?: number;
+  riverCrossingScore?: number;
+  yangtzeBridgeDistanceKm?: number;
+  yangtzeBridgeNames?: string[];
+  wuhanYangtzeBridgePassed?: boolean;
 }
 
 export interface MarathonRoute {
@@ -35,7 +53,7 @@ export interface MarathonRoute {
   elevationProfile: ElevationPoint[];
   metrics: RouteMetrics;
   lineage?: {
-    source: "official-road-level" | "planning-sketch" | "simulated-graph" | "osm-generated";
+    source: "planning-sketch" | "simulated-graph" | "osm-generated";
     roadAligned: boolean;
     note: string;
   };
@@ -53,14 +71,18 @@ export interface RouteScore {
   rank: number;
 }
 
-export type RouteSelectionProfile = "balanced" | "pb-friendly" | "mass-finish" | "support-first" | "scenic";
+export type RouteSelectionProfile =
+  | "balanced"
+  | "pb-friendly"
+  | "mass-finish"
+  | "support-first"
+  | "scenic"
+  | "river-scenic";
 
 export const routeSelectionProfiles: Array<{ id: RouteSelectionProfile; label: string; description: string }> = [
-  { id: "balanced", label: "综合平衡", description: "兼顾难度、保障和体验" },
-  { id: "pb-friendly", label: "PB 竞速", description: "优先低爬升、少急弯、通行顺畅" },
-  { id: "mass-finish", label: "大众完赛", description: "优先稳定完赛和保障覆盖" },
-  { id: "support-first", label: "保障优先", description: "优先补给、医疗和集散能力" },
-  { id: "scenic", label: "景观体验", description: "优先遮荫、体验和观赛组织" }
+  { id: "pb-friendly", label: "竞速平坦", description: "低爬升、少急弯、宽路连续，适合稳定配速" },
+  { id: "support-first", label: "组织保障", description: "优先医疗、补给、公共交通和赛后集散" },
+  { id: "scenic", label: "城市体验", description: "优先地标、滨水、公园与观赛展示价值" }
 ];
 
 const clamp = (value: number, min = 0, max = 100) => Math.min(Math.max(value, min), max);
@@ -71,6 +93,25 @@ export function getDifficultyLabel(score: number) {
   return "高难度挑战";
 }
 
+function getTurnPenaltyScore(route: MarathonRoute): number {
+  return clamp(route.metrics.turnPenaltyScore ?? route.metrics.sharpTurnRatio * 100);
+}
+
+function getPassagePenalty(route: MarathonRoute): number {
+  const m = route.metrics;
+  const turnPenalty = getTurnPenaltyScore(route);
+  return clamp(turnPenalty * 0.5 + clamp(m.sharpTurnRatio * 100) * 0.22 + clamp(m.narrowRoadRatio * 100) * 0.28);
+}
+
+function getRiverScore(route: MarathonRoute): number {
+  const m = route.metrics;
+  if (typeof m.riverCrossingScore === "number") return clamp(m.riverCrossingScore);
+
+  const bridgeKmScore = clamp((m.bridgeDistanceKm ?? 0) * 28);
+  const bridgeCountScore = clamp((m.bridgeSegmentCount ?? 0) * 34);
+  return clamp(bridgeKmScore * 0.55 + bridgeCountScore * 0.45);
+}
+
 export function scoreRoute(route: MarathonRoute): RouteScore {
   const m = route.metrics;
   const terrain =
@@ -78,20 +119,28 @@ export function scoreRoute(route: MarathonRoute): RouteScore {
     clamp(m.avgSlopePercent * 14) * 0.25 +
     clamp(m.maxSlopePercent * 8) * 0.2 +
     clamp(m.longSteepRatio * 100) * 0.25;
-  const passage = clamp(m.sharpTurnRatio * 100) * 0.45 + clamp(m.narrowRoadRatio * 100) * 0.55;
+  const passage = getPassagePenalty(route);
   const support =
     clamp(m.supplyCoverageRatio * 100) * 0.38 +
     clamp(100 - m.medicalAvgIntervalKm * 8) * 0.34 +
     clamp(m.parkingServiceScore) * 0.16 +
     clamp(m.shadeCoverageRatio * 100) * 0.12;
+  const landmarkScore = clamp(m.landmarkCoverageScore ?? 0);
+  const riverScore = getRiverScore(route);
   const venueReadiness = clamp(m.competitionReadinessScore ?? ((100 - passage) * 0.55 + support * 0.45));
   const difficultyScore = clamp(
-    terrain * 0.52 +
-      passage * 0.18 +
-      (100 - support) * 0.16 +
-      (100 - venueReadiness) * 0.14
+    terrain * 0.48 +
+      passage * 0.28 +
+      (100 - support) * 0.12 +
+      (100 - venueReadiness) * 0.12
   );
-  const recommendationScore = clamp((100 - difficultyScore) * 0.55 + support * 0.25 + venueReadiness * 0.2);
+  const recommendationScore = clamp(
+    (100 - difficultyScore) * 0.46 +
+      support * 0.2 +
+      venueReadiness * 0.17 +
+      landmarkScore * 0.1 +
+      riverScore * 0.07
+  );
 
   return {
     id: route.id,
@@ -111,26 +160,32 @@ function getProfileScore(route: MarathonRoute, score: RouteScore, profile: Route
 
   const m = route.metrics;
   const lowDifficulty = 100 - score.difficultyScore;
-  const passageScore = clamp(100 - (m.sharpTurnRatio * 100 * 0.45 + m.narrowRoadRatio * 100 * 0.55));
+  const passageScore = clamp(100 - getPassagePenalty(route));
   const flatnessScore = clamp(
     100 - (m.totalClimbM / 4 + m.avgSlopePercent * 12 + m.maxSlopePercent * 6 + m.longSteepRatio * 100 * 0.6)
   );
   const medicalScore = clamp(100 - m.medicalAvgIntervalKm * 8);
   const shadeScore = clamp(m.shadeCoverageRatio * 100);
+  const landmarkScore = clamp(m.landmarkCoverageScore ?? 0);
+  const riverScore = getRiverScore(route);
 
   if (profile === "pb-friendly") {
-    return clamp(flatnessScore * 0.72 + passageScore * 0.2 + lowDifficulty * 0.08);
+    return clamp(flatnessScore * 0.62 + passageScore * 0.3 + lowDifficulty * 0.08);
   }
 
   if (profile === "mass-finish") {
-    return clamp(score.recommendationScore * 0.42 + score.supportScore * 0.38 + lowDifficulty * 0.2);
+    return clamp(score.recommendationScore * 0.4 + score.supportScore * 0.38 + passageScore * 0.12 + lowDifficulty * 0.1);
   }
 
   if (profile === "support-first") {
-    return clamp(score.supportScore * 0.62 + medicalScore * 0.2 + score.recommendationScore * 0.18);
+    return clamp(score.supportScore * 0.6 + medicalScore * 0.22 + passageScore * 0.1 + score.recommendationScore * 0.08);
   }
 
-  return clamp(shadeScore * 0.44 + score.supportScore * 0.22 + score.recommendationScore * 0.22 + (route.closedLoop ? 12 : 4));
+  if (profile === "river-scenic") {
+    return clamp(riverScore * 0.38 + landmarkScore * 0.28 + shadeScore * 0.14 + passageScore * 0.12 + score.supportScore * 0.08);
+  }
+
+  return clamp(landmarkScore * 0.34 + shadeScore * 0.26 + riverScore * 0.12 + score.supportScore * 0.14 + score.recommendationScore * 0.14);
 }
 
 export function scoreRouteForProfile(route: MarathonRoute, profile: RouteSelectionProfile = "balanced"): RouteScore {

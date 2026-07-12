@@ -7,11 +7,11 @@ describe("superMapConfig", () => {
     expect(superMapConfig.wmsLayerName).toBe("0");
   });
 
-  it("defaults to the iDesktop-published map while keeping local vector and OpenStreetMap as fallback options", () => {
+  it("defaults to the iDesktop-published map and exposes no alternate public basemaps", () => {
     expect(superMapConfig.defaultBasemap).toBe("supermapDem");
-    expect(superMapConfig.localVectorBasemap.name).toContain("矢量");
-    expect(superMapConfig.onlineBasemap.tileUrl).toContain("openstreetmap.org");
-    expect(superMapConfig.onlineBasemap.attribution).toContain("OpenStreetMap");
+    expect(superMapConfig.basemapPolicy).toContain("iDesktop");
+    expect("localVectorBasemap" in superMapConfig).toBe(false);
+    expect("onlineBasemap" in superMapConfig).toBe(false);
   });
 
   it("separates the full Wuhan road display layer from the lighter routing network", () => {

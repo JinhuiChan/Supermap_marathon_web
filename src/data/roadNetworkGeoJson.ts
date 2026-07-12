@@ -37,6 +37,9 @@ export const WUHAN_MARATHON_AREA_BOUNDS: GeoJsonBounds = {
 };
 
 export const WUHAN_MARATHON_ROUTE_CORRIDOR_KM = 1.5;
+const MIN_MARATHON_ROAD_WIDTH_M = 6;
+const LONG_TUNNEL_KM = 0.8;
+const ROAD_NODE_SNAP_DECIMALS = 5;
 
 export function mapOsmHighwayToRoadLevel(value: unknown): RoadLevel {
   switch (value) {
@@ -240,7 +243,25 @@ function addLineToGraph(
     const constraintImpedance = normalizeNumber(properties.constraint_impedance);
     const suitabilityScore = normalizeNumber(properties.suitability);
     const slopeMean = normalizeNumber(properties.slope_mean);
-    const competitionSuitable = normalizeControlFlag(properties.control_ok) ?? isCompetitionSuitableRoadLevel(roadLevel);
+    const slopeMax = normalizeNumber(properties.slope_max);
+    const explicitControlOk = normalizeControlFlag(properties.control_ok);
+    const isBridge = isOsmTagTrue(properties.bridge);
+    const isTunnel = isOsmTagTrue(properties.tunnel);
+    const isElevated = detectElevatedRoad(properties, isBridge);
+    const roadName = resolveRoadName(properties);
+    const isRequiredRiverBridge = isNamedWuhanYangtzeBridge(roadName, isBridge);
+    const roadWidthM = resolveRoadWidthM(properties, roadLevel);
+    const surfaceSuitable = isSuitableRoadSurface(properties.surface);
+    const terrainMeasured = slopeMean !== null;
+    const baseCompetitionSuitable = explicitControlOk ?? (isCompetitionSuitableRoadLevel(roadLevel) || roadLevel === "greenway");
+    const slopeTooSteepForMarathon = !isRequiredRiverBridge && slopeMean !== null && Math.abs(slopeMean) > 5;
+    const competitionSuitable =
+      (isRequiredRiverBridge || baseCompetitionSuitable) &&
+      roadWidthM >= MIN_MARATHON_ROAD_WIDTH_M &&
+      surfaceSuitable &&
+      !isElevated &&
+      !(isTunnel && lengthKm >= LONG_TUNNEL_KM) &&
+      !slopeTooSteepForMarathon;
     const hasDecomposedImpedance =
       baseImpedance !== null || slopeImpedance !== null || constraintImpedance !== null || typeof properties.slope_source === "string";
     const slopePenalty = hasDecomposedImpedance
@@ -258,16 +279,26 @@ function addLineToGraph(
     const edgeId = `osm-${featureIndex}-${lineIndex}-${index}`;
     addEdge(graph, {
       id: edgeId,
+      physicalEdgeId: edgeId,
       fromNodeId: nodeIdForCoordinate(from),
       toNodeId: nodeIdForCoordinate(to),
       lengthKm,
       roadLevel,
-      isBridge: isOsmTagTrue(properties.bridge),
-      isTunnel: isOsmTagTrue(properties.tunnel),
+      isBridge,
+      isTunnel,
+      isElevated,
       competitionSuitable,
       baselineCost: lengthKm * (1 + totalPenalty / 100),
+      roadWidthM,
+      roadName,
+      isRequiredRiverBridge,
+      slopeFiltered: slopeTooSteepForMarathon,
+      coordinates: [from, to],
+      surfaceSuitable,
+      terrainMeasured,
       ...(suitabilityScore === null ? {} : { suitabilityScore }),
       ...(slopeMean === null ? {} : { slopeMean }),
+      ...(slopeMax === null ? {} : { slopeMax }),
       impedanceBreakdown: {
         base: lengthKm,
         explicit: explicitPenalty,
@@ -286,8 +317,80 @@ function slopeResistancePenalty(slopeMean: number): number {
   return Math.round(48 + Math.min(52, (slope - 6) * 10));
 }
 
+function isSuitableRoadSurface(value: unknown): boolean {
+  if (typeof value !== "string" || value.trim() === "") return true;
+  const surface = value.trim().toLocaleLowerCase();
+  return !new Set([
+    "grass",
+    "ground",
+    "dirt",
+    "earth",
+    "mud",
+    "sand",
+    "gravel",
+    "fine_gravel",
+    "unpaved"
+  ]).has(surface);
+}
+
+function resolveRoadName(properties: Record<string, unknown>): string {
+  return String(properties.name ?? properties.road_name ?? properties.NAME ?? "").trim();
+}
+
+function isNamedWuhanYangtzeBridge(name: string, isBridge: boolean): boolean {
+  return isBridge && /武汉长江大桥/.test(name);
+}
+
+function resolveRoadWidthM(properties: Record<string, unknown>, roadLevel: RoadLevel): number {
+  const explicitWidth =
+    normalizeNumber(properties.width_m) ??
+    normalizeNumber(properties.width) ??
+    normalizeNumber(properties.road_width) ??
+    normalizeNumber(properties.carriageway_width);
+  if (explicitWidth !== null) return explicitWidth;
+
+  const lanes = normalizeNumber(properties.lanes);
+  if (lanes !== null && lanes > 0) return lanes * 3.25;
+
+  switch (roadLevel) {
+    case "motorway":
+    case "trunk":
+      return 12;
+    case "primary":
+      return 10;
+    case "secondary":
+      return 8;
+    case "tertiary":
+      return 6.5;
+    case "greenway":
+      return properties.highway === "cycleway" || isNamedScenicGreenway(properties) ? 6 : 4;
+    case "residential":
+      return 5;
+    case "service":
+      return 4.5;
+    case "track":
+      return 3.5;
+    default:
+      return 4;
+  }
+}
+
+function isNamedScenicGreenway(properties: Record<string, unknown>): boolean {
+  const name = String(properties.name ?? properties.road_name ?? properties.NAME ?? "");
+  return /绿道|江滩|公园|湖山道|郊野道|湖中道|东湖东路/.test(name);
+}
+
+function detectElevatedRoad(properties: Record<string, unknown>, isBridge: boolean): boolean {
+  const layer = normalizeNumber(properties.layer);
+  const name = String(properties.name ?? properties.road_name ?? properties.NAME ?? "").toLocaleLowerCase();
+  const structure = String(properties.structure ?? properties.road_structure ?? "").toLocaleLowerCase();
+  const explicitElevated = isOsmTagTrue(properties.elevated) || isOsmTagTrue(properties.viaduct) || structure.includes("elevated") || structure.includes("viaduct");
+  const namedElevated = name.includes("高架") || name.includes("匝道") || name.includes("viaduct") || name.includes("elevated");
+  return explicitElevated || namedElevated || (!isBridge && (layer ?? 0) > 0);
+}
+
 function nodeIdForCoordinate(coordinate: Coordinate): string {
-  return `${coordinate[0].toFixed(7)},${coordinate[1].toFixed(7)}`;
+  return `${coordinate[0].toFixed(ROAD_NODE_SNAP_DECIMALS)},${coordinate[1].toFixed(ROAD_NODE_SNAP_DECIMALS)}`;
 }
 
 function isOsmTagTrue(value: unknown): boolean {

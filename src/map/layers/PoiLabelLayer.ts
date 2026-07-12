@@ -75,7 +75,8 @@ export function extractPoiLabelsFromSuperMapFeatures(
   for (const feature of features) {
     const record = feature as SuperMapFeatureRecord;
     const properties = superMapFeatureProperties(record);
-    const name = normalizeName(properties) || fallbackNameForKind(kind);
+    const name = normalizeName(properties);
+    if (!name) continue;
     const coordinate = superMapFeatureCenter(record);
     if (!coordinate) continue;
 
@@ -172,12 +173,10 @@ function normalizeName(properties: Record<string, unknown> | null | undefined): 
     properties?.NAME,
     properties?.point_name,
     properties?.POINT_NAME,
-    properties?.Level2_CN,
-    properties?.Level2_cn,
-    properties?.LEVEL2_CN,
-    properties?.Level1_CN,
-    properties?.Level1_cn,
-    properties?.LEVEL1_CN,
+    properties?.poi_name,
+    properties?.POI_NAME,
+    properties?.label,
+    properties?.LABEL,
     properties?.fclass_cn,
     properties?.FCLASS_CN,
     properties?.type
@@ -185,9 +184,22 @@ function normalizeName(properties: Record<string, unknown> | null | undefined): 
   for (const value of candidates) {
     if (typeof value !== "string") continue;
     const trimmed = value.trim();
-    if (trimmed && trimmed !== "null" && trimmed !== "undefined") return trimmed;
+    if (isDisplayablePoiName(trimmed)) return trimmed;
   }
   return "";
+}
+
+function isDisplayablePoiName(name: string): boolean {
+  const normalized = name.trim();
+  if (!normalized || normalized === "null" || normalized === "undefined") return false;
+  return !isGenericLandUseName(normalized);
+}
+
+function isGenericLandUseName(name: string): boolean {
+  if (/用地$/.test(name)) return true;
+  if (/^(商业服务|商务办公|医疗卫生|公共管理和服务|交通场站|交通设施|公园绿地|绿地)$/.test(name)) return true;
+  if (/^(医院|地铁站|交通站点|商圈补给|公园绿地)$/.test(name)) return true;
+  return false;
 }
 
 function superMapFeatureProperties(record: SuperMapFeatureRecord): Record<string, unknown> {
@@ -226,13 +238,6 @@ function firstTextValue(properties: Record<string, unknown>, keys: string[]): st
     if (typeof value === "number" && Number.isFinite(value)) return String(value);
   }
   return "";
-}
-
-function fallbackNameForKind(kind: PoiLabelKind): string {
-  if (kind === "hospital") return "医院";
-  if (kind === "traffic") return "交通站点";
-  if (kind === "park") return "公园绿地";
-  return "商圈补给";
 }
 
 function priorityForKind(kind: PoiLabelKind): number {

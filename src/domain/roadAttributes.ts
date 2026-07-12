@@ -94,6 +94,14 @@ export function turnAngle(a: Coordinate, b: Coordinate, c: Coordinate): number {
   return (Math.acos(cos) * 180) / Math.PI;
 }
 
+export function turnPenaltyFromAngle(angle: number): number {
+  if (angle < 45) return 0;
+  if (angle < 75) return ((angle - 45) / 30) * 35;
+  if (angle < 105) return 55 + (1 - Math.abs(angle - 90) / 15) * 20;
+  if (angle < 135) return 75 + ((angle - 105) / 30) * 20;
+  return 100;
+}
+
 export function computePoiAttractiveness(
   poiScores: PoiScore | undefined,
   preferences: PoiPreferences | undefined
