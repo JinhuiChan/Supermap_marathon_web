@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { addEdge, addNode, createEmptyGraph, graphStats } from "./roadNetwork";
+import {
+  addEdge,
+  addNode,
+  createEmptyGraph,
+  graphStats,
+  isFullMarathonRoadEdge,
+  type RoadEdge
+} from "./roadNetwork";
 
 describe("roadNetwork", () => {
   it("creates an empty graph", () => {
@@ -71,5 +78,33 @@ describe("roadNetwork", () => {
     expect(stats.nodeCount).toBe(2);
     expect(stats.edgeCount).toBe(1);
     expect(stats.totalKm).toBeCloseTo(2.5);
+  });
+
+  it("only admits visible event-suitable roads to full-marathon search", () => {
+    const edge = (overrides: Partial<RoadEdge>): RoadEdge => ({
+      id: "edge",
+      fromNodeId: "a",
+      toNodeId: "b",
+      lengthKm: 1,
+      roadLevel: "primary",
+      isBridge: false,
+      isTunnel: false,
+      competitionSuitable: true,
+      baselineCost: 1,
+      surfaceSuitable: true,
+      terrainMeasured: true,
+      ...overrides
+    });
+
+    expect(isFullMarathonRoadEdge(edge({ roadLevel: "primary" }))).toBe(true);
+    expect(isFullMarathonRoadEdge(edge({ roadLevel: "secondary" }))).toBe(true);
+    expect(isFullMarathonRoadEdge(edge({ roadLevel: "tertiary" }))).toBe(true);
+    expect(isFullMarathonRoadEdge(edge({ roadLevel: "greenway", roadWidthM: 6 }))).toBe(true);
+    expect(isFullMarathonRoadEdge(edge({ roadLevel: "residential", roadWidthM: 5 }))).toBe(false);
+    expect(isFullMarathonRoadEdge(edge({ roadLevel: "service" }))).toBe(false);
+    expect(isFullMarathonRoadEdge(edge({ roadLevel: "track" }))).toBe(false);
+    expect(isFullMarathonRoadEdge(edge({ isElevated: true }))).toBe(false);
+    expect(isFullMarathonRoadEdge(edge({ isTunnel: true }))).toBe(false);
+    expect(isFullMarathonRoadEdge(edge({ competitionSuitable: false, slopeFiltered: true }))).toBe(false);
   });
 });

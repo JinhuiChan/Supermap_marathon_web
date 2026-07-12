@@ -170,7 +170,7 @@ describe("searchMarathonRoutes", () => {
     expect(new Set(result.routes[0].physicalEdgeIds).size).toBe(result.routes[0].physicalEdgeIds.length);
   });
 
-  it("keeps raster-slope filtered roads when their calibrated race grade remains acceptable", () => {
+  it("rejects roads already filtered by the competition suitability model", () => {
     const graph = cycleGraph();
     for (const edges of graph.adjacency.values()) {
       for (const edge of edges) {
@@ -194,12 +194,10 @@ describe("searchMarathonRoutes", () => {
       maxExpandedStates: 20_000
     });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.routes[0].physicalEdgeIds).toContain("cycle-10");
+    expect(result).toMatchObject({ ok: false, code: "no-compliant-route" });
   });
 
-  it("allows a paved five-metre residential road that can be fully closed for the event", () => {
+  it("rejects a paved residential road instead of using it to complete marathon distance", () => {
     const graph = cycleGraph();
     for (const edges of graph.adjacency.values()) {
       for (const edge of edges) {
@@ -226,9 +224,7 @@ describe("searchMarathonRoutes", () => {
       maxExpandedStates: 20_000
     });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.routes[0].physicalEdgeIds).toContain("cycle-10");
+    expect(result).toMatchObject({ ok: false, code: "no-compliant-route" });
   });
 
   it("selects a compliant finish dynamically when no finish point is prescribed", () => {

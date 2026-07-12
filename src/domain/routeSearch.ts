@@ -1,5 +1,5 @@
 import { haversineKm } from "./roadAttributes";
-import { isEventUsableRoadEdge, type RoadEdge, type RoadGraph } from "./roadNetwork";
+import { isFullMarathonRoadEdge, type RoadEdge, type RoadGraph } from "./roadNetwork";
 import type { Coordinate } from "./routeMetrics";
 import { marathonQualityThresholds } from "./routeQuality";
 
@@ -236,7 +236,7 @@ export function objectiveEdgeScore(edge: RoadEdge, objective: MarathonSearchObje
 
 function edgeIsEligible(edge: RoadEdge): boolean {
   return (
-    isEventUsableRoadEdge(edge) &&
+    isFullMarathonRoadEdge(edge) &&
     edge.surfaceSuitable !== false &&
     (edge.terrainMeasured === true || typeof edge.slopeMean === "number") &&
     calibratedRaceGradePercent(edge.slopeMean ?? Number.POSITIVE_INFINITY) <= marathonQualityThresholds.maxAbsGradePercent

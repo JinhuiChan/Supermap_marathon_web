@@ -113,3 +113,21 @@ export function isEventUsableRoadEdge(edge: RoadEdge): boolean {
     edge.isTunnel !== true
   );
 }
+
+const fullMarathonRoadLevels = new Set<RoadLevel>([
+  "trunk",
+  "primary",
+  "secondary",
+  "tertiary",
+  "greenway"
+]);
+
+export function isFullMarathonRoadEdge(edge: RoadEdge): boolean {
+  return (
+    edge.competitionSuitable === true &&
+    fullMarathonRoadLevels.has(edge.roadLevel) &&
+    edge.surfaceSuitable !== false &&
+    edge.isElevated !== true &&
+    edge.isTunnel !== true
+  );
+}
