@@ -107,10 +107,13 @@ export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRe
         if (nextLengthKm > marathonQualityThresholds.maxDistanceKm) continue;
         const nextCoordinate = graph.nodes.get(nextNodeId)?.coordinate;
         const closesAtFinish = hasFixedFinish && nextNodeId === end.nodeId;
+        if (state.visitedNodeIds.has(nextNodeId) && !closesAtFinish) continue;
+        const nextCoordinates = nextCoordinate
+          ? appendAndValidateEdgeGeometry(state.coordinates, edge, nextCoordinate, closesAtFinish)
+          : null;
         if (
           !nextCoordinate ||
-          createsSelfIntersection(state.coordinates, nextCoordinate, closesAtFinish) ||
-          createsLocalKnot(state.coordinates, nextCoordinate, closesAtFinish)
+          !nextCoordinates
         ) continue;
 
         const finishesDynamically = !hasFixedFinish &&
@@ -142,7 +145,7 @@ export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRe
           physicalEdgeIds: [...state.physicalEdgeIds, physicalEdgeId],
           usedPhysicalEdges,
           visitedNodeIds,
-          coordinates: [...state.coordinates, nextCoordinate],
+          coordinates: nextCoordinates,
           totalLengthKm: nextLengthKm,
           objectiveScore: state.objectiveScore + objectiveEdgeScore(edge, request.objective)
         });
@@ -171,6 +174,43 @@ export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRe
       .slice(0, maxRoutes),
     expandedStates
   };
+}
+
+function appendAndValidateEdgeGeometry(
+  existing: Coordinate[],
+  edge: RoadEdge,
+  fallbackEnd: Coordinate,
+  closesAtFinish: boolean
+): Coordinate[] | null {
+  const raw = edge.coordinates?.length ? edge.coordinates : [existing.at(-1)!, fallbackEnd];
+  const additions = sameCoordinate(raw[0], existing.at(-1)!) ? raw.slice(1) : raw;
+  const combined = [...existing];
+
+  for (const coordinate of additions) {
+    const closesOnThisCoordinate = closesAtFinish && sameCoordinate(coordinate, fallbackEnd);
+    if (
+      revisitsExistingCoordinate(combined, coordinate, closesOnThisCoordinate) ||
+      createsSelfIntersection(combined, coordinate, closesOnThisCoordinate) ||
+      createsLocalKnot(combined, coordinate, closesOnThisCoordinate)
+    ) return null;
+    if (!sameCoordinate(combined.at(-1)!, coordinate)) combined.push(coordinate);
+  }
+
+  return combined;
+}
+
+function revisitsExistingCoordinate(
+  coordinates: Coordinate[],
+  next: Coordinate,
+  closesAtFinish: boolean
+): boolean {
+  const lastIndex = coordinates.length - 1;
+  for (let index = 0; index < lastIndex; index++) {
+    if (!sameCoordinate(coordinates[index], next)) continue;
+    if (closesAtFinish && index === 0) return false;
+    return true;
+  }
+  return false;
 }
 
 function toSearchedPath(

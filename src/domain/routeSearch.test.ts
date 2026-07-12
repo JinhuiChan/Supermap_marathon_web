@@ -132,7 +132,7 @@ describe("searchMarathonRoutes", () => {
     });
   });
 
-  it("may pass through an articulation junction twice without reusing a physical road", () => {
+  it("rejects revisiting an articulation junction even when physical roads are unique", () => {
     const graph = createEmptyGraph();
     const junction: Coordinate = [114.3, 30.6];
     addNode(graph, { id: "x", coordinate: junction });
@@ -164,10 +164,29 @@ describe("searchMarathonRoutes", () => {
       maxExpandedStates: 20_000
     });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.routes[0].nodeIds.filter((nodeId) => nodeId === "x")).toHaveLength(2);
-    expect(new Set(result.routes[0].physicalEdgeIds).size).toBe(result.routes[0].physicalEdgeIds.length);
+    expect(result).toMatchObject({ ok: false, code: "no-compliant-route" });
+  });
+
+  it("rejects an edge whose source geometry crosses an earlier route segment", () => {
+    const graph = cycleGraph();
+    const crossing = graph.edges.get("cycle-20")!;
+    crossing.coordinates = [
+      graph.nodes.get("n20")!.coordinate,
+      graph.nodes.get("n5")!.coordinate,
+      graph.nodes.get("n21")!.coordinate
+    ];
+    const reverse = graph.adjacency.get("n21")!.find((edge) => edge.physicalEdgeId === "cycle-20")!;
+    reverse.coordinates = [...crossing.coordinates].reverse();
+
+    const result = searchMarathonRoutes(graph, {
+      startPoint: graph.nodes.get("n0")!.coordinate,
+      endPoint: graph.nodes.get("n0")!.coordinate,
+      objective: "race-fast",
+      maxRoutes: 1,
+      maxExpandedStates: 20_000
+    });
+
+    expect(result).toMatchObject({ ok: false, code: "no-compliant-route" });
   });
 
   it("rejects roads already filtered by the competition suitability model", () => {
