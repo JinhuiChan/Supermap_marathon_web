@@ -4,7 +4,6 @@ import type { MarathonRoute } from "./routeMetrics";
 export const marathonQualityThresholds = {
   minDistanceKm: 42.195,
   maxDistanceKm: 42.237,
-  maxEndpointSeparationKm: 21.0975,
   maxNetDropM: 42.195,
   maxTotalClimbM: 180,
   maxAbsGradePercent: 5,
@@ -15,7 +14,6 @@ export const marathonQualityThresholds = {
 
 export type RouteQualityIssueCode =
   | "distance"
-  | "endpoint-separation"
   | "net-drop"
   | "total-climb"
   | "max-grade"
@@ -25,6 +23,10 @@ export type RouteQualityIssueCode =
   | "backtrack"
   | "self-intersection"
   | "local-knot"
+  | "node-revisit"
+  | "parallel-backtrack"
+  | "hairpin-turn"
+  | "sharp-turn-density"
   | "continuity-gap"
   | "road-suitability"
   | "road-alignment";
@@ -52,9 +54,6 @@ export function evaluateRouteQuality(route: MarathonRoute): RouteQualityReport {
   if (route.lengthKm < marathonQualityThresholds.minDistanceKm || route.lengthKm > marathonQualityThresholds.maxDistanceKm) {
     addIssue(issues, "distance", "规划里程", route.lengthKm, marathonQualityThresholds.maxDistanceKm);
   }
-  if (endpointSeparationKm > marathonQualityThresholds.maxEndpointSeparationKm) {
-    addIssue(issues, "endpoint-separation", "起终点直线距离", endpointSeparationKm, marathonQualityThresholds.maxEndpointSeparationKm);
-  }
   if ((metrics.netElevationDropM ?? Number.POSITIVE_INFINITY) > marathonQualityThresholds.maxNetDropM) {
     addIssue(issues, "net-drop", "起终点净下降", metrics.netElevationDropM ?? false, marathonQualityThresholds.maxNetDropM);
   }
@@ -81,6 +80,18 @@ export function evaluateRouteQuality(route: MarathonRoute): RouteQualityReport {
   }
   if ((metrics.localKnotCount ?? Number.POSITIVE_INFINITY) > 0) {
     addIssue(issues, "local-knot", "局部绳结", metrics.localKnotCount ?? false, 0);
+  }
+  if ((metrics.revisitedNodeCount ?? Number.POSITIVE_INFINITY) > 0) {
+    addIssue(issues, "node-revisit", "交叉口复访", metrics.revisitedNodeCount ?? false, 0);
+  }
+  if ((metrics.parallelBacktrackCount ?? Number.POSITIVE_INFINITY) > 0) {
+    addIssue(issues, "parallel-backtrack", "平行折返", metrics.parallelBacktrackCount ?? false, 0);
+  }
+  if ((metrics.hairpinTurnCount ?? Number.POSITIVE_INFINITY) > 0) {
+    addIssue(issues, "hairpin-turn", "发卡掉头", metrics.hairpinTurnCount ?? false, 0);
+  }
+  if ((metrics.sharpTurnDensityPerKm ?? Number.POSITIVE_INFINITY) > 1.5) {
+    addIssue(issues, "sharp-turn-density", "急弯密度", metrics.sharpTurnDensityPerKm ?? false, 1.5);
   }
   if ((metrics.maxContinuityGapM ?? Number.POSITIVE_INFINITY) > marathonQualityThresholds.maxContinuityGapM) {
     addIssue(issues, "continuity-gap", "路网连续误差", metrics.maxContinuityGapM ?? false, marathonQualityThresholds.maxContinuityGapM);

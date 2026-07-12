@@ -29,6 +29,10 @@ const route: MarathonRoute = {
     selfIntersectionCount: 0,
     localBacktrackCount: 0,
     localKnotCount: 0,
+    revisitedNodeCount: 0,
+    parallelBacktrackCount: 0,
+    hairpinTurnCount: 0,
+    sharpTurnDensityPerKm: 0.4,
     supplyCoverageRatio: 0.8,
     medicalAvgIntervalKm: 4,
     parkingServiceScore: 85,
@@ -44,6 +48,10 @@ describe("RouteQualityPanel", () => {
     expect(html).toContain("重复道路");
     expect(html).toContain("0%");
     expect(html).toContain("自交");
+    expect(html).toContain("交叉口复访");
+    expect(html).toContain("平行折返");
+    expect(html).toContain("发卡掉头");
+    expect(html).toContain("急弯密度");
     expect(html).toContain("连续误差");
     expect(html).toContain("0.3 m");
     expect(html).toContain("规划结果不替代 World Athletics / AIMS 认证测量");

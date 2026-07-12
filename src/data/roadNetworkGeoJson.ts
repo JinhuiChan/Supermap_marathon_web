@@ -46,12 +46,17 @@ export function mapOsmHighwayToRoadLevel(value: unknown): RoadLevel {
     case "motorway":
       return "motorway";
     case "trunk":
+    case "trunk_link":
       return "trunk";
     case "primary":
+    case "primary_link":
       return "primary";
     case "secondary":
+    case "secondary_link":
       return "secondary";
     case "tertiary":
+    case "tertiary_link":
+    case "unclassified":
       return "tertiary";
     case "service":
       return "service";
@@ -236,7 +241,9 @@ function addLineToGraph(
     const lengthKm = haversineKm(from, to);
     if (lengthKm <= 0) continue;
 
-    const roadLevel = mapOsmHighwayToRoadLevel(properties.highway ?? properties.road_level ?? properties.fclass);
+    const highwayValue = properties.highway ?? properties.road_level ?? properties.fclass;
+    const roadLevel = mapOsmHighwayToRoadLevel(highwayValue);
+    const isJunctionLink = typeof highwayValue === "string" && highwayValue.toLocaleLowerCase().endsWith("_link");
     const impedance = normalizeNumber(properties.impedance);
     const baseImpedance = normalizeNumber(properties.base_impedance);
     const slopeImpedance = normalizeNumber(properties.slope_impedance);
@@ -255,13 +262,13 @@ function addLineToGraph(
     const terrainMeasured = slopeMean !== null;
     const baseCompetitionSuitable = explicitControlOk ?? (isCompetitionSuitableRoadLevel(roadLevel) || roadLevel === "greenway");
     const slopeTooSteepForMarathon = !isRequiredRiverBridge && slopeMean !== null && Math.abs(slopeMean) > 5;
-    const competitionSuitable =
+    const nonSlopeCompetitionSuitable =
       (isRequiredRiverBridge || baseCompetitionSuitable) &&
       roadWidthM >= MIN_MARATHON_ROAD_WIDTH_M &&
       surfaceSuitable &&
       !isElevated &&
-      !(isTunnel && lengthKm >= LONG_TUNNEL_KM) &&
-      !slopeTooSteepForMarathon;
+      !(isTunnel && lengthKm >= LONG_TUNNEL_KM);
+    const competitionSuitable = nonSlopeCompetitionSuitable && !slopeTooSteepForMarathon;
     const hasDecomposedImpedance =
       baseImpedance !== null || slopeImpedance !== null || constraintImpedance !== null || typeof properties.slope_source === "string";
     const slopePenalty = hasDecomposedImpedance
@@ -287,12 +294,13 @@ function addLineToGraph(
       isBridge,
       isTunnel,
       isElevated,
+      isJunctionLink,
       competitionSuitable,
       baselineCost: lengthKm * (1 + totalPenalty / 100),
       roadWidthM,
       roadName,
       isRequiredRiverBridge,
-      slopeFiltered: slopeTooSteepForMarathon,
+      slopeFiltered: slopeTooSteepForMarathon && nonSlopeCompetitionSuitable,
       coordinates: [from, to],
       surfaceSuitable,
       terrainMeasured,

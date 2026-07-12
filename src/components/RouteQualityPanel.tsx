@@ -7,7 +7,7 @@ export function RouteQualityPanel({ route }: { route: MarathonRoute | null }) {
       <section className="side-section route-quality-panel empty">
         <span className="quality-eyebrow">规划合规检查</span>
         <h2>等待合规路线</h2>
-        <p>生成路线后，这里会逐项展示距离、坡度、重复道路、自交和路网连续性证据。</p>
+        <p>生成路线后，这里会逐项展示距离、坡度、道路贴合、交叉口复访和折返检测证据。</p>
         <CertificationNotice />
       </section>
     );
@@ -17,12 +17,16 @@ export function RouteQualityPanel({ route }: { route: MarathonRoute | null }) {
   const metrics = route.metrics;
   const rows = [
     ["规划里程", `${route.lengthKm.toFixed(3)} km`],
-    ["起终点直线距离", `${report.endpointSeparationKm.toFixed(3)} km`],
+    ["起终点直线距离（参考）", `${report.endpointSeparationKm.toFixed(3)} km`],
     ["累计爬升", `${metrics.totalClimbM.toFixed(0)} m`],
     ["最大坡度", `${metrics.maxSlopePercent.toFixed(1)}%`],
     ["重复道路", `${((metrics.repeatedRoadRatio ?? 0) * 100).toFixed(0)}%`],
     ["自交", `${metrics.selfIntersectionCount ?? 0}`],
     ["局部绳结", `${metrics.localKnotCount ?? 0}`],
+    ["交叉口复访", `${metrics.revisitedNodeCount ?? 0}`],
+    ["平行折返", `${metrics.parallelBacktrackCount ?? 0}`],
+    ["发卡掉头", `${metrics.hairpinTurnCount ?? 0}`],
+    ["急弯密度", `${(metrics.sharpTurnDensityPerKm ?? 0).toFixed(2)} 次/km`],
     ["连续误差", `${(metrics.maxContinuityGapM ?? 0).toFixed(1)} m`],
     ["路网贴合", `${((metrics.roadAlignedRatio ?? 0) * 100).toFixed(0)}%`]
   ];

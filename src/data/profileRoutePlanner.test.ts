@@ -38,10 +38,9 @@ const roadNetwork = {
 };
 
 describe("profileRoutePlanner", () => {
-  test("keeps configured plans for the three visible selection goals", () => {
+  test("keeps configured plans for the two visible selection goals", () => {
     expect(profileRoutePlans).toEqual(expect.objectContaining({
       "pb-friendly": expect.objectContaining({ name: expect.stringContaining("竞速") }),
-      "support-first": expect.objectContaining({ name: expect.stringContaining("保障") }),
       scenic: expect.objectContaining({ name: expect.stringContaining("城市体验") })
     }));
   });

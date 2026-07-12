@@ -29,6 +29,10 @@ export interface RouteMetrics {
   selfIntersectionCount?: number;
   localBacktrackCount?: number;
   localKnotCount?: number;
+  revisitedNodeCount?: number;
+  parallelBacktrackCount?: number;
+  hairpinTurnCount?: number;
+  sharpTurnDensityPerKm?: number;
   supplyCoverageRatio: number;
   medicalAvgIntervalKm: number;
   parkingServiceScore: number;
@@ -81,7 +85,6 @@ export type RouteSelectionProfile =
 
 export const routeSelectionProfiles: Array<{ id: RouteSelectionProfile; label: string; description: string }> = [
   { id: "pb-friendly", label: "竞速平坦", description: "低爬升、少急弯、宽路连续，适合稳定配速" },
-  { id: "support-first", label: "组织保障", description: "优先医疗、补给、公共交通和赛后集散" },
   { id: "scenic", label: "城市体验", description: "优先地标、滨水、公园与观赛展示价值" }
 ];
 

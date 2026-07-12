@@ -29,10 +29,9 @@ export const defaultGisPlanningSettings: GisPlanningSettings = {
   impedanceWeights: {},
   constraints: {
     corridor: "武汉铺装道路网络 · 高程与道路属性已校核",
-    startFinish: "自动选择合规终点；起终点直线距离不超过全程 50%",
+    startFinish: "自动选择路网上的合规起点与终点",
     routeRules: [
       "42.195–42.237 km",
-      "起终点直线距离 ≤ 21.0975 km",
       "起终点净下降 ≤ 42.195 m",
       "累计爬升 ≤ 180 m",
       "最大坡度 ≤ 5%",
@@ -40,8 +39,13 @@ export const defaultGisPlanningSettings: GisPlanningSettings = {
       "重复道路 0%",
       "自交 0",
       "局部绳结 0",
+      "交叉口复访 0",
+      "平行折返 0",
+      "发卡掉头 0",
+      "急弯密度 ≤ 1.5 次/km",
       "路网连续误差 ≤ 10 m",
-      "道路几何贴合率 100%"
+      "道路几何贴合率 100%",
+      "仅使用合规主次干道与绿道"
     ],
     mustPass: [],
     avoid: ["高架与匝道", "长隧道", "软质路面", "不可封闭道路"]
@@ -67,7 +71,7 @@ export function GisSelectionPanel({
 
       <section className="gis-tool-group gis-step-group">
         <h3>1. 选择目标</h3>
-        <p className="gis-tool-hint">三种目标共享同一组硬性合规规则，仅改变合格路线的排序偏好。</p>
+        <p className="gis-tool-hint">两种目标共享同一组硬性合规规则，仅改变合格路线的走廊与排序偏好。</p>
         <div className="gis-profile-grid">
           {routeSelectionProfiles.map((profile) => (
             <button

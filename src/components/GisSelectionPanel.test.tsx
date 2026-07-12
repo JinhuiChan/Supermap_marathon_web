@@ -5,7 +5,7 @@ import { GisSelectionPanel, defaultGisPlanningSettings } from "./GisSelectionPan
 function renderPanel(overrides: Partial<Parameters<typeof GisSelectionPanel>[0]> = {}) {
   return renderToStaticMarkup(
     <GisSelectionPanel
-      activeProfile="support-first"
+      activeProfile="pb-friendly"
       settings={defaultGisPlanningSettings}
       canGenerate
       onProfileChange={() => {}}
@@ -28,13 +28,12 @@ describe("GisSelectionPanel", () => {
     expect(html).toContain('title="道路网络数据仍在加载"');
   });
 
-  it("offers exactly three goals whose hard rules stay identical", () => {
+  it("offers two distinct goals whose hard rules stay identical", () => {
     const html = renderPanel();
     expect(html).toContain("竞速平坦");
-    expect(html).toContain("组织保障");
     expect(html).toContain("城市体验");
-    expect((html.match(/class="[^"]*gis-profile-option/g) ?? [])).toHaveLength(3);
-    expect(html).toContain("三种目标共享同一组硬性合规规则，仅改变合格路线的排序偏好");
+    expect((html.match(/class="[^"]*gis-profile-option/g) ?? [])).toHaveLength(2);
+    expect(html).toContain("两种目标共享同一组硬性合规规则，仅改变合格路线的走廊与排序偏好");
   });
 
   it("puts the decision flow ahead of implementation parameters", () => {
@@ -50,11 +49,14 @@ describe("GisSelectionPanel", () => {
   it("shows the enforceable marathon route thresholds", () => {
     const html = renderPanel();
     expect(html).toContain("42.195–42.237 km");
-    expect(html).toContain("起终点直线距离 ≤ 21.0975 km");
+    expect(html).not.toContain("21.0975");
     expect(html).toContain("起终点净下降 ≤ 42.195 m");
     expect(html).toContain("累计爬升 ≤ 180 m");
     expect(html).toContain("重复道路 0%");
     expect(html).toContain("自交 0");
+    expect(html).toContain("交叉口复访 0");
+    expect(html).toContain("平行折返 0");
+    expect(html).toContain("发卡掉头 0");
     expect(html).toContain("路网连续误差 ≤ 10 m");
   });
 });

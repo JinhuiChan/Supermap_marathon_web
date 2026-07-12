@@ -133,15 +133,13 @@ describe("routeMetrics", () => {
     expect(scoreRoute(tangledRoute).recommendationScore).toBeLessThan(scoreRoute(venueReadyRoute).recommendationScore);
   });
 
-  it("offers only the three decision-ready route objectives", () => {
+  it("offers only the two distinct decision-ready route objectives", () => {
     expect(routeSelectionProfiles.map((profile) => profile.id)).toEqual([
       "pb-friendly",
-      "support-first",
       "scenic"
     ]);
     expect(routeSelectionProfiles.map((profile) => profile.label)).toEqual([
       "竞速平坦",
-      "组织保障",
       "城市体验"
     ]);
   });

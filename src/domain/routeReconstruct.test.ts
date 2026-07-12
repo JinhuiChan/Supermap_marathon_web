@@ -81,4 +81,59 @@ describe("pathToMarathonRoute provenance", () => {
     expect(route.metrics.maxContinuityGapM).toBeGreaterThan(10);
     expect(route.metrics.roadAlignedRatio).toBeLessThan(1);
   });
+
+  it("marks neighborhood streets as unsuitable for a full-marathon course", () => {
+    const graph = createEmptyGraph();
+    addNode(graph, { id: "a", coordinate: [114.3, 30.6] });
+    addNode(graph, { id: "b", coordinate: [114.31, 30.6] });
+    addEdge(graph, edge({
+      id: "ab",
+      fromNodeId: "a",
+      toNodeId: "b",
+      roadLevel: "residential",
+      competitionSuitable: false,
+      coordinates: [[114.3, 30.6], [114.31, 30.6]]
+    }));
+
+    const route = pathToMarathonRoute({
+      nodeIds: ["a", "b"],
+      edgeIds: ["ab"],
+      totalLengthKm: 21.1
+    }, graph, 0);
+
+    expect(route.metrics.unsuitableEdgeCount).toBe(1);
+  });
+
+  it("ends on the selected final road geometry when the terminal edge is clipped", () => {
+    const graph = createEmptyGraph();
+    addNode(graph, { id: "a", coordinate: [114.3, 30.6] });
+    addNode(graph, { id: "b", coordinate: [114.31, 30.6] });
+    addNode(graph, { id: "c", coordinate: [114.32, 30.6] });
+    addEdge(graph, edge({
+      id: "ab",
+      fromNodeId: "a",
+      toNodeId: "b",
+      lengthKm: 21.1,
+      coordinates: [[114.3, 30.6], [114.31, 30.6]]
+    }));
+    addEdge(graph, edge({
+      id: "bc",
+      fromNodeId: "b",
+      toNodeId: "c",
+      lengthKm: 21.2,
+      coordinates: [[114.31, 30.6], [114.32, 30.6]]
+    }));
+    const terminalEdgeFraction = (42.195 - 21.1) / 21.2;
+
+    const route = pathToMarathonRoute({
+      nodeIds: ["a", "b", "c"],
+      edgeIds: ["ab", "bc"],
+      totalLengthKm: 42.195,
+      terminalEdgeFraction
+    }, graph, 0);
+
+    expect(route.coordinates.at(-1)?.[0]).toBeCloseTo(114.31 + 0.01 * terminalEdgeFraction, 8);
+    expect(route.coordinates.at(-1)?.[1]).toBe(30.6);
+    expect(route.metrics.roadAlignedRatio).toBe(1);
+  });
 });

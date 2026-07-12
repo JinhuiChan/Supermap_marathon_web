@@ -1,7 +1,8 @@
 import { haversineKm } from "./roadAttributes";
-import { isEventUsableRoadEdge, type RoadEdge, type RoadGraph } from "./roadNetwork";
+import { isFullMarathonRoadEdge, type RoadEdge, type RoadGraph } from "./roadNetwork";
 import type { Coordinate } from "./routeMetrics";
 import { marathonQualityThresholds } from "./routeQuality";
+import { createsForbiddenTopologyStep } from "./routeTopology";
 
 export type MarathonSearchObjective = "race-fast" | "operations" | "city-experience";
 
@@ -18,13 +19,14 @@ export interface SearchedPath {
   edgeIds: string[];
   physicalEdgeIds: string[];
   totalLengthKm: number;
+  terminalEdgeFraction?: number;
 }
 
 export type MarathonSearchResult =
   | { ok: true; routes: SearchedPath[]; expandedStates: number }
   | {
       ok: false;
-      code: "endpoint-separation" | "snap-distance" | "no-compliant-route";
+      code: "snap-distance" | "no-compliant-route";
       message: string;
       expandedStates: number;
       diagnostics?: { maxReachedKm: number; maxReachedNodeId: string };
@@ -45,18 +47,17 @@ const MAX_SNAP_DISTANCE_KM = 1.5;
 
 export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRequest): MarathonSearchResult {
   const hasFixedFinish = Boolean(request.endPoint);
-  const separationKm = request.endPoint ? haversineKm(request.startPoint, request.endPoint) : 0;
-  if (request.endPoint && separationKm > marathonQualityThresholds.maxEndpointSeparationKm) {
-    return failure(
-      "endpoint-separation",
-      `起终点直线距离 ${separationKm.toFixed(3)} km，超过 21.0975 km 上限`,
-      0
-    );
-  }
-
-  const start = snapToSuitableNode(graph, request.startPoint);
+  const componentCapacityKm = hasFixedFinish ? undefined : computeEligibleComponentCapacityKm(graph);
+  const start = snapToSuitableNode(
+    graph,
+    request.startPoint,
+    componentCapacityKm,
+    hasFixedFinish ? 0 : marathonQualityThresholds.minDistanceKm
+  );
   const end = request.endPoint ? snapToSuitableNode(graph, request.endPoint) : start;
-  if (!start || !end || start.distanceKm > MAX_SNAP_DISTANCE_KM || end.distanceKm > MAX_SNAP_DISTANCE_KM) {
+  const startTooFar = hasFixedFinish && (start?.distanceKm ?? Number.POSITIVE_INFINITY) > MAX_SNAP_DISTANCE_KM;
+  const endTooFar = hasFixedFinish && (end?.distanceKm ?? Number.POSITIVE_INFINITY) > MAX_SNAP_DISTANCE_KM;
+  if (!start || !end || startTooFar || endTooFar) {
     return failure("snap-distance", "起点或终点距离可比赛道路过远", 0);
   }
 
@@ -104,18 +105,49 @@ export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRe
           maxReachedKm = nextLengthKm;
           maxReachedNodeId = nextNodeId;
         }
-        if (nextLengthKm > marathonQualityThresholds.maxDistanceKm) continue;
-        const nextCoordinate = graph.nodes.get(nextNodeId)?.coordinate;
+        const crossesDynamicFinish = !hasFixedFinish &&
+          state.totalLengthKm < marathonQualityThresholds.minDistanceKm &&
+          nextLengthKm >= marathonQualityThresholds.minDistanceKm;
+        const terminalEdgeFraction = crossesDynamicFinish
+          ? (marathonQualityThresholds.minDistanceKm - state.totalLengthKm) / edge.lengthKm
+          : undefined;
+        if (!crossesDynamicFinish && nextLengthKm > marathonQualityThresholds.maxDistanceKm) continue;
+        const fullNextCoordinate = graph.nodes.get(nextNodeId)?.coordinate;
+        const edgeForValidation = terminalEdgeFraction === undefined
+          ? edge
+          : { ...edge, coordinates: clipCoordinatesByFraction(edge.coordinates ?? [], terminalEdgeFraction) };
+        const nextCoordinate = terminalEdgeFraction === undefined
+          ? fullNextCoordinate
+          : edgeForValidation.coordinates?.at(-1);
         const closesAtFinish = hasFixedFinish && nextNodeId === end.nodeId;
+        if (state.visitedNodeIds.has(nextNodeId) && !closesAtFinish) continue;
+        const nextCoordinates = nextCoordinate
+          ? appendAndValidateEdgeGeometry(state.coordinates, edgeForValidation, nextCoordinate, closesAtFinish)
+          : null;
         if (
           !nextCoordinate ||
-          createsSelfIntersection(state.coordinates, nextCoordinate, closesAtFinish) ||
-          createsLocalKnot(state.coordinates, nextCoordinate, closesAtFinish)
+          !nextCoordinates
         ) continue;
+
+        if (crossesDynamicFinish && terminalEdgeFraction !== undefined) {
+          const completed = toSearchedPath(
+            state,
+            edge,
+            physicalEdgeId,
+            marathonQualityThresholds.minDistanceKm,
+            terminalEdgeFraction
+          );
+          const key = `${completed.physicalEdgeIds.join("|")}|${terminalEdgeFraction.toFixed(6)}`;
+          if (!routeKeys.has(key)) {
+            routeKeys.add(key);
+            routes.push(completed);
+          }
+          continue;
+        }
 
         const finishesDynamically = !hasFixedFinish &&
           nextLengthKm >= marathonQualityThresholds.minDistanceKm &&
-          haversineKm(request.startPoint, nextCoordinate) <= marathonQualityThresholds.maxEndpointSeparationKm;
+          nextLengthKm <= marathonQualityThresholds.maxDistanceKm;
         if ((hasFixedFinish && nextNodeId === end.nodeId) || finishesDynamically) {
           if (nextLengthKm < marathonQualityThresholds.minDistanceKm) continue;
           const completed = toSearchedPath(state, edge, physicalEdgeId, nextLengthKm);
@@ -142,7 +174,7 @@ export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRe
           physicalEdgeIds: [...state.physicalEdgeIds, physicalEdgeId],
           usedPhysicalEdges,
           visitedNodeIds,
-          coordinates: [...state.coordinates, nextCoordinate],
+          coordinates: nextCoordinates,
           totalLengthKm: nextLengthKm,
           objectiveScore: state.objectiveScore + objectiveEdgeScore(edge, request.objective)
         });
@@ -173,18 +205,89 @@ export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRe
   };
 }
 
+function appendAndValidateEdgeGeometry(
+  existing: Coordinate[],
+  edge: RoadEdge,
+  fallbackEnd: Coordinate,
+  closesAtFinish: boolean
+): Coordinate[] | null {
+  const raw = edge.coordinates?.length ? edge.coordinates : [existing.at(-1)!, fallbackEnd];
+  const additions = sameCoordinate(raw[0], existing.at(-1)!) ? raw.slice(1) : raw;
+  const combined = [...existing];
+
+  for (const coordinate of additions) {
+    const closesOnThisCoordinate = closesAtFinish && sameCoordinate(coordinate, fallbackEnd);
+    if (
+      revisitsExistingCoordinate(combined, coordinate, closesOnThisCoordinate) ||
+      createsForbiddenTopologyStep(combined, coordinate) ||
+      createsSelfIntersection(combined, coordinate, closesOnThisCoordinate) ||
+      createsLocalKnot(combined, coordinate, closesOnThisCoordinate)
+    ) return null;
+    if (!sameCoordinate(combined.at(-1)!, coordinate)) combined.push(coordinate);
+  }
+
+  return combined;
+}
+
+function revisitsExistingCoordinate(
+  coordinates: Coordinate[],
+  next: Coordinate,
+  closesAtFinish: boolean
+): boolean {
+  const lastIndex = coordinates.length - 1;
+  for (let index = 0; index < lastIndex; index++) {
+    if (!sameCoordinate(coordinates[index], next)) continue;
+    if (closesAtFinish && index === 0) return false;
+    return true;
+  }
+  return false;
+}
+
 function toSearchedPath(
   state: SearchState,
   edge: RoadEdge,
   physicalEdgeId: string,
-  totalLengthKm: number
+  totalLengthKm: number,
+  terminalEdgeFraction?: number
 ): SearchedPath {
   return {
     nodeIds: [...state.nodeIds, edge.toNodeId],
     edgeIds: [...state.edgeIds, edge.id],
     physicalEdgeIds: [...state.physicalEdgeIds, physicalEdgeId],
-    totalLengthKm: Math.round(totalLengthKm * 1000) / 1000
+    totalLengthKm: Math.round(totalLengthKm * 1000) / 1000,
+    ...(terminalEdgeFraction === undefined ? {} : { terminalEdgeFraction })
   };
+}
+
+function clipCoordinatesByFraction(coordinates: Coordinate[], fraction: number): Coordinate[] {
+  if (coordinates.length < 2 || fraction >= 1) return [...coordinates];
+  if (fraction <= 0) return coordinates.length ? [coordinates[0]] : [];
+  const segmentLengths = coordinates.slice(1).map((coordinate, index) =>
+    haversineKm(coordinates[index], coordinate)
+  );
+  const totalKm = segmentLengths.reduce((sum, length) => sum + length, 0);
+  const targetKm = totalKm * fraction;
+  const clipped: Coordinate[] = [coordinates[0]];
+  let walkedKm = 0;
+
+  for (let index = 0; index < segmentLengths.length; index++) {
+    const segmentKm = segmentLengths[index];
+    if (walkedKm + segmentKm < targetKm) {
+      clipped.push(coordinates[index + 1]);
+      walkedKm += segmentKm;
+      continue;
+    }
+    const localFraction = segmentKm <= 0 ? 0 : (targetKm - walkedKm) / segmentKm;
+    const from = coordinates[index];
+    const to = coordinates[index + 1];
+    clipped.push([
+      from[0] + (to[0] - from[0]) * localFraction,
+      from[1] + (to[1] - from[1]) * localFraction
+    ]);
+    break;
+  }
+
+  return clipped;
 }
 
 function selectBeam(states: SearchState[], lowerBounds: Map<string, number>, hasFixedFinish: boolean): SearchState[] {
@@ -236,7 +339,7 @@ export function objectiveEdgeScore(edge: RoadEdge, objective: MarathonSearchObje
 
 function edgeIsEligible(edge: RoadEdge): boolean {
   return (
-    isEventUsableRoadEdge(edge) &&
+    isFullMarathonRoadEdge(edge) &&
     edge.surfaceSuitable !== false &&
     (edge.terrainMeasured === true || typeof edge.slopeMean === "number") &&
     calibratedRaceGradePercent(edge.slopeMean ?? Number.POSITIVE_INFINITY) <= marathonQualityThresholds.maxAbsGradePercent
@@ -247,14 +350,50 @@ function calibratedRaceGradePercent(rasterSlopePercent: number): number {
   return Math.abs(rasterSlopePercent) * 0.22;
 }
 
-function snapToSuitableNode(graph: RoadGraph, coordinate: Coordinate) {
+function snapToSuitableNode(
+  graph: RoadGraph,
+  coordinate: Coordinate,
+  componentCapacityKm?: Map<string, number>,
+  minimumComponentKm = 0
+) {
   let best: { nodeId: string; distanceKm: number } | null = null;
   for (const node of graph.nodes.values()) {
     if (!(graph.adjacency.get(node.id) ?? []).some(edgeIsEligible)) continue;
+    if ((componentCapacityKm?.get(node.id) ?? Number.POSITIVE_INFINITY) < minimumComponentKm) continue;
     const distanceKm = haversineKm(coordinate, node.coordinate);
     if (!best || distanceKm < best.distanceKm) best = { nodeId: node.id, distanceKm };
   }
   return best;
+}
+
+function computeEligibleComponentCapacityKm(graph: RoadGraph): Map<string, number> {
+  const capacities = new Map<string, number>();
+  const visited = new Set<string>();
+
+  for (const node of graph.nodes.values()) {
+    if (visited.has(node.id)) continue;
+    const queue = [node.id];
+    const componentNodes: string[] = [];
+    const physicalEdges = new Map<string, number>();
+    visited.add(node.id);
+
+    while (queue.length > 0) {
+      const nodeId = queue.shift()!;
+      componentNodes.push(nodeId);
+      for (const edge of graph.adjacency.get(nodeId) ?? []) {
+        if (!edgeIsEligible(edge)) continue;
+        physicalEdges.set(getPhysicalEdgeId(edge), edge.lengthKm);
+        if (visited.has(edge.toNodeId)) continue;
+        visited.add(edge.toNodeId);
+        queue.push(edge.toNodeId);
+      }
+    }
+
+    const capacityKm = [...physicalEdges.values()].reduce((sum, lengthKm) => sum + lengthKm, 0);
+    componentNodes.forEach((nodeId) => capacities.set(nodeId, capacityKm));
+  }
+
+  return capacities;
 }
 
 function shortestDistancesTo(graph: RoadGraph, destinationNodeId: string): Map<string, number> {
@@ -333,7 +472,7 @@ function getPhysicalEdgeId(edge: RoadEdge): string {
 }
 
 function failure(
-  code: "endpoint-separation" | "snap-distance" | "no-compliant-route",
+  code: "snap-distance" | "no-compliant-route",
   message: string,
   expandedStates: number,
   diagnostics?: { maxReachedKm: number; maxReachedNodeId: string }

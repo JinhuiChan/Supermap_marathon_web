@@ -90,15 +90,42 @@ describe("searchMarathonRoutes", () => {
     expect(first.routes[0].physicalEdgeIds).not.toContain("steep-shortcut");
   });
 
-  it("rejects endpoints farther apart than half the marathon distance before searching", () => {
-    const graph = cycleGraph();
+  it("does not reject distant endpoints when a compliant road path connects them", () => {
+    const graph = createEmptyGraph();
+    for (let index = 0; index <= 42; index++) {
+      addNode(graph, { id: `far-${index}`, coordinate: [114 + index * (0.3 / 42), 30.6] });
+      if (index > 0) addEligibleEdge(graph, `far-edge-${index}`, `far-${index - 1}`, `far-${index}`, 1.005);
+    }
     const result = searchMarathonRoutes(graph, {
-      startPoint: [114, 30.6],
-      endPoint: [114.3, 30.6],
-      objective: "operations"
+      startPoint: graph.nodes.get("far-0")!.coordinate,
+      endPoint: graph.nodes.get("far-42")!.coordinate,
+      objective: "operations",
+      maxRoutes: 1,
+      maxExpandedStates: 20_000
     });
 
-    expect(result).toMatchObject({ ok: false, code: "endpoint-separation", expandedStates: 0 });
+    expect(result.ok).toBe(true);
+  });
+
+  it("clips the terminal event road edge to close exactly at 42.195 km", () => {
+    const graph = createEmptyGraph();
+    for (let index = 0; index <= 42; index++) {
+      addNode(graph, { id: `clip-${index}`, coordinate: [114.3 + index * 0.001, 30.6] });
+      if (index > 0) addEligibleEdge(graph, `clip-edge-${index}`, `clip-${index - 1}`, `clip-${index}`, 1.01);
+    }
+
+    const result = searchMarathonRoutes(graph, {
+      startPoint: graph.nodes.get("clip-0")!.coordinate,
+      objective: "race-fast",
+      maxRoutes: 1,
+      maxExpandedStates: 20_000
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.routes[0].totalLengthKm).toBe(42.195);
+    expect(result.routes[0].terminalEdgeFraction).toBeGreaterThan(0);
+    expect(result.routes[0].terminalEdgeFraction).toBeLessThan(1);
   });
 
   it("returns a structured failure when no simple path can reach marathon distance", () => {
@@ -132,7 +159,7 @@ describe("searchMarathonRoutes", () => {
     });
   });
 
-  it("may pass through an articulation junction twice without reusing a physical road", () => {
+  it("rejects revisiting an articulation junction even when physical roads are unique", () => {
     const graph = createEmptyGraph();
     const junction: Coordinate = [114.3, 30.6];
     addNode(graph, { id: "x", coordinate: junction });
@@ -164,13 +191,55 @@ describe("searchMarathonRoutes", () => {
       maxExpandedStates: 20_000
     });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.routes[0].nodeIds.filter((nodeId) => nodeId === "x")).toHaveLength(2);
-    expect(new Set(result.routes[0].physicalEdgeIds).size).toBe(result.routes[0].physicalEdgeIds.length);
+    expect(result).toMatchObject({ ok: false, code: "no-compliant-route" });
   });
 
-  it("keeps raster-slope filtered roads when their calibrated race grade remains acceptable", () => {
+  it("snaps an automatic start to the nearest component with marathon capacity", () => {
+    const graph = createEmptyGraph();
+    addNode(graph, { id: "small-a", coordinate: [114.3, 30.6] });
+    addNode(graph, { id: "small-b", coordinate: [114.301, 30.6] });
+    addEligibleEdge(graph, "small-edge", "small-a", "small-b", 1);
+
+    for (let index = 0; index <= 42; index++) {
+      addNode(graph, { id: `large-${index}`, coordinate: [114.31 + index * 0.0005, 30.61] });
+      if (index > 0) addEligibleEdge(graph, `large-edge-${index}`, `large-${index - 1}`, `large-${index}`, 1.005);
+    }
+
+    const result = searchMarathonRoutes(graph, {
+      startPoint: [114.3, 30.6],
+      objective: "operations",
+      maxRoutes: 1,
+      maxExpandedStates: 20_000
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.routes[0].nodeIds[0]).toBe("large-0");
+  });
+
+  it("rejects an edge whose source geometry crosses an earlier route segment", () => {
+    const graph = cycleGraph();
+    const crossing = graph.edges.get("cycle-20")!;
+    crossing.coordinates = [
+      graph.nodes.get("n20")!.coordinate,
+      graph.nodes.get("n5")!.coordinate,
+      graph.nodes.get("n21")!.coordinate
+    ];
+    const reverse = graph.adjacency.get("n21")!.find((edge) => edge.physicalEdgeId === "cycle-20")!;
+    reverse.coordinates = [...crossing.coordinates].reverse();
+
+    const result = searchMarathonRoutes(graph, {
+      startPoint: graph.nodes.get("n0")!.coordinate,
+      endPoint: graph.nodes.get("n0")!.coordinate,
+      objective: "race-fast",
+      maxRoutes: 1,
+      maxExpandedStates: 20_000
+    });
+
+    expect(result).toMatchObject({ ok: false, code: "no-compliant-route" });
+  });
+
+  it("keeps event-level roads when calibrated raster slope remains acceptable", () => {
     const graph = cycleGraph();
     for (const edges of graph.adjacency.values()) {
       for (const edge of edges) {
@@ -199,7 +268,7 @@ describe("searchMarathonRoutes", () => {
     expect(result.routes[0].physicalEdgeIds).toContain("cycle-10");
   });
 
-  it("allows a paved five-metre residential road that can be fully closed for the event", () => {
+  it("rejects a paved residential road instead of using it to complete marathon distance", () => {
     const graph = cycleGraph();
     for (const edges of graph.adjacency.values()) {
       for (const edge of edges) {
@@ -226,9 +295,7 @@ describe("searchMarathonRoutes", () => {
       maxExpandedStates: 20_000
     });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.routes[0].physicalEdgeIds).toContain("cycle-10");
+    expect(result).toMatchObject({ ok: false, code: "no-compliant-route" });
   });
 
   it("selects a compliant finish dynamically when no finish point is prescribed", () => {

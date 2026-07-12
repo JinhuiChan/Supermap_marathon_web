@@ -5,12 +5,11 @@ import { SelectionProfilePanel } from "./SelectionProfilePanel";
 describe("SelectionProfilePanel", () => {
   test("renders route selection profiles", () => {
     const html = renderToStaticMarkup(
-      <SelectionProfilePanel activeProfile="support-first" onProfileChange={() => {}} onApplyRecommendation={() => {}} />
+      <SelectionProfilePanel activeProfile="pb-friendly" onProfileChange={() => {}} onApplyRecommendation={() => {}} />
     );
 
     expect(html).toContain("智能选型目标");
     expect(html).toContain("竞速平坦");
-    expect(html).toContain("组织保障");
     expect(html).toContain("城市体验");
   });
 
