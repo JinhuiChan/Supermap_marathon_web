@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addEdge, addNode, createEmptyGraph, type RoadGraph } from "./roadNetwork";
-import { searchMarathonRoutes } from "./routeSearch";
+import { objectiveEdgeScore, searchMarathonRoutes } from "./routeSearch";
 import type { Coordinate } from "./routeMetrics";
 
 function cycleGraph(edgeKm = 1.005): RoadGraph {
@@ -53,6 +53,15 @@ function cycleGraph(edgeKm = 1.005): RoadGraph {
 }
 
 describe("searchMarathonRoutes", () => {
+  it("scores road quality per kilometre instead of rewarding fragmented short edges", () => {
+    const graph = cycleGraph();
+    const oneKilometre = graph.edges.get("cycle-00")!;
+    const oneHundredMetres = { ...oneKilometre, id: "short", lengthKm: 0.1, baselineCost: 0.1 };
+
+    expect(objectiveEdgeScore(oneKilometre, "operations") / oneKilometre.lengthKm)
+      .toBeCloseTo(objectiveEdgeScore(oneHundredMetres, "operations") / oneHundredMetres.lengthKm, 6);
+  });
+
   it("finds a deterministic simple marathon loop without repeated physical roads", () => {
     const graph = cycleGraph();
     const start = graph.nodes.get("n0")!.coordinate;

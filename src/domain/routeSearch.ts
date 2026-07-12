@@ -209,7 +209,10 @@ function compareState(
 ): number {
   const aProjected = a.totalLengthKm + (hasFixedFinish ? lowerBounds.get(a.currentNodeId) ?? 1_000 : 0);
   const bProjected = b.totalLengthKm + (hasFixedFinish ? lowerBounds.get(b.currentNodeId) ?? 1_000 : 0);
+  const aQualityPerKm = a.objectiveScore / Math.max(a.totalLengthKm, 0.05);
+  const bQualityPerKm = b.objectiveScore / Math.max(b.totalLengthKm, 0.05);
   return (
+    (!hasFixedFinish ? bQualityPerKm - aQualityPerKm : 0) ||
     Math.abs(aProjected - midpointKm) - Math.abs(bProjected - midpointKm) ||
     b.objectiveScore - a.objectiveScore ||
     b.totalLengthKm - a.totalLengthKm ||
@@ -217,16 +220,18 @@ function compareState(
   );
 }
 
-function objectiveEdgeScore(edge: RoadEdge, objective: MarathonSearchObjective): number {
+export function objectiveEdgeScore(edge: RoadEdge, objective: MarathonSearchObjective): number {
   const width = edge.roadWidthM ?? 6;
   const suitability = edge.suitabilityScore ?? 50;
   const slopePenalty = calibratedRaceGradePercent(edge.slopeMean ?? 0) * 8;
-  if (objective === "race-fast") return width * 3 + suitability * 0.2 - slopePenalty - edge.baselineCost;
+  if (objective === "race-fast") {
+    return (width * 3 + suitability * 0.2 - slopePenalty) * edge.lengthKm - edge.baselineCost;
+  }
   const poi = edge.poiScores;
   if (objective === "operations") {
-    return suitability * 0.25 + ((poi?.medical ?? 0) + (poi?.supply ?? 0) + (poi?.transit ?? 0)) * 18;
+    return (suitability * 0.25 + ((poi?.medical ?? 0) + (poi?.supply ?? 0) + (poi?.transit ?? 0)) * 18) * edge.lengthKm;
   }
-  return suitability * 0.18 + ((poi?.scenic ?? 0) + (poi?.park ?? 0)) * 24 + (edge.isBridge ? 8 : 0);
+  return (suitability * 0.18 + ((poi?.scenic ?? 0) + (poi?.park ?? 0)) * 24 + (edge.isBridge ? 8 : 0)) * edge.lengthKm;
 }
 
 function edgeIsEligible(edge: RoadEdge): boolean {

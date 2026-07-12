@@ -102,9 +102,7 @@ export function buildOsmMarathonCandidateRoutes(
   if (options.endPoint) {
     return buildUserConstrainedRoutes(graph, { ...options, endPoint: options.endPoint });
   }
-  const activeProfiles = options.profileIds?.length
-    ? candidateProfiles.filter((profile) => options.profileIds?.includes(profile.id))
-    : candidateProfiles;
+  const activeProfiles = selectCandidateProfiles(options.profileIds);
   const routeLimit = Math.max(1, Math.min(activeProfiles.length, options.maxRoutes ?? activeProfiles.length));
   const routes: MarathonRoute[] = [];
 
@@ -119,9 +117,7 @@ export function buildOsmMarathonCandidateRoutes(
 }
 
 function buildCompliantFullMarathonRoutes(graph: RoadGraph, options: OSMCandidateOptions): MarathonRoute[] {
-  const activeProfiles = options.profileIds?.length
-    ? candidateProfiles.filter((profile) => options.profileIds?.includes(profile.id))
-    : candidateProfiles;
+  const activeProfiles = selectCandidateProfiles(options.profileIds);
   const routeLimit = Math.max(1, Math.min(activeProfiles.length, options.maxRoutes ?? activeProfiles.length));
   const routes: MarathonRoute[] = [];
 
@@ -153,6 +149,15 @@ function buildCompliantFullMarathonRoutes(graph: RoadGraph, options: OSMCandidat
   }
 
   return routes;
+}
+
+function selectCandidateProfiles(profileIds?: string[]) {
+  if (!profileIds?.length) return candidateProfiles;
+  const byId = new Map(candidateProfiles.map((profile) => [profile.id, profile]));
+  return profileIds.flatMap((id) => {
+    const profile = byId.get(id);
+    return profile ? [profile] : [];
+  });
 }
 
 function preferenceToSearchObjective(preference: RoutePreference): MarathonSearchObjective {
