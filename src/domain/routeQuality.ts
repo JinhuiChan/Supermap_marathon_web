@@ -24,6 +24,10 @@ export type RouteQualityIssueCode =
   | "backtrack"
   | "self-intersection"
   | "local-knot"
+  | "node-revisit"
+  | "parallel-backtrack"
+  | "hairpin-turn"
+  | "sharp-turn-density"
   | "continuity-gap"
   | "road-suitability"
   | "road-alignment";
@@ -77,6 +81,18 @@ export function evaluateRouteQuality(route: MarathonRoute): RouteQualityReport {
   }
   if ((metrics.localKnotCount ?? Number.POSITIVE_INFINITY) > 0) {
     addIssue(issues, "local-knot", "局部绳结", metrics.localKnotCount ?? false, 0);
+  }
+  if ((metrics.revisitedNodeCount ?? Number.POSITIVE_INFINITY) > 0) {
+    addIssue(issues, "node-revisit", "交叉口复访", metrics.revisitedNodeCount ?? false, 0);
+  }
+  if ((metrics.parallelBacktrackCount ?? Number.POSITIVE_INFINITY) > 0) {
+    addIssue(issues, "parallel-backtrack", "平行折返", metrics.parallelBacktrackCount ?? false, 0);
+  }
+  if ((metrics.hairpinTurnCount ?? Number.POSITIVE_INFINITY) > 0) {
+    addIssue(issues, "hairpin-turn", "发卡掉头", metrics.hairpinTurnCount ?? false, 0);
+  }
+  if ((metrics.sharpTurnDensityPerKm ?? Number.POSITIVE_INFINITY) > 1.5) {
+    addIssue(issues, "sharp-turn-density", "急弯密度", metrics.sharpTurnDensityPerKm ?? false, 1.5);
   }
   if ((metrics.maxContinuityGapM ?? Number.POSITIVE_INFINITY) > marathonQualityThresholds.maxContinuityGapM) {
     addIssue(issues, "continuity-gap", "路网连续误差", metrics.maxContinuityGapM ?? false, marathonQualityThresholds.maxContinuityGapM);

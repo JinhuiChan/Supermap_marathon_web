@@ -18,6 +18,10 @@ function validRoute(overrides: Partial<MarathonRoute> = {}): MarathonRoute {
     selfIntersectionCount: 0,
     localBacktrackCount: 0,
     localKnotCount: 0,
+    revisitedNodeCount: 0,
+    parallelBacktrackCount: 0,
+    hairpinTurnCount: 0,
+    sharpTurnDensityPerKm: 0.4,
     terrainCoverageRatio: 1,
     maxContinuityGapM: 0,
     unsuitableEdgeCount: 0,
@@ -98,6 +102,25 @@ describe("evaluateRouteQuality", () => {
       "backtrack",
       "self-intersection",
       "local-knot"
+    ]));
+  });
+
+  it("rejects intersection revisits, parallel backtracks, hairpins, and excessive sharp-turn density", () => {
+    const route = validRoute({
+      metrics: {
+        ...validRoute().metrics,
+        revisitedNodeCount: 1,
+        parallelBacktrackCount: 1,
+        hairpinTurnCount: 1,
+        sharpTurnDensityPerKm: 1.6
+      }
+    });
+
+    expect(issueCodes(route)).toEqual(expect.arrayContaining([
+      "node-revisit",
+      "parallel-backtrack",
+      "hairpin-turn",
+      "sharp-turn-density"
     ]));
   });
 

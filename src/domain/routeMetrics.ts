@@ -29,6 +29,10 @@ export interface RouteMetrics {
   selfIntersectionCount?: number;
   localBacktrackCount?: number;
   localKnotCount?: number;
+  revisitedNodeCount?: number;
+  parallelBacktrackCount?: number;
+  hairpinTurnCount?: number;
+  sharpTurnDensityPerKm?: number;
   supplyCoverageRatio: number;
   medicalAvgIntervalKm: number;
   parkingServiceScore: number;

@@ -3,6 +3,7 @@ import type { GeneratedPath } from "./routeGenerator";
 import { isEventUsableRoadEdge, type RoadEdge, type RoadGraph } from "./roadNetwork";
 import { getElevation, haversineKm, turnAngle, turnPenaltyFromAngle } from "./roadAttributes";
 import { summarizeMarathonSuitability } from "./competitionSuitability";
+import { analyzeRouteTopology } from "./routeTopology";
 
 const COLORS = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"];
 
@@ -132,6 +133,7 @@ function computeMetrics(
   const edgeSlopeMetrics = computeEdgeSlopeMetrics(edges, path.totalLengthKm);
   const provenance = computeGeometryProvenance(path, graph);
   const suitability = summarizeMarathonSuitability(coordinates, edges, path.totalLengthKm);
+  const topology = analyzeRouteTopology(coordinates, path.nodeIds, path.totalLengthKm);
   let avgSlope = edgeSlopeMetrics.avgSlopePercent;
   let maxSlope = edgeSlopeMetrics.maxSlopePercent;
   let longSteepRatio = edgeSlopeMetrics.longSteepRatio;
@@ -297,6 +299,10 @@ function computeMetrics(
     selfIntersectionCount: suitability.selfIntersectionCount,
     localBacktrackCount: suitability.localBacktrackCount,
     localKnotCount: suitability.localKnotCount,
+    revisitedNodeCount: topology.revisitedNodeCount,
+    parallelBacktrackCount: topology.parallelBacktrackCount,
+    hairpinTurnCount: topology.hairpinTurnCount,
+    sharpTurnDensityPerKm: topology.sharpTurnDensityPerKm,
     terrainCoverageRatio: provenance.terrainCoverageRatio,
     maxContinuityGapM: provenance.maxContinuityGapM,
     unsuitableEdgeCount: provenance.unsuitableEdgeCount,
