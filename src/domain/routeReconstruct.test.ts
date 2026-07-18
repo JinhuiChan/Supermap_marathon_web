@@ -51,6 +51,35 @@ describe("pathToMarathonRoute provenance", () => {
     expect(route.metrics.unsuitableEdgeCount).toBe(0);
   });
 
+  it("reverses display geometry for reverse adjacency edges", () => {
+    const graph = createEmptyGraph();
+    addNode(graph, { id: "a", coordinate: [114.3, 30.6] });
+    addNode(graph, { id: "b", coordinate: [114.31, 30.6] });
+    addNode(graph, { id: "c", coordinate: [114.32, 30.6] });
+    addEdge(graph, edge({
+      id: "ab",
+      fromNodeId: "a",
+      toNodeId: "b",
+      coordinates: [[114.3, 30.6], [114.31, 30.6]]
+    }));
+    addEdge(graph, edge({
+      id: "bc",
+      fromNodeId: "b",
+      toNodeId: "c",
+      coordinates: [[114.31, 30.6], [114.32, 30.6]]
+    }));
+
+    const route = pathToMarathonRoute({
+      nodeIds: ["c", "b", "a"],
+      edgeIds: ["bc_rev", "ab_rev"],
+      totalLengthKm: 42.2
+    }, graph, 0);
+
+    expect(route.coordinates).toEqual([[114.32, 30.6], [114.31, 30.6], [114.3, 30.6]]);
+    expect(route.metrics.maxContinuityGapM).toBe(0);
+    expect(route.metrics.roadAlignedRatio).toBe(1);
+  });
+
   it("reports a real gap between consecutive source geometries instead of inserting a connector", () => {
     const graph = createEmptyGraph();
     addNode(graph, { id: "a", coordinate: [114.3, 30.6] });

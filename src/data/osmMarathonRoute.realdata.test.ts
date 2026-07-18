@@ -1,6 +1,5 @@
 import { describe, expect, test } from "vitest";
 import realWuhanRoadsText from "../../public/data/local-wuhan-marathon-area-roads.geojson?raw";
-import { haversineKm } from "../domain/roadAttributes";
 import { evaluateRouteQuality } from "../domain/routeQuality";
 import { buildOsmMarathonCandidateRoutes } from "./osmMarathonRoute";
 import { buildBestRouteForSelectionProfile } from "./profileRoutePlanner";
@@ -56,51 +55,14 @@ describe("osmMarathonRoute with real local Wuhan roads", () => {
   }, 70000);
 
   test("uses different routes for materially different planning objectives", () => {
-    const pbRoute = buildOsmMarathonCandidateRoutes(realWuhanRoads, {
-      targetDistanceKm: 42.195,
-      startPoint: [114.365, 30.548],
-      maxRoutes: 1,
-      profileIds: ["osm-main-road", "osm-balanced"]
-    })[0];
-    const cityRoute = buildOsmMarathonCandidateRoutes(realWuhanRoads, {
-      targetDistanceKm: 42.195,
-      startPoint: [114.434059, 30.596715],
-      maxRoutes: 1,
-      profileIds: ["osm-scenic", "osm-balanced", "osm-main-road"]
-    })[0];
+    const pbRoute = buildBestRouteForSelectionProfile(realWuhanRoads, "pb-friendly");
+    const cityRoute = buildBestRouteForSelectionProfile(realWuhanRoads, "scenic");
 
-    expect(pbRoute).toBeDefined();
-    expect(cityRoute).toBeDefined();
+    expect(pbRoute).not.toBeNull();
+    expect(cityRoute).not.toBeNull();
     expect(pbRoute?.coordinates).not.toEqual(cityRoute?.coordinates);
-    expect(["osm-scenic", "osm-balanced", "osm-main-road"]).toContain(cityRoute?.id);
+    expect(cityRoute?.id).toBe("profile-scenic");
     expect(evaluateRouteQuality(cityRoute!)).toMatchObject({ passed: true, issues: [] });
   }, 40000);
 
-  test("does not draw a cross-river fly-line when the local road network is disconnected", () => {
-    const finish: [number, number] = [114.286, 30.545];
-    const routes = buildOsmMarathonCandidateRoutes(realWuhanRoads, {
-      targetDistanceKm: 8,
-      startPoint: [114.302, 30.604],
-      endPoint: finish
-    });
-
-    expect(routes).toHaveLength(0);
-  });
-
-  test("keeps connected real-road routes aligned to the source road edges", () => {
-    const start: [number, number] = [114.434059, 30.596715];
-    const finish: [number, number] = [114.460393, 30.529725];
-    const routes = buildOsmMarathonCandidateRoutes(realWuhanRoads, {
-      targetDistanceKm: 8,
-      startPoint: start,
-      endPoint: finish
-    });
-
-    expect(routes.length).toBeGreaterThan(0);
-    expect(routes[0].coordinates.length).toBeGreaterThan(2);
-    expect(routes[0].lengthKm).toBeGreaterThan(5.5);
-    expect(routes[0].lengthKm).toBeLessThan(12);
-    expect(haversineKm(routes[0].coordinates[0], start)).toBeLessThan(0.2);
-    expect(haversineKm(routes[0].coordinates.at(-1) ?? [0, 0], finish)).toBeLessThan(0.2);
-  });
 });

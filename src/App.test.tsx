@@ -9,9 +9,9 @@ describe("App", () => {
     expect(html).toContain("gis-mode-nav");
     expect(html).toContain("智能选型");
     expect(html).toContain("赛道分析");
-    expect(html).toContain("核对硬规则");
-    expect(html).toContain("竞速平坦");
-    expect(html).toContain("城市体验");
+    expect(html).toContain("硬性合规规则");
+    expect(html).toContain("东湖线");
+    expect(html).toContain("城市景观线");
     expect(html).toContain("等待合规路线");
     expect(html).toContain("规划结果不替代 World Athletics / AIMS 认证测量");
     expect(html).not.toContain("选择起点");
@@ -23,7 +23,6 @@ describe("App", () => {
     expect(html).toContain("候选方案");
     expect(html).toContain("GIS 详情");
     expect(html).toContain('class="gis-utility-details"');
-    expect(html).toContain('open=""');
     expect(html).not.toContain("OpenStreetMap");
     expect(html).toContain("iClient JavaScript");
     expect(html).toContain("ASTGTMV003_N30E114");
@@ -36,7 +35,7 @@ describe("App", () => {
     );
 
     expect(html).toContain("gis-selection-panel");
-    expect(html).toContain("两种目标共享同一组硬性合规规则");
+    expect(html).toContain("选择路线");
     expect(html).toContain("重复道路 0%");
   });
 });

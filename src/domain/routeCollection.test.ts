@@ -45,7 +45,7 @@ describe("routeCollection", () => {
     expect(routes[0].lengthKm).toBe(41.9);
   });
 
-  it("replaces an older route with the same displayed geometry", () => {
+  it("keeps another route plan even when it shares displayed geometry", () => {
     const duplicateGeometryRoute = {
       ...baseRoute,
       id: "profile-scenic",
@@ -54,7 +54,6 @@ describe("routeCollection", () => {
 
     const routes = upsertGeneratedRoute([baseRoute], duplicateGeometryRoute);
 
-    expect(routes).toHaveLength(1);
-    expect(routes[0].id).toBe("profile-scenic");
+    expect(routes.map((route) => route.id)).toEqual(["profile-balanced", "profile-scenic"]);
   });
 });

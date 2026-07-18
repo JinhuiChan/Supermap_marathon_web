@@ -8,6 +8,7 @@ export const marathonQualityThresholds = {
   maxTotalClimbM: 180,
   maxAbsGradePercent: 5,
   maxContinuousSteepKm: 1,
+  maxLocalBacktrackCount: 40,
   maxContinuityGapM: 10,
   minTerrainCoverageRatio: 0.95
 } as const;
@@ -72,8 +73,12 @@ export function evaluateRouteQuality(route: MarathonRoute): RouteQualityReport {
   if ((metrics.repeatedRoadRatio ?? Number.POSITIVE_INFINITY) > 0) {
     addIssue(issues, "repeated-road", "重复道路", metrics.repeatedRoadRatio ?? false, 0);
   }
-  if ((metrics.localBacktrackCount ?? Number.POSITIVE_INFINITY) > 0 && (metrics.repeatedRoadRatio ?? 0) > 0) {
-    addIssue(issues, "backtrack", "局部折返", metrics.localBacktrackCount ?? false, 0);
+  const localBacktrackCount = metrics.localBacktrackCount ?? 0;
+  if (
+    (localBacktrackCount > 0 && (metrics.repeatedRoadRatio ?? 0) > 0) ||
+    localBacktrackCount > marathonQualityThresholds.maxLocalBacktrackCount
+  ) {
+    addIssue(issues, "backtrack", "局部折返", metrics.localBacktrackCount ?? false, marathonQualityThresholds.maxLocalBacktrackCount);
   }
   if ((metrics.selfIntersectionCount ?? Number.POSITIVE_INFINITY) > 0) {
     addIssue(issues, "self-intersection", "路线自交", metrics.selfIntersectionCount ?? false, 0);

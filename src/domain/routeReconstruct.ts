@@ -416,7 +416,21 @@ export function autoName(
 }
 
 function resolveEdge(graph: RoadGraph, edgeId: string): RoadEdge | undefined {
-  return graph.edges.get(edgeId) ?? graph.edges.get(edgeId.replace(/_rev$/, ""));
+  const direct = graph.edges.get(edgeId);
+  if (direct) return direct;
+
+  if (!edgeId.endsWith("_rev")) return undefined;
+
+  const base = graph.edges.get(edgeId.replace(/_rev$/, ""));
+  if (!base) return undefined;
+
+  return (graph.adjacency.get(base.toNodeId) ?? []).find((edge) => edge.id === edgeId) ?? {
+    ...base,
+    id: edgeId,
+    fromNodeId: base.toNodeId,
+    toNodeId: base.fromNodeId,
+    coordinates: base.coordinates ? [...base.coordinates].reverse() : undefined
+  };
 }
 
 function sameCoordinate(a: Coordinate, b: Coordinate): boolean {

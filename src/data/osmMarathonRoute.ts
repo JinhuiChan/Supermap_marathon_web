@@ -149,16 +149,6 @@ function buildCompliantFullMarathonRoutes(graph: RoadGraph, options: OSMCandidat
     }
   }
 
-  // Fallback: if beam search produced nothing, use the simpler walk-based approach
-  if (routes.length === 0) {
-    for (const [index, profile] of activeProfiles.entries()) {
-      const route = buildFirstAcceptableProfileRoute(graph, profile, index, options);
-      if (!route) continue;
-      routes.push(route);
-      if (routes.length >= routeLimit) break;
-    }
-  }
-
   return routes;
 }
 
@@ -252,8 +242,7 @@ export function buildWaypointMarathonRoute(
   if (spineSuitableRatio < 0.4) return null;
 
   const metrics = computeRouteMetrics(spineCoords, spineEdges, spineKm);
-
-  return {
+  const route: MarathonRoute = {
     id: options.id,
     name: options.name,
     color: options.color,
@@ -264,6 +253,9 @@ export function buildWaypointMarathonRoute(
     metrics,
     lineage: { source: "osm-generated", roadAligned: true, note: options.note }
   };
+
+  if (isFullMarathonTarget(options.targetDistanceKm) && !evaluateRouteQuality(route).passed) return null;
+  return route;
 }
 
 function selectCandidateProfiles(profileIds?: string[]) {
@@ -1048,7 +1040,7 @@ function isAcceptableGeneratedRoute(metrics: RouteMetrics, preference: RoutePref
   if ((metrics.hairpinTurnCount ?? 0) > 20) return false;
   if ((metrics.startFinishElevationDiffM ?? 0) > maxStartFinishElevationDiffM) return false;
   if (metrics.totalClimbM >= maxTotalClimbM) return false;
-  if ((metrics.maxSingleClimbM ?? 0) > maxSingleClimbM) return false;
+  if ((metrics.maxSingleClimbM ?? 0) >= maxSingleClimbM) return false;
   if ((metrics.maxContinuousSteepKm ?? 0) > maxContinuousSteepKm) return false;
   if (metrics.avgSlopePercent >= 2) return false;
   if (metrics.maxSlopePercent > 3) return false;

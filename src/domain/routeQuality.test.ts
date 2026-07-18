@@ -137,6 +137,18 @@ describe("evaluateRouteQuality", () => {
     expect(issueCodes(route)).not.toContain("backtrack");
   });
 
+  it("rejects excessive nearby returns even when physical road ids are not repeated", () => {
+    const route = validRoute({
+      metrics: {
+        ...validRoute().metrics,
+        repeatedRoadRatio: 0,
+        localBacktrackCount: 41
+      }
+    });
+
+    expect(issueCodes(route)).toContain("backtrack");
+  });
+
   it("rejects gaps, unsuitable roads, and coordinates that do not fully follow the road geometry", () => {
     const route = validRoute({
       metrics: {

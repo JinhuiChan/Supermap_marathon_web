@@ -26,18 +26,19 @@ describe("GisSelectionPanel", () => {
     expect(html).toContain('title="道路网络数据仍在加载"');
   });
 
-  it("offers two distinct goals whose hard rules stay identical", () => {
+  it("offers three route corridor options whose hard rules stay identical", () => {
     const html = renderPanel();
-    expect(html).toContain("竞速平坦");
-    expect(html).toContain("城市体验");
-    expect((html.match(/class="[^"]*gis-profile-option/g) ?? [])).toHaveLength(2);
-    expect(html).toContain("两种目标共享同一组硬性合规规则，仅改变合格路线的走廊与排序偏好");
+    expect(html).toContain("东湖线");
+    expect(html).toContain("滨江线");
+    expect(html).toContain("城市景观线");
+    expect((html.match(/class="[^"]*gis-waypoint-route-button/g) ?? [])).toHaveLength(3);
+    expect(html).toContain("硬性合规规则");
   });
 
   it("puts the decision flow ahead of implementation parameters", () => {
     const html = renderPanel();
-    expect(html).toContain("1. 选择目标");
-    expect(html).toContain("2. 核对硬规则");
+    expect(html).toContain("1. 选择路线");
+    expect(html).toContain("2. 硬性合规规则");
     expect(html).toContain("3. 生成路线");
     expect(html).not.toContain("POI 参数预览");
     expect(html).not.toContain("阻力参数预览");

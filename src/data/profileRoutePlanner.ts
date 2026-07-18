@@ -79,6 +79,25 @@ export const waypointRoutePlans: WaypointRoutePlan[] = [
 
 export type WaypointRouteId = typeof waypointRoutePlans[number]["id"];
 
+const waypointProfileMap: Record<WaypointRouteId, RouteSelectionProfile> = {
+  "waypoint-east-lake": "scenic",
+  "waypoint-riverside": "support-first",
+  "waypoint-city-scenic": "mass-finish"
+};
+
+const waypointProfileSeedPoints: Partial<Record<WaypointRouteId, Coordinate[]>> = {
+  "waypoint-riverside": [
+    [114.2892, 30.6074],
+    [114.2845, 30.5542],
+    [114.3038, 30.5470]
+  ],
+  "waypoint-city-scenic": [
+    [114.3368, 30.5601],
+    [114.3987, 30.5985],
+    [114.4132, 30.6130]
+  ]
+};
+
 interface ProfileRoutePlan {
   id: string;
   name: string;
@@ -244,6 +263,24 @@ export function buildWaypointRoute(
   plan: WaypointRoutePlan,
   options: { maxAttempts?: number } = {}
 ): MarathonRoute | null {
+  const profileRoute = buildBestRouteForSelectionProfile(geojson, waypointProfileMap[plan.id], {
+    seedPoints: waypointProfileSeedPoints[plan.id]
+  });
+  if (profileRoute) {
+    return {
+      ...profileRoute,
+      id: plan.id,
+      name: plan.name,
+      color: plan.color,
+      lineage: {
+        ...profileRoute.lineage,
+        source: "osm-generated",
+        roadAligned: true,
+        note: `${plan.note} 路线由严格质量门禁的 OSM 路网搜索生成，途经点仅作为方案主题与走廊提示。`
+      }
+    };
+  }
+
   const maxAttempts = options.maxAttempts ?? 3;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {

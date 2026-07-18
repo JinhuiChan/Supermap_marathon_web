@@ -57,6 +57,10 @@ export function GisSelectionPanel({
   isGenerating = false,
   onGenerateRoute
 }: GisSelectionPanelProps) {
+  const routeButtonTitle = !canGenerate && generateDisabledReason
+    ? generateDisabledReason
+    : isGenerating ? "正在搜索合规路线" : undefined;
+
   return (
     <aside className="gis-selection-panel" aria-label="武汉马拉松赛道选型">
       <div className="gis-panel-heading">
@@ -74,6 +78,7 @@ export function GisSelectionPanel({
               key={plan.id}
               className="gis-waypoint-route-button"
               disabled={!canGenerate || isGenerating}
+              title={routeButtonTitle}
               onClick={() => onGenerateRoute(plan.id)}
               style={{ borderLeftColor: plan.color }}
             >
@@ -98,6 +103,8 @@ export function GisSelectionPanel({
       <section className="gis-tool-group gis-step-group gis-generate-step">
         <h3>3. 生成路线</h3>
         <p className="gis-tool-hint">点击上方路线按钮即可生成。系统将途经点吸附到最近路网节点，分段生成子路径后拼接为完整路线，并通过距离容差和质量闸门校验。</p>
+        {isGenerating && <p className="gis-tool-hint">正在搜索合规路线</p>}
+        {!canGenerate && generateDisabledReason && <p className="gis-tool-hint">{generateDisabledReason}</p>}
       </section>
     </aside>
   );
