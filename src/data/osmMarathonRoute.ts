@@ -177,49 +177,92 @@ export function buildWaypointMarathonRoute(
   const graph = buildRoadGraphFromGeoJson(geojson);
   augmentGraphWithSupportPois(graph);
 
-  // Try multiple waypoints as start points, pick the route with the best corridor coverage.
-  // For East Lake routes, this picks a start in the 东湖 area to ensure the route reaches there.
-  let bestRoute: MarathonRoute | null = null;
-  let bestMaxLon = -Infinity; // prefer routes that extend furthest east (toward East Lake)
+  // === Phase 1: Build corridor spine via Dijkstra on ALL edges ===
+  // Snap each waypoint to nearest node (any edge, not just suitable)
+  const wpNodeIds: string[] = [];
+  for (const wp of options.waypoints) {
+    const nid = findNearestNodeId(graph, wp, false);
+    if (nid && (wpNodeIds.length === 0 || nid !== wpNodeIds[wpNodeIds.length - 1])) {
+      wpNodeIds.push(nid);
+    }
+  }
+  if (wpNodeIds.length < 2) return null;
 
-  // Try every 2nd waypoint as a start, pick the one that extends furthest east
-  const tryIndices = [0];
-  for (let i = 2; i < options.waypoints.length; i += 2) tryIndices.push(i);
+  // Connect consecutive waypoints with shortest paths on ALL edges
+  const spineEdges: RoadEdge[] = [];
+  const spineCoords: Coordinate[] = [];
+  let spineKm = 0;
+  let suitableKm = 0;
+  const usedBaseIds = new Set<string>();
 
-  for (const idx of tryIndices) {
-    const wp = options.waypoints[idx];
-    const startNodeId = findNearestNodeId(graph, wp, true);
-    if (!startNodeId) continue;
-    const startCoord = graph.nodes.get(startNodeId)!.coordinate;
+  for (let i = 0; i < wpNodeIds.length - 1; i++) {
+    // First try coarse graph (major roads only) to avoid small winding streets
+    let path = shortestPathOnMajorRoads(graph, wpNodeIds[i], wpNodeIds[i + 1], usedBaseIds);
+    if (!path) {
+      // Fallback: use all roads if major roads can't connect
+      path = shortestPathOnAllEdges(graph, wpNodeIds[i], wpNodeIds[i + 1], usedBaseIds);
+    }
+    if (!path) return null;
 
-    const route = buildRouteFromGraph(graph, {
-      id: options.id,
-      name: options.name,
-      color: options.color,
-      targetDistanceKm: options.targetDistanceKm,
-      startPoint: startCoord,
-      preference: options.targetDistanceKm < 30 ? "scenic" : "balanced",
-      salt: options.salt + idx
-    });
+    for (const eid of path.edgeIds) {
+      const edge = graph.edges.get(eid) ?? graph.edges.get(eid.replace(/_rev$/, ""));
+      if (!edge) continue;
+      spineEdges.push(edge);
+      spineKm += edge.lengthKm;
+      if (edge.competitionSuitable || edge.slopeFiltered) suitableKm += edge.lengthKm;
+      // Track so later segments prefer different roads
+      usedBaseIds.add(eid.endsWith("_rev") ? eid.slice(0, -4) : eid);
+    }
 
-    if (!route) continue;
-
-    const maxLon = Math.max(...route.coordinates.map(c => c[0]));
-    if (maxLon > bestMaxLon) {
-      bestMaxLon = maxLon;
-      bestRoute = route;
+    // Extract coordinates from the path
+    if (i === 0) {
+      const firstNode = graph.nodes.get(wpNodeIds[0])!;
+      spineCoords.push(firstNode.coordinate);
+    }
+    for (let j = 1; j < path.nodeIds.length; j++) {
+      const node = graph.nodes.get(path.nodeIds[j]);
+      if (node) spineCoords.push(node.coordinate);
     }
   }
 
-  if (!bestRoute) return null;
+  const spineSuitableRatio = spineKm > 0 ? suitableKm / spineKm : 0;
+
+  // === Phase 2: Extend to target distance on competitionSuitable edges ===
+  const remainingKm = options.targetDistanceKm - spineKm;
+  if (remainingKm > 0.5) {
+    const lastNodeId = wpNodeIds[wpNodeIds.length - 1];
+    const extWalk = walkGraphToDistance(graph, lastNodeId, Math.min(remainingKm, 15), "balanced", options.salt);
+    if (extWalk.edges.length > 0) {
+      for (let i = 1; i < extWalk.coordinates.length; i++) {
+        spineCoords.push(extWalk.coordinates[i]);
+      }
+      for (const edge of extWalk.edges) {
+        spineEdges.push(edge);
+        spineKm += edge.lengthKm;
+        if (edge.competitionSuitable || edge.slopeFiltered) suitableKm += edge.lengthKm;
+      }
+    }
+  }
+
+  // === Phase 3: Validate and build route ===
+  const lowerBound = options.targetDistanceKm < 25 ? 0.60 : 0.85;
+  const upperBound = options.targetDistanceKm < 25 ? 1.40 : 1.15;
+  if (spineCoords.length < 2 || spineEdges.length === 0) return null;
+  if (spineKm < options.targetDistanceKm * lowerBound || spineKm > options.targetDistanceKm * upperBound) return null;
+  if (spineSuitableRatio < 0.4) return null;
+
+  const metrics = computeRouteMetrics(spineCoords, spineEdges, spineKm);
 
   return {
-    ...bestRoute,
-    lineage: {
-      source: "osm-generated",
-      roadAligned: true,
-      note: options.note
-    }
+    id: options.id,
+    name: options.name,
+    color: options.color,
+    lengthKm: Math.round(spineKm * 1000) / 1000,
+    closedLoop: false,
+    coordinates: spineCoords,
+    elevationProfile: buildElevationProfile(spineCoords, spineKm),
+    metrics,
+    lineage: { source: "osm-generated", roadAligned: true, note: options.note }
   };
 }
 
@@ -469,6 +512,114 @@ function buildShortestConnectorPath(graph: RoadGraph, constraints: RouteConstrai
     edgeIds,
     totalLengthKm: Math.round(totalLengthKm * 1000) / 1000
   }];
+}
+
+// Dijkstra on ALL edges (not just competitionSuitable) — used for corridor spine between waypoints.
+function shortestPathOnAllEdges(
+  graph: RoadGraph,
+  fromNodeId: string,
+  toNodeId: string,
+  usedBaseIds?: Set<string>
+): { nodeIds: string[]; edgeIds: string[]; totalLengthKm: number } | null {
+  if (fromNodeId === toNodeId) return { nodeIds: [fromNodeId], edgeIds: [], totalLengthKm: 0 };
+
+  const distances = new Map<string, number>([[fromNodeId, 0]]);
+  const previous = new Map<string, { nodeId: string; edgeId: string }>();
+  const unsettled = new Set<string>([fromNodeId]);
+
+  while (unsettled.size > 0) {
+    let current = "";
+    let currentDistance = Number.POSITIVE_INFINITY;
+    for (const nodeId of unsettled) {
+      const distance = distances.get(nodeId) ?? Number.POSITIVE_INFINITY;
+      if (distance < currentDistance) { current = nodeId; currentDistance = distance; }
+    }
+    if (!current) break;
+    unsettled.delete(current);
+    if (current === toNodeId) break;
+
+    for (const edge of graph.adjacency.get(current) ?? []) {
+      const baseId = edge.id.endsWith("_rev") ? edge.id.slice(0, -4) : edge.id;
+      const penalty = usedBaseIds?.has(baseId) ? edge.lengthKm * 2 : 0; // penalize used roads
+      const nextDistance = currentDistance + edge.lengthKm + penalty;
+      if (nextDistance < (distances.get(edge.toNodeId) ?? Number.POSITIVE_INFINITY)) {
+        distances.set(edge.toNodeId, nextDistance);
+        previous.set(edge.toNodeId, { nodeId: current, edgeId: edge.id });
+        unsettled.add(edge.toNodeId);
+      }
+    }
+  }
+
+  if (!previous.has(toNodeId)) return null;
+
+  const nodeIds: string[] = [toNodeId];
+  const edgeIds: string[] = [];
+  let cursor = toNodeId;
+  while (cursor !== fromNodeId) {
+    const step = previous.get(cursor);
+    if (!step) return null;
+    edgeIds.unshift(step.edgeId);
+    nodeIds.unshift(step.nodeId);
+    cursor = step.nodeId;
+  }
+
+  const totalKm = edgeIds.reduce((sum, eid) => sum + getEdgeLengthKm(graph, eid), 0);
+  return { nodeIds, edgeIds, totalLengthKm: Math.round(totalKm * 1000) / 1000 };
+}
+
+// Dijkstra on major roads only (trunk/primary/secondary/tertiary) — avoids residential alleys
+const MAJOR_ROAD_LEVELS = new Set<RoadLevel>(["trunk", "primary", "secondary", "tertiary"]);
+function shortestPathOnMajorRoads(
+  graph: RoadGraph,
+  fromNodeId: string,
+  toNodeId: string,
+  usedBaseIds?: Set<string>
+): { nodeIds: string[]; edgeIds: string[]; totalLengthKm: number } | null {
+  if (fromNodeId === toNodeId) return { nodeIds: [fromNodeId], edgeIds: [], totalLengthKm: 0 };
+
+  const distances = new Map<string, number>([[fromNodeId, 0]]);
+  const previous = new Map<string, { nodeId: string; edgeId: string }>();
+  const unsettled = new Set<string>([fromNodeId]);
+
+  while (unsettled.size > 0) {
+    let current = "";
+    let currentDistance = Number.POSITIVE_INFINITY;
+    for (const nodeId of unsettled) {
+      const distance = distances.get(nodeId) ?? Number.POSITIVE_INFINITY;
+      if (distance < currentDistance) { current = nodeId; currentDistance = distance; }
+    }
+    if (!current) break;
+    unsettled.delete(current);
+    if (current === toNodeId) break;
+
+    for (const edge of graph.adjacency.get(current) ?? []) {
+      if (!MAJOR_ROAD_LEVELS.has(edge.roadLevel)) continue; // coarse: major roads only
+      const baseId = edge.id.endsWith("_rev") ? edge.id.slice(0, -4) : edge.id;
+      const penalty = usedBaseIds?.has(baseId) ? edge.lengthKm * 2 : 0;
+      const nextDistance = currentDistance + edge.lengthKm + penalty;
+      if (nextDistance < (distances.get(edge.toNodeId) ?? Number.POSITIVE_INFINITY)) {
+        distances.set(edge.toNodeId, nextDistance);
+        previous.set(edge.toNodeId, { nodeId: current, edgeId: edge.id });
+        unsettled.add(edge.toNodeId);
+      }
+    }
+  }
+
+  if (!previous.has(toNodeId)) return null;
+
+  const nodeIds: string[] = [toNodeId];
+  const edgeIds: string[] = [];
+  let cursor = toNodeId;
+  while (cursor !== fromNodeId) {
+    const step = previous.get(cursor);
+    if (!step) return null;
+    edgeIds.unshift(step.edgeId);
+    nodeIds.unshift(step.nodeId);
+    cursor = step.nodeId;
+  }
+
+  const totalKm = edgeIds.reduce((sum, eid) => sum + getEdgeLengthKm(graph, eid), 0);
+  return { nodeIds, edgeIds, totalLengthKm: Math.round(totalKm * 1000) / 1000 };
 }
 
 function buildBridgeReviewPath(graph: RoadGraph, constraints: RouteConstraints) {

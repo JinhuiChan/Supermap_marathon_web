@@ -38,8 +38,8 @@ export const waypointRoutePlans: WaypointRoutePlan[] = [
     id: "waypoint-riverside",
     name: "滨江线",
     color: "#2563eb",
-    targetDistanceKm: 21.0975,
-    description: "半程滨江 · 汉口汉阳武昌江滩",
+    targetDistanceKm: 42.195,
+    description: "全马滨江 · 汉口汉阳武昌江滩",
     waypoints: [
       { label: "起点：三阳路沿江大道", coordinate: [114.30230, 30.60287] },
       { label: "汉口江滩·武汉科技馆", coordinate: [114.3061, 30.6103] },
@@ -244,7 +244,7 @@ export function buildWaypointRoute(
   plan: WaypointRoutePlan,
   options: { maxAttempts?: number } = {}
 ): MarathonRoute | null {
-  const maxAttempts = options.maxAttempts ?? 8;
+  const maxAttempts = options.maxAttempts ?? 3;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const route = buildWaypointMarathonRoute(geojson, {
