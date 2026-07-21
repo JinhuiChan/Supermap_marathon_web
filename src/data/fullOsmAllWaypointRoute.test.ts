@@ -77,6 +77,40 @@ describe("buildFullOsmAllWaypointRoute", () => {
     expect(route?.metrics.hairpinTurnCount).toBe(0);
     expect(route?.metrics.parallelBacktrackCount).toBe(0);
   });
+
+  it("chooses a slightly longer control-link candidate when the shortest one self-intersects", () => {
+    const route = buildFullOsmAllWaypointRoute(
+      {
+        type: "FeatureCollection",
+        features: [
+          line([
+            [114.0000, 30.0000],
+            [114.0300, 30.0100],
+            [114.0000, 30.0100],
+            [114.0300, 30.0000]
+          ]),
+          line([
+            [114.0000, 30.0000],
+            [114.0000, 29.9700],
+            [114.0300, 29.9700],
+            [114.0300, 30.0000]
+          ])
+        ]
+      },
+      {
+        ...plan,
+        targetDistanceKm: 10,
+        waypoints: [
+          { label: "start", coordinate: [114.0000, 30.0000] },
+          { label: "finish", coordinate: [114.0300, 30.0000] }
+        ]
+      },
+      { waypointHitRadiusKm: 0.2 }
+    );
+
+    expect(route).not.toBeNull();
+    expect(route?.metrics.selfIntersectionCount).toBe(0);
+  });
 });
 
 function line(coordinates: number[][]) {

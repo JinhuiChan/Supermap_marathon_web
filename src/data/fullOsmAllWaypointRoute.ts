@@ -31,6 +31,11 @@ interface PathAvoidanceContext {
   nodeIds: string[];
 }
 
+interface ShortestPathOptions {
+  avoidance?: PathAvoidanceContext;
+  extraEdgePenalties?: Map<string, number>;
+}
+
 interface FillerState {
   nodeId: string;
   lengthKm: number;
@@ -223,20 +228,107 @@ function bestPathToRemainingControl(
   currentLengthKm: number,
   targetLengthKm: number
 ): { targetIndex: number; path: PathSegment } | null {
+  const baselineCandidates: Array<{ targetIndex: number; path: PathSegment; score: number; topologyPenalty: number }> = [];
   let best: { targetIndex: number; path: PathSegment; score: number } | null = null;
   for (const targetIndex of remainingControlIndexes) {
     const targetNodeIds = new Set([snappedNodeIds[targetIndex]]);
     const path =
-      shortestPath(graph, fromNodeId, targetNodeIds, usedEdges, { coordinates: routeCoordinates, nodeIds: routeNodeIds }) ??
+      shortestPath(graph, fromNodeId, targetNodeIds, usedEdges, { avoidance: { coordinates: routeCoordinates, nodeIds: routeNodeIds } }) ??
       shortestPath(graph, fromNodeId, targetNodeIds, usedEdges);
     if (!path) continue;
     const overshootKm = Math.max(0, currentLengthKm + path.totalKm - targetLengthKm);
-    const score = path.totalKm + overshootKm * 5000;
-    if (!best || score < best.score) {
-      best = { targetIndex, path, score };
+    const topologyPenalty = scoreControlPathTopology(path, routeCoordinates, routeNodeIds, usedEdges);
+    baselineCandidates.push({
+      targetIndex,
+      path,
+      topologyPenalty,
+      score: path.totalKm + overshootKm * 5000
+    });
+  }
+
+  for (const baseline of baselineCandidates.sort((a, b) => a.score - b.score).slice(0, 1)) {
+    const targetNodeIds = new Set([snappedNodeIds[baseline.targetIndex]]);
+    const candidates = baseline.topologyPenalty > 0
+      ? candidatePathsToTarget(
+          graph,
+          fromNodeId,
+          targetNodeIds,
+          usedEdges,
+          { coordinates: routeCoordinates, nodeIds: routeNodeIds },
+          baseline.path
+        )
+      : [baseline.path];
+    for (const path of candidates) {
+      if (path.totalKm > baseline.path.totalKm + 1.5) continue;
+      const overshootKm = Math.max(0, currentLengthKm + path.totalKm - targetLengthKm);
+      const score = path.totalKm + overshootKm * 5000 + scoreControlPathTopology(path, routeCoordinates, routeNodeIds, usedEdges);
+      if (!best || score < best.score) best = { targetIndex: baseline.targetIndex, path, score };
     }
   }
   return best ? { targetIndex: best.targetIndex, path: best.path } : null;
+}
+
+function candidatePathsToTarget(
+  graph: RoadGraph,
+  fromNodeId: string,
+  targetNodeIds: Set<string>,
+  usedEdges: Set<string>,
+  avoidance: PathAvoidanceContext,
+  initialPath: PathSegment
+): PathSegment[] {
+  const candidates: PathSegment[] = [initialPath];
+  const extraEdgePenalties = new Map<string, number>();
+
+  for (const edge of initialPath.edges) {
+    const baseId = baseEdgeId(edge.id);
+    extraEdgePenalties.set(baseId, (extraEdgePenalties.get(baseId) ?? 0) + 80 + edge.lengthKm * 40);
+  }
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const path =
+      shortestPath(graph, fromNodeId, targetNodeIds, usedEdges, { avoidance, extraEdgePenalties }) ??
+      shortestPath(graph, fromNodeId, targetNodeIds, usedEdges, { extraEdgePenalties });
+    if (!path) break;
+
+    const signature = path.edges.map((edge) => baseEdgeId(edge.id)).join("|");
+    if (!candidates.some((candidate) => candidate.edges.map((edge) => baseEdgeId(edge.id)).join("|") === signature)) {
+      candidates.push(path);
+    }
+
+    for (const edge of path.edges) {
+      const baseId = baseEdgeId(edge.id);
+      extraEdgePenalties.set(baseId, (extraEdgePenalties.get(baseId) ?? 0) + 80 + edge.lengthKm * 40);
+    }
+  }
+
+  return candidates;
+}
+
+function scoreControlPathTopology(
+  path: PathSegment,
+  routeCoordinates: Coordinate[],
+  routeNodeIds: string[],
+  usedEdges: Set<string>
+): number {
+  const candidateCoordinates = coordinatesForPath(path, routeCoordinates.at(-1));
+  const routeNodeSet = new Set(routeNodeIds);
+  let penalty = countPolylineSelfIntersections(candidateCoordinates) * 600;
+
+  for (let index = 1; index < candidateCoordinates.length; index++) {
+    if (segmentIntersectsRoute(routeCoordinates, candidateCoordinates[index - 1], candidateCoordinates[index])) {
+      penalty += 650;
+    }
+  }
+
+  for (const nodeId of path.nodeIds.slice(1)) {
+    if (routeNodeSet.has(nodeId)) penalty += 140;
+  }
+
+  for (const edge of path.edges) {
+    if (usedEdges.has(baseEdgeId(edge.id))) penalty += 220 + edge.lengthKm * 80;
+  }
+
+  return penalty;
 }
 
 function shortestPath(
@@ -244,7 +336,7 @@ function shortestPath(
   fromNodeId: string,
   targetNodeIds: Set<string>,
   usedEdges: Set<string>,
-  avoidance?: PathAvoidanceContext
+  options: ShortestPathOptions = {}
 ): PathSegment | null {
   if (targetNodeIds.has(fromNodeId)) return { nodeIds: [fromNodeId], edges: [], totalKm: 0 };
 
@@ -264,16 +356,17 @@ function shortestPath(
 
     for (const edge of graph.adjacency.get(current.nodeId) ?? []) {
       if (!isRoutableEdge(edge)) continue;
-      if (avoidance && !targetNodeIds.has(edge.toNodeId) && avoidance.nodeIds.includes(edge.toNodeId)) continue;
-      if (avoidance) {
+      if (options.avoidance && !targetNodeIds.has(edge.toNodeId) && options.avoidance.nodeIds.includes(edge.toNodeId)) continue;
+      if (options.avoidance) {
         const currentNode = graph.nodes.get(current.nodeId);
         const nextNode = graph.nodes.get(edge.toNodeId);
         const nextCoordinate = edge.coordinates?.at(-1) ?? nextNode?.coordinate;
         if (!currentNode || !nextCoordinate) continue;
-        if (segmentIntersectsRoute(avoidance.coordinates, currentNode.coordinate, nextCoordinate)) continue;
+        if (segmentIntersectsRoute(options.avoidance.coordinates, currentNode.coordinate, nextCoordinate)) continue;
       }
       const reusePenalty = usedEdges.has(baseEdgeId(edge.id)) ? edge.lengthKm * 5 : 0;
-      const nextDistance = current.distanceKm + edge.lengthKm + reusePenalty + roadLevelPenalty(edge);
+      const extraPenalty = options.extraEdgePenalties?.get(baseEdgeId(edge.id)) ?? 0;
+      const nextDistance = current.distanceKm + edge.lengthKm + reusePenalty + roadLevelPenalty(edge) + extraPenalty;
       if (nextDistance >= (distances.get(edge.toNodeId) ?? Number.POSITIVE_INFINITY)) continue;
       distances.set(edge.toNodeId, nextDistance);
       previous.set(edge.toNodeId, { nodeId: current.nodeId, edge });
@@ -687,6 +780,13 @@ function appendSegment(coordinates: Coordinate[], segment: PathSegment): void {
   for (const edge of segment.edges) appendEdgeCoordinates(coordinates, edge);
 }
 
+function coordinatesForPath(path: PathSegment, startCoordinate: Coordinate | undefined): Coordinate[] {
+  const coordinates: Coordinate[] = [];
+  if (startCoordinate) appendCoordinate(coordinates, startCoordinate);
+  for (const edge of path.edges) appendEdgeCoordinates(coordinates, edge);
+  return coordinates;
+}
+
 function appendEdgeCoordinates(coordinates: Coordinate[], edge: RoadEdge): void {
   if (edge.coordinates?.length) {
     appendCoordinates(coordinates, edge.coordinates.slice(sameCoordinate(coordinates.at(-1), edge.coordinates[0]) ? 1 : 0));
@@ -715,6 +815,21 @@ function appendNodeId(target: string[], nodeId: string): void {
 
 function sameCoordinate(a: Coordinate | undefined, b: Coordinate | undefined): boolean {
   return Boolean(a && b && Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9);
+}
+
+function countPolylineSelfIntersections(coordinates: Coordinate[]): number {
+  let count = 0;
+  for (let first = 0; first < coordinates.length - 1; first++) {
+    for (let second = first + 2; second < coordinates.length - 1; second++) {
+      if (segmentsShareEndpoint(coordinates[first], coordinates[first + 1], coordinates[second], coordinates[second + 1])) {
+        continue;
+      }
+      if (segmentsIntersect(coordinates[first], coordinates[first + 1], coordinates[second], coordinates[second + 1])) {
+        count += 1;
+      }
+    }
+  }
+  return count;
 }
 
 function segmentIntersectsRoute(routeCoordinates: Coordinate[], from: Coordinate, to: Coordinate): boolean {
