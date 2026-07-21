@@ -27,6 +27,8 @@ describe("App", () => {
     expect(html).toContain("iClient JavaScript");
     expect(html).toContain("ASTGTMV003_N30E114");
     expect(html).toContain("wuhan-marathon-routes.geojson");
+    expect(html).toContain("Routing data source");
+    expect(html).toContain("Full OSM");
   });
 
   it("keeps route selection controls visible when candidate routes are hidden on the map", () => {

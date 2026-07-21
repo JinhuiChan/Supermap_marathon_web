@@ -116,7 +116,8 @@ const waypointProfileMap: Record<WaypointRouteId, RouteSelectionProfile> = {
 const waypointProfileSeedPoints: Partial<Record<WaypointRouteId, Coordinate[]>> = {
   "waypoint-east-lake": [
     [114.3044, 30.5462],
-    [114.3317, 30.5615]
+    [114.3317, 30.5615],
+    [114.4012, 30.6018]
   ],
   "waypoint-riverside": [
     [114.3038, 30.5470]
@@ -223,7 +224,15 @@ export function buildBestRouteForSelectionProfile(
       targetDistanceKm,
       startPoint: seedPoint,
       maxRoutes: options.waypointGuidance ? 4 : 1,
-      profileIds: options.profileIds ?? plan.preferredCandidateIds
+      profileIds: options.profileIds ?? plan.preferredCandidateIds,
+      waypointGuidance: options.waypointGuidance
+        ? {
+            points: options.waypointGuidance,
+            hitRadiusKm: waypointHitRadiusKm,
+            influenceRadiusKm: 4,
+            minHits: 0
+          }
+        : undefined
     });
     candidates.push(...routes);
     if (candidates.length > 0 && !options.waypointGuidance) break;

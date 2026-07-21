@@ -17,6 +17,8 @@ describe("superMapConfig", () => {
   it("separates the full Wuhan road display layer from the lighter routing network", () => {
     expect(superMapConfig.displayRoadNetworkGeoJsonUrl).toBe("data/local-wuhan-road-network-osm.geojson");
     expect(superMapConfig.routingRoadNetworkGeoJsonUrl).toBe("data/local-wuhan-marathon-area-roads.geojson");
+    expect(superMapConfig.routingRoadNetworkGeoJsonUrls.area).toBe("data/local-wuhan-marathon-area-roads.geojson");
+    expect(superMapConfig.routingRoadNetworkGeoJsonUrls.fullOsm).toBe("data/local-wuhan-road-network-osm.geojson");
   });
 
   it("tracks the planned Wuhan GIS foundation services", () => {

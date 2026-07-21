@@ -36,6 +36,10 @@ export const superMapConfig = {
 
   displayRoadNetworkGeoJsonUrl: "data/local-wuhan-road-network-osm.geojson",
   routingRoadNetworkGeoJsonUrl: "data/local-wuhan-marathon-area-roads.geojson",
+  routingRoadNetworkGeoJsonUrls: {
+    area: "data/local-wuhan-marathon-area-roads.geojson",
+    fullOsm: "data/local-wuhan-road-network-osm.geojson"
+  },
   constraintLayerUrls: {
     waterArea: "data/gis/constraint_water_area.geojson",
     waterLine: "data/gis/constraint_water_line.geojson",

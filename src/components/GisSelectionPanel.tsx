@@ -1,5 +1,7 @@
 import { waypointRoutePlans, type WaypointRouteId } from "../data/profileRoutePlanner";
 
+export type RoutingNetworkMode = "area" | "fullOsm";
+
 export interface GisPlanningSettings {
   targetDistanceKm: number;
   poiWeights: Record<string, number>;
@@ -18,6 +20,8 @@ interface GisSelectionPanelProps {
   canGenerate: boolean;
   generateDisabledReason?: string;
   isGenerating?: boolean;
+  routingNetworkMode?: RoutingNetworkMode;
+  onRoutingNetworkModeChange?: (mode: RoutingNetworkMode) => void;
   onGenerateRoute: (routeId: WaypointRouteId) => void;
 }
 
@@ -59,6 +63,8 @@ export function GisSelectionPanel({
   canGenerate,
   generateDisabledReason,
   isGenerating = false,
+  routingNetworkMode = "area",
+  onRoutingNetworkModeChange,
   onGenerateRoute
 }: GisSelectionPanelProps) {
   const routeButtonTitle = !canGenerate && generateDisabledReason
@@ -75,6 +81,30 @@ export function GisSelectionPanel({
 
       <section className="gis-tool-group gis-step-group">
         <h3>1. 选择路线</h3>
+        <div className="gis-routing-source-control" aria-label="Routing data source">
+          <span>Routing data source</span>
+          <div className="gis-routing-source-options">
+            <button
+              type="button"
+              aria-pressed={routingNetworkMode === "area"}
+              className={routingNetworkMode === "area" ? "active" : ""}
+              disabled={isGenerating}
+              onClick={() => onRoutingNetworkModeChange?.("area")}
+            >
+              Area roads
+            </button>
+            <button
+              type="button"
+              aria-pressed={routingNetworkMode === "fullOsm"}
+              className={routingNetworkMode === "fullOsm" ? "active" : ""}
+              disabled={isGenerating}
+              onClick={() => onRoutingNetworkModeChange?.("fullOsm")}
+            >
+              Full OSM
+            </button>
+          </div>
+          <small>{routingNetworkMode === "fullOsm" ? "38MB / 52649 roads, experimental" : "6MB / 9771 roads, default"}</small>
+        </div>
         <div className="gis-waypoint-route-grid">
           {waypointRoutePlans.map((plan) => (
             <button

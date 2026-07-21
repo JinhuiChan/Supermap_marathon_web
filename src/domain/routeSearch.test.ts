@@ -317,6 +317,32 @@ describe("searchMarathonRoutes", () => {
     expect(result.routes[0].nodeIds.at(-1)).toBe("n42");
   });
 
+  it("counts waypoint guidance hits without requiring the requested point order", () => {
+    const graph = createEmptyGraph();
+    for (let index = 0; index <= 42; index++) {
+      addNode(graph, { id: `unordered-${index}`, coordinate: [114.3 + index * 0.001, 30.6] });
+      if (index > 0) addEligibleEdge(graph, `unordered-edge-${index}`, `unordered-${index - 1}`, `unordered-${index}`, 1.005);
+    }
+
+    const result = searchMarathonRoutes(graph, {
+      startPoint: graph.nodes.get("unordered-0")!.coordinate,
+      objective: "city-experience",
+      waypointGuidance: {
+        points: [
+          graph.nodes.get("unordered-30")!.coordinate,
+          graph.nodes.get("unordered-10")!.coordinate
+        ],
+        hitRadiusKm: 0.02
+      },
+      maxRoutes: 1,
+      maxExpandedStates: 20_000
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.routes[0].waypointHitCount).toBe(2);
+  });
+
   it("rejects a compact local knot even when its roads are unique", () => {
     const graph = createEmptyGraph();
     const coordinates: Coordinate[] = [

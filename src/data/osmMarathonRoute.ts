@@ -28,6 +28,7 @@ interface OSMCandidateOptions {
   waypointGuidance?: {
     points: Coordinate[];
     hitRadiusKm?: number;
+    influenceRadiusKm?: number;
     minHits?: number;
   };
 }

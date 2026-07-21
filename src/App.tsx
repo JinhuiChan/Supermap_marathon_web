@@ -9,7 +9,8 @@ import {
 } from "./components/GisModeNav";
 import {
   GisSelectionPanel,
-  defaultGisPlanningSettings
+  defaultGisPlanningSettings,
+  type RoutingNetworkMode
 } from "./components/GisSelectionPanel";
 import { LayerControlPanel } from "./components/LayerControlPanel";
 import { RouteAnalysisPanel } from "./components/RouteAnalysisPanel";
@@ -17,6 +18,7 @@ import { RouteDetails } from "./components/RouteDetails";
 import { RouteQualityPanel } from "./components/RouteQualityPanel";
 import { SuperMapStatusPanel } from "./components/SuperMapStatusPanel";
 import { superMapConfig } from "./config/supermap";
+import { buildFullOsmAllWaypointRoute, getWaypointHitDistancesM } from "./data/fullOsmAllWaypointRoute";
 import { buildWaypointRoute, waypointRoutePlans, type WaypointRouteId } from "./data/profileRoutePlanner";
 import { supportPoints } from "./data/supportPoints";
 import { upsertGeneratedRoute } from "./domain/routeCollection";
@@ -37,6 +39,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
   const [workspaceMode, setWorkspaceMode] = useState<GisWorkspaceMode>("selection");
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
   const [routes, setRoutes] = useState<MarathonRoute[]>([]);
+  const [routingNetworkMode, setRoutingNetworkMode] = useState<RoutingNetworkMode>("area");
   const [roadGeoJson, setRoadGeoJson] = useState<unknown>(null);
   const [generationStatus, setGenerationStatus] = useState("正在加载武汉道路矢量网络");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -66,8 +69,17 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
 
   useEffect(() => {
     let cancelled = false;
+    const routingUrl = superMapConfig.routingRoadNetworkGeoJsonUrls[routingNetworkMode];
 
-    fetch(superMapConfig.routingRoadNetworkGeoJsonUrl)
+    setRoadGeoJson(null);
+    setRoutes([]);
+    setActiveRouteId("");
+    setComparedRouteIds([]);
+    setGenerationStatus(routingNetworkMode === "fullOsm"
+      ? "Loading full OSM road network for experimental routing"
+      : "姝ｅ湪鍔犺浇姝︽眽閬撹矾鐭㈤噺缃戠粶");
+
+    fetch(routingUrl)
       .then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json();
@@ -87,7 +99,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [routingNetworkMode]);
 
   const generateRoute = (routeId: WaypointRouteId) => {
     if (!roadGeoJson || isGenerating) return;
@@ -109,14 +121,22 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
     try {
       await waitForUiFrame();
 
-      const route = buildWaypointRoute(roadGeoJson, plan, { maxAttempts: 5 });
+      const route = routingNetworkMode === "fullOsm"
+        ? buildFullOsmAllWaypointRoute(roadGeoJson, plan)
+        : buildWaypointRoute(roadGeoJson, plan, { maxAttempts: 5 });
       if (!route) {
         setGenerationStatus(`「${plan.name}」生成失败：路网数据在途经点之间无法连通，请检查道路覆盖范围`);
         return;
       }
 
+      const hitDistances = getWaypointHitDistancesM(route, plan);
+      const hitCount = hitDistances.filter((item) => item.hit).length;
       setRoutes((current) => upsertGeneratedRoute(current, route));
-      setGenerationStatus(`已生成「${route.name}」(${route.lengthKm.toFixed(1)} km)`);
+      setGenerationStatus(
+        routingNetworkMode === "fullOsm"
+          ? `Full OSM generated ${route.name}: ${route.lengthKm.toFixed(1)} km, hit ${hitCount}/${plan.waypoints.length} control points`
+          : `Generated ${route.name}: ${route.lengthKm.toFixed(1)} km`
+      );
       setActiveRouteId(route.id);
       setComparedRouteIds((current) => [...current.filter((id) => id !== route.id).slice(-4), route.id]);
     } catch {
@@ -187,6 +207,8 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
               canGenerate={Boolean(roadGeoJson)}
               generateDisabledReason={generateDisabledReason}
               isGenerating={isGenerating}
+              routingNetworkMode={routingNetworkMode}
+              onRoutingNetworkModeChange={setRoutingNetworkMode}
               onGenerateRoute={generateRoute}
             />
             <CandidateRouteDrawer

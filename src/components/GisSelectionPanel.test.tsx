@@ -26,6 +26,16 @@ describe("GisSelectionPanel", () => {
     expect(html).toContain('title="道路网络数据仍在加载"');
   });
 
+  it("offers an experimental full OSM routing network switch", () => {
+    const html = renderPanel({ routingNetworkMode: "fullOsm" });
+
+    expect(html).toContain("Routing data source");
+    expect(html).toContain("Area roads");
+    expect(html).toContain("Full OSM");
+    expect(html).toContain("38MB");
+    expect(html).toContain('aria-pressed="true"');
+  });
+
   it("offers three route corridor options whose hard rules stay identical", () => {
     const html = renderPanel();
     expect(html).toContain("东湖线");

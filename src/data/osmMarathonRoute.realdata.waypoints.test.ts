@@ -7,7 +7,7 @@ import { buildWaypointRoute, waypointHitRadiusKm, waypointRoutePlans } from "./p
 
 const realWuhanRoads = JSON.parse(realWuhanRoadsText);
 const minimumWaypointHitsByRouteId = new Map([
-  ["waypoint-east-lake", 6],
+  ["waypoint-east-lake", 7],
   ["waypoint-riverside", 5],
   ["waypoint-city-scenic", 6]
 ]);
@@ -70,6 +70,7 @@ describe("osmMarathonRoute visible real-data waypoint routes", () => {
       expect(summary.hitCount, plan.id).toBeGreaterThanOrEqual(minimumWaypointHitsByRouteId.get(plan.id) ?? 4);
     }
   }, 60000);
+
 });
 
 function summarizeWaypointHits(route: MarathonRoute, waypoints: Coordinate[], hitRadiusKm: number) {
