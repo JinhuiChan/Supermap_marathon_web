@@ -62,7 +62,7 @@ Supermap_marathon_web 使用说明与技术说明
 
   public/data/local-wuhan-road-network-osm.geojson
 
-该文件较大，通常作为本地运行数据准备，不一定提交到 GitHub。如果缺失，页面仍能打开，但生成路线按钮会提示 Full OSM 路网加载失败。
+该文件较大，但已提交到 GitHub。同学克隆仓库并安装依赖后，可以直接运行 Web 并生成路线，不需要额外拷贝路网文件。
 
 3. 启动前端
 
@@ -460,7 +460,7 @@ scripts 目录用于本地数据准备：
 2. World Athletics / AIMS 认证仍需合资格测量员沿最短可跑线实测。
 3. 保障规划建议不是官方保障方案。
 4. 医疗、补给、厕所、停车、交通管制、人流疏散等需要后续接入真实官方数据或现场踏勘。
-5. 如果 public/data/local-wuhan-road-network-osm.geojson 缺失，路线生成不可用。
+5. public/data/local-wuhan-road-network-osm.geojson 已随仓库提交；如果被手动删除，路线生成不可用。
 6. 如果 SuperMap iServer 未启动，WMS/REST 状态会失败，但前端仍可在可用数据范围内显示页面和回退内容。
 
 
@@ -483,5 +483,5 @@ scripts 目录用于本地数据准备：
   node_modules
   dist
   supermap-workspace
-  本地超大临时数据
+  未被源码引用的本地超大临时数据
   与最终系统无关的历史计划 Markdown

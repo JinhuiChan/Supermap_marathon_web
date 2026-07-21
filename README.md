@@ -44,7 +44,7 @@ http://127.0.0.1:8090/iserver
 public/data/local-wuhan-road-network-osm.geojson
 ```
 
-这个大文件当前属于本地运行数据，未列在仓库跟踪文件清单中；如果缺失，路线生成按钮会显示 Full OSM 路网加载失败。
+这个大文件已随仓库提交；同学克隆仓库并安装依赖后，可以直接启动页面生成路线，不需要额外拷贝路网数据。
 
 ## 路线类型
 
@@ -86,6 +86,8 @@ public/data/local-wuhan-road-network-osm.geojson
 | `public/data/wuhan-marathon-routes.geojson` | 可下载/展示的武汉马拉松候选路线 GeoJSON。 |
 | `public/data/experimental-full-osm-all-waypoint-routes.geojson` | Full OSM 全控制点实验路线 GeoJSON。 |
 | `public/data/wuhan-marathon-support-points.geojson` | 赛事服务点 GeoJSON，包括起终点、补给、医疗、停车等示意点。 |
+| `public/data/local-wuhan-road-network-osm.geojson` | Web 运行和 Full OSM 路线生成使用的完整武汉 OSM 路网。 |
+| `public/data/local-wuhan-marathon-area-roads.geojson` | 真实路网单元测试使用的武汉马拉松区域道路数据。 |
 | `public/data/gis/constraint_sensitive_hospital_area.geojson` | 医院敏感区约束图层。 |
 | `public/data/gis/constraint_sensitive_school_area.geojson` | 学校敏感区约束图层。 |
 | `public/data/gis/constraint_water_area.geojson` | 水域面约束图层。 |
