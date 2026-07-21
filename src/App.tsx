@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { CandidateRouteDrawer } from "./components/CandidateRouteDrawer";
 import { ComparisonPanel } from "./components/ComparisonPanel";
 import { DataPackagePanel } from "./components/DataPackagePanel";
@@ -9,8 +9,7 @@ import {
 } from "./components/GisModeNav";
 import {
   GisSelectionPanel,
-  defaultGisPlanningSettings,
-  type RoutingNetworkMode
+  defaultGisPlanningSettings
 } from "./components/GisSelectionPanel";
 import { LayerControlPanel } from "./components/LayerControlPanel";
 import { RouteAnalysisPanel } from "./components/RouteAnalysisPanel";
@@ -19,7 +18,7 @@ import { RouteQualityPanel } from "./components/RouteQualityPanel";
 import { SuperMapStatusPanel } from "./components/SuperMapStatusPanel";
 import { superMapConfig } from "./config/supermap";
 import { buildFullOsmAllWaypointRoute, getWaypointHitDistancesM } from "./data/fullOsmAllWaypointRoute";
-import { buildWaypointRoute, waypointRoutePlans, type WaypointRouteId } from "./data/profileRoutePlanner";
+import { waypointRoutePlans, type WaypointRouteId } from "./data/profileRoutePlanner";
 import { supportPoints } from "./data/supportPoints";
 import { upsertGeneratedRoute } from "./domain/routeCollection";
 import {
@@ -39,10 +38,10 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
   const [workspaceMode, setWorkspaceMode] = useState<GisWorkspaceMode>("selection");
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
   const [routes, setRoutes] = useState<MarathonRoute[]>([]);
-  const [routingNetworkMode, setRoutingNetworkMode] = useState<RoutingNetworkMode>("area");
   const [roadGeoJson, setRoadGeoJson] = useState<unknown>(null);
-  const [generationStatus, setGenerationStatus] = useState("正在加载武汉道路矢量网络");
+  const [generationStatus, setGenerationStatus] = useState("姝ｅ湪鍔犺浇姝︽眽閬撹矾鐭㈤噺缃戠粶");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState<number | null>(null);
   const [activeRouteId, setActiveRouteId] = useState("");
   const [comparedRouteIds, setComparedRouteIds] = useState<string[]>([]);
   const [mapLayerVisibility, setMapLayerVisibility] = useState<MapLayerVisibility>(
@@ -69,15 +68,13 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
 
   useEffect(() => {
     let cancelled = false;
-    const routingUrl = superMapConfig.routingRoadNetworkGeoJsonUrls[routingNetworkMode];
+    const routingUrl = superMapConfig.routingRoadNetworkGeoJsonUrls.fullOsm;
 
     setRoadGeoJson(null);
     setRoutes([]);
     setActiveRouteId("");
     setComparedRouteIds([]);
-    setGenerationStatus(routingNetworkMode === "fullOsm"
-      ? "Loading full OSM road network for experimental routing"
-      : "姝ｅ湪鍔犺浇姝︽眽閬撹矾鐭㈤噺缃戠粶");
+    setGenerationStatus("Loading full OSM road network for route generation");
 
     fetch(routingUrl)
       .then((response) => {
@@ -87,19 +84,19 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
       .then((geojson) => {
         if (cancelled) return;
         setRoadGeoJson(geojson);
-        setGenerationStatus("道路网络已加载，可生成推荐路线库");
+        setGenerationStatus("Full OSM road network loaded. Ready to generate routes.");
       })
       .catch(() => {
         if (!cancelled) {
           setRoutes([]);
-          setGenerationStatus("未找到武汉道路矢量网络数据");
+          setGenerationStatus("Full OSM road network data was not found.");
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [routingNetworkMode]);
+  }, []);
 
   const generateRoute = (routeId: WaypointRouteId) => {
     if (!roadGeoJson || isGenerating) return;
@@ -107,7 +104,8 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
     const plan = waypointRoutePlans.find((p) => p.id === routeId);
     if (!plan) return;
 
-    setGenerationStatus(`正在沿 ${plan.waypoints.length} 个途经点生成「${plan.name}」…`);
+    setGenerationStatus(`Generating ${plan.name} with ${plan.waypoints.length} control points`);
+    setGenerationProgress(8);
     setIsGenerating(true);
 
     window.setTimeout(() => {
@@ -120,27 +118,27 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
 
     try {
       await waitForUiFrame();
+      setGenerationProgress(26);
+      await waitForUiFrame();
 
-      const route = routingNetworkMode === "fullOsm"
-        ? buildFullOsmAllWaypointRoute(roadGeoJson, plan)
-        : buildWaypointRoute(roadGeoJson, plan, { maxAttempts: 5 });
+      const route = buildFullOsmAllWaypointRoute(roadGeoJson, plan);
       if (!route) {
-        setGenerationStatus(`「${plan.name}」生成失败：路网数据在途经点之间无法连通，请检查道路覆盖范围`);
+        setGenerationStatus(`${plan.name} generation failed: road network is not connected between control points.`);
+        setGenerationProgress(null);
         return;
       }
 
+      setGenerationProgress(88);
       const hitDistances = getWaypointHitDistancesM(route, plan);
       const hitCount = hitDistances.filter((item) => item.hit).length;
       setRoutes((current) => upsertGeneratedRoute(current, route));
-      setGenerationStatus(
-        routingNetworkMode === "fullOsm"
-          ? `Full OSM generated ${route.name}: ${route.lengthKm.toFixed(1)} km, hit ${hitCount}/${plan.waypoints.length} control points`
-          : `Generated ${route.name}: ${route.lengthKm.toFixed(1)} km`
-      );
+      setGenerationProgress(100);
+      setGenerationStatus(`Full OSM generated ${route.name}: ${route.lengthKm.toFixed(1)} km, hit ${hitCount}/${plan.waypoints.length} control points`);
       setActiveRouteId(route.id);
       setComparedRouteIds((current) => [...current.filter((id) => id !== route.id).slice(-4), route.id]);
     } catch {
-      setGenerationStatus("路线生成失败，请检查道路网络连通性");
+      setGenerationStatus("Route generation failed. Check full OSM road network connectivity.");
+      setGenerationProgress(null);
     } finally {
       setIsGenerating(false);
     }
@@ -175,7 +173,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
   };
 
   const generateDisabledReason = !roadGeoJson
-    ? "道路网络数据仍在加载或加载失败，请检查 public/data/local-wuhan-marathon-area-roads.geojson"
+    ? "Full OSM road network is still loading or failed. Check public/data/local-wuhan-road-network-osm.geojson"
     : "";
 
   return (
@@ -183,11 +181,11 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
       <header className="gis-app-header">
         <div className="gis-brand">
           <span>SuperMap WebGIS</span>
-          <strong>武汉马拉松赛道空间选线平台</strong>
+          <strong>姝︽眽椹媺鏉捐禌閬撶┖闂撮€夌嚎骞冲彴</strong>
         </div>
         <GisModeNav mode={workspaceMode} onModeChange={setWorkspaceMode} />
         <button type="button" className="gis-header-action" disabled={routes.length === 0} onClick={() => applyRecommendation()}>
-          采用当前推荐
+          閲囩敤褰撳墠鎺ㄨ崘
         </button>
       </header>
 
@@ -201,14 +199,13 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
         />
 
         {workspaceMode === "selection" && (
-          <aside className="gis-selection-dock" aria-label="智能选型工作区">
+          <aside className="gis-selection-dock" aria-label="Route selection workspace">
             <GisSelectionPanel
               settings={defaultGisPlanningSettings}
               canGenerate={Boolean(roadGeoJson)}
               generateDisabledReason={generateDisabledReason}
               isGenerating={isGenerating}
-              routingNetworkMode={routingNetworkMode}
-              onRoutingNetworkModeChange={setRoutingNetworkMode}
+              generationProgress={generationProgress}
               onGenerateRoute={generateRoute}
             />
             <CandidateRouteDrawer
@@ -224,9 +221,9 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
         )}
 
         {workspaceMode === "analysis" && (
-          <aside className="gis-analysis-dock" aria-label="赛道分析面板">
+          <aside className="gis-analysis-dock" aria-label="Route analysis panel">
             <button type="button" className="back-to-selection" onClick={() => setWorkspaceMode("selection")}>
-              返回智能选型
+              杩斿洖鏅鸿兘閫夊瀷
             </button>
             {activeRoute ? (
               <>
@@ -237,14 +234,14 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
               </>
             ) : (
               <section className="side-section empty-analysis">
-                <h2>尚未生成赛道</h2>
-                <p className="muted">请返回智能选型，生成推荐路线库后再从候选路线进入分析。</p>
+                <h2>No route generated</h2>
+                <p className="muted">Return to route selection and generate a Full OSM route before analysis.</p>
               </section>
             )}
           </aside>
         )}
 
-        <details className="gis-utility-details" aria-label="GIS 图层与服务">
+        <details className="gis-utility-details" aria-label="GIS layers and services">
           <summary>GIS 详情</summary>
           <aside className="gis-utility-dock">
             <RouteQualityPanel route={activeRoute} />

@@ -15,9 +15,11 @@ function renderPanel(overrides: Partial<Parameters<typeof GisSelectionPanel>[0]>
 
 describe("GisSelectionPanel", () => {
   it("shows immediate feedback while the route model is running", () => {
-    const html = renderPanel({ isGenerating: true });
+    const html = renderPanel({ isGenerating: true, generationProgress: 32 });
     expect(html).toContain("正在搜索合规路线");
     expect(html).toContain("disabled");
+    expect(html).toContain('role="progressbar"');
+    expect(html).toContain('aria-valuenow="32"');
   });
 
   it("explains why route generation is disabled", () => {
@@ -26,14 +28,13 @@ describe("GisSelectionPanel", () => {
     expect(html).toContain('title="道路网络数据仍在加载"');
   });
 
-  it("offers an experimental full OSM routing network switch", () => {
-    const html = renderPanel({ routingNetworkMode: "fullOsm" });
+  it("uses full OSM as the only routing network source", () => {
+    const html = renderPanel();
 
-    expect(html).toContain("Routing data source");
-    expect(html).toContain("Area roads");
+    expect(html).toContain("Routing data");
+    expect(html).not.toContain("Area roads");
     expect(html).toContain("Full OSM");
     expect(html).toContain("38MB");
-    expect(html).toContain('aria-pressed="true"');
   });
 
   it("offers three route corridor options whose hard rules stay identical", () => {

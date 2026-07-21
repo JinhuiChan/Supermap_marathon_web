@@ -1647,8 +1647,19 @@ textarea {
   display: grid;
   gap: 7px;
   margin-bottom: 12px;
+  border: 1px solid #dbe7f3;
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: #f7fbff;
   color: #334155;
   font-size: 12px;
+}
+
+.gis-routing-source-control > strong {
+  color: #1f5fbf;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.2;
 }
 
 .gis-routing-source-options {
@@ -1810,6 +1821,37 @@ textarea {
   color: #5f7184;
   font-size: 12px;
   line-height: 1.5;
+}
+
+.gis-generation-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 8px;
+}
+
+.gis-generation-progress div[role="progressbar"] {
+  height: 10px;
+  overflow: hidden;
+  border: 1px solid #c8d8e8;
+  border-radius: 999px;
+  background: #edf3f8;
+}
+
+.gis-generation-progress div[role="progressbar"] span {
+  display: block;
+  height: 100%;
+  min-width: 10px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #23836f, #2563eb);
+  transition: width 180ms ease;
+}
+
+.gis-generation-progress small {
+  color: #31556f;
+  font-size: 11px;
+  font-weight: 850;
+  text-align: right;
 }
 
 .gis-clear-points-button {

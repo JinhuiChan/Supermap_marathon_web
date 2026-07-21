@@ -1,7 +1,5 @@
 import { waypointRoutePlans, type WaypointRouteId } from "../data/profileRoutePlanner";
 
-export type RoutingNetworkMode = "area" | "fullOsm";
-
 export interface GisPlanningSettings {
   targetDistanceKm: number;
   poiWeights: Record<string, number>;
@@ -20,8 +18,7 @@ interface GisSelectionPanelProps {
   canGenerate: boolean;
   generateDisabledReason?: string;
   isGenerating?: boolean;
-  routingNetworkMode?: RoutingNetworkMode;
-  onRoutingNetworkModeChange?: (mode: RoutingNetworkMode) => void;
+  generationProgress?: number | null;
   onGenerateRoute: (routeId: WaypointRouteId) => void;
 }
 
@@ -63,13 +60,14 @@ export function GisSelectionPanel({
   canGenerate,
   generateDisabledReason,
   isGenerating = false,
-  routingNetworkMode = "area",
-  onRoutingNetworkModeChange,
+  generationProgress = null,
   onGenerateRoute
 }: GisSelectionPanelProps) {
   const routeButtonTitle = !canGenerate && generateDisabledReason
     ? generateDisabledReason
     : isGenerating ? "正在搜索合规路线" : undefined;
+
+  const progressValue = Math.max(0, Math.min(100, Math.round(generationProgress ?? 12)));
 
   return (
     <aside className="gis-selection-panel" aria-label="武汉马拉松赛道选型">
@@ -82,28 +80,9 @@ export function GisSelectionPanel({
       <section className="gis-tool-group gis-step-group">
         <h3>1. 选择路线</h3>
         <div className="gis-routing-source-control" aria-label="Routing data source">
-          <span>Routing data source</span>
-          <div className="gis-routing-source-options">
-            <button
-              type="button"
-              aria-pressed={routingNetworkMode === "area"}
-              className={routingNetworkMode === "area" ? "active" : ""}
-              disabled={isGenerating}
-              onClick={() => onRoutingNetworkModeChange?.("area")}
-            >
-              Area roads
-            </button>
-            <button
-              type="button"
-              aria-pressed={routingNetworkMode === "fullOsm"}
-              className={routingNetworkMode === "fullOsm" ? "active" : ""}
-              disabled={isGenerating}
-              onClick={() => onRoutingNetworkModeChange?.("fullOsm")}
-            >
-              Full OSM
-            </button>
-          </div>
-          <small>{routingNetworkMode === "fullOsm" ? "38MB / 52649 roads, experimental" : "6MB / 9771 roads, default"}</small>
+          <span>Routing data</span>
+          <strong>Full OSM</strong>
+          <small>38MB / 52649 roads, experimental</small>
         </div>
         <div className="gis-waypoint-route-grid">
           {waypointRoutePlans.map((plan) => (
@@ -139,6 +118,20 @@ export function GisSelectionPanel({
         <h3>3. 生成路线</h3>
         <p className="gis-tool-hint">点击上方路线按钮即可生成。系统将途经点吸附到最近路网节点，分段生成子路径后拼接为完整路线，并通过距离容差和质量闸门校验。</p>
         {isGenerating && <p className="gis-tool-hint">正在搜索合规路线</p>}
+        {isGenerating && (
+          <div className="gis-generation-progress" aria-label="Route generation progress">
+            <div
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progressValue}
+              aria-valuetext={`Full OSM route generation ${progressValue}%`}
+            >
+              <span style={{ width: `${progressValue}%` }} />
+            </div>
+            <small>{progressValue}%</small>
+          </div>
+        )}
         {!canGenerate && generateDisabledReason && <p className="gis-tool-hint">{generateDisabledReason}</p>}
       </section>
     </aside>
