@@ -1306,12 +1306,48 @@ textarea {
   font-size: 12px;
 }
 
+.analysis-reliability {
+  display: inline-flex;
+  margin: 4px 0 0 6px;
+  border-radius: 999px;
+  padding: 2px 7px;
+  border: 1px solid #d3dde8;
+  color: #53687d;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.analysis-reliability.measured {
+  border-color: #a9d6be;
+  background: #eef8f2;
+  color: #167149;
+}
+
+.analysis-reliability.derived {
+  border-color: #bed3ea;
+  background: #f1f6fb;
+  color: #2f628f;
+}
+
+.analysis-reliability.estimated {
+  border-color: #ecd19f;
+  background: #fff8e9;
+  color: #8a5c10;
+}
+
 .analysis-card p,
 .analysis-list p {
   margin: 7px 0 0;
   color: #5f7184;
   font-size: 12px;
   line-height: 1.55;
+}
+
+.analysis-card .analysis-source,
+.analysis-card .analysis-inputs {
+  color: #7b8794;
+  font-size: 11px;
 }
 
 .analysis-list {
@@ -1329,6 +1365,16 @@ textarea {
 .analysis-list.risk {
   background: #fffaf2;
   border-color: #f3ddb9;
+}
+
+.analysis-list.evidence-scope {
+  background: #f7fbff;
+  border-color: #d7e6f5;
+}
+
+.analysis-list.data-gaps {
+  background: #fff8f1;
+  border-color: #f0d4b8;
 }
 
 /* GIS map-tool workspace */

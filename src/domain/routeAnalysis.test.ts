@@ -53,7 +53,8 @@ describe("routeAnalysis", () => {
       "experience"
     ]);
     expect(analysis.dimensionCards.find((card) => card.id === "venue")?.score).toBeGreaterThan(0);
-    expect(analysis.dimensionCards.find((card) => card.id === "support")?.evidence).toContain("公厕");
+    expect(analysis.dimensionCards.find((card) => card.id === "support")?.reliability).toBe("estimated");
+    expect(analysis.dimensionCards.find((card) => card.id === "support")?.evidence).toContain("不是官方保障点部署");
   });
 
   it("builds a competition report without the deleted official vector route as baseline", () => {
@@ -106,5 +107,18 @@ describe("routeAnalysis", () => {
     expect(betterScores.support).toBeGreaterThan(worseScores.support);
     expect(betterScores.experience).toBeGreaterThan(worseScores.experience);
     expect(new Set(worse.dimensionCards.map((card) => card.score)).size).toBeGreaterThan(2);
+  });
+
+  it("labels data sources and downgrades unsupported claims to estimates", () => {
+    const analysis = analyzeRoute(generatedRoute, []);
+    const support = analysis.dimensionCards.find((card) => card.id === "support");
+
+    expect(analysis.dataSources).toContain("路线几何坐标");
+    expect(analysis.dataSources).toContain("道路拓扑检测指标");
+    expect(analysis.dataGaps).toContain("未接入官方补给点、医疗点、厕所、停车与交通管制部署数据");
+    expect(support?.reliability).toBe("estimated");
+    expect(support?.source).toContain("模型估算");
+    expect(support?.evidence).toContain("不是官方保障点部署");
+    expect([...analysis.highlights, ...analysis.risks, analysis.recommendation].join(" ")).not.toMatch(/利于|可控|适配|优先方案|大众跑者完赛/);
   });
 });
