@@ -1,14 +1,24 @@
-import { describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test } from "vitest";
 import realWuhanRoadsText from "../../public/data/local-wuhan-marathon-area-roads.geojson?raw";
+import type { Coordinate, MarathonRoute } from "../domain/routeMetrics";
 import { evaluateRouteQuality } from "../domain/routeQuality";
+import { haversineKm } from "../domain/roadAttributes";
 import { buildWaypointRoute, waypointRoutePlans } from "./profileRoutePlanner";
 
 const realWuhanRoads = JSON.parse(realWuhanRoadsText);
 
 describe("osmMarathonRoute visible real-data waypoint routes", () => {
+  const routesByPlan = new Map<string, MarathonRoute | null>();
+
+  beforeAll(() => {
+    for (const plan of waypointRoutePlans) {
+      routesByPlan.set(plan.id, buildWaypointRoute(realWuhanRoads, plan, { maxAttempts: 5 }));
+    }
+  }, 60000);
+
   test("does not return non-compliant waypoint routes to the visible route drawer", () => {
     for (const plan of waypointRoutePlans) {
-      const route = buildWaypointRoute(realWuhanRoads, plan, { maxAttempts: 5 });
+      const route = routesByPlan.get(plan.id) ?? null;
 
       expect(route === null || evaluateRouteQuality(route, { targetDistanceKm: plan.targetDistanceKm }).passed, plan.id).toBe(true);
     }
@@ -16,7 +26,7 @@ describe("osmMarathonRoute visible real-data waypoint routes", () => {
 
   test("returns quality-gated routes for the visible waypoint route buttons", () => {
     for (const plan of waypointRoutePlans) {
-      const route = buildWaypointRoute(realWuhanRoads, plan, { maxAttempts: 5 });
+      const route = routesByPlan.get(plan.id) ?? null;
 
       expect(route, plan.id).not.toBeNull();
       expect(route!.lengthKm, plan.id).toBeCloseTo(plan.targetDistanceKm, 3);
@@ -29,7 +39,7 @@ describe("osmMarathonRoute visible real-data waypoint routes", () => {
     const routeSignatures = new Set<string>();
 
     for (const plan of waypointRoutePlans) {
-      const route = buildWaypointRoute(realWuhanRoads, plan, { maxAttempts: 5 });
+      const route = routesByPlan.get(plan.id) ?? null;
 
       expect(route, plan.id).not.toBeNull();
       routeSignatures.add(JSON.stringify(route!.coordinates));
@@ -37,4 +47,87 @@ describe("osmMarathonRoute visible real-data waypoint routes", () => {
 
     expect(routeSignatures.size).toBe(waypointRoutePlans.length);
   }, 60000);
+
+  test("keeps generated routes close to ordered control points", () => {
+    for (const plan of waypointRoutePlans) {
+      const route = routesByPlan.get(plan.id) ?? null;
+
+      expect(route, plan.id).not.toBeNull();
+      const summary = summarizeWaypointHits(route!, plan.waypoints.map((waypoint) => waypoint.coordinate), 1);
+      expect(summary.hitCount, plan.id).toBeGreaterThanOrEqual(4);
+      expect(summary.orderedHitCount, plan.id).toBeGreaterThanOrEqual(3);
+    }
+  }, 60000);
 });
+
+function summarizeWaypointHits(route: MarathonRoute, waypoints: Coordinate[], hitRadiusKm: number) {
+  const hits = waypoints
+    .map((waypoint) => nearestRouteDistanceKm(waypoint, route.coordinates))
+    .filter((hit) => hit.distanceKm <= hitRadiusKm);
+
+  let lastAlongKm = -Infinity;
+  let orderedHitCount = 0;
+  for (const hit of hits) {
+    if (hit.alongKm < lastAlongKm) continue;
+    orderedHitCount += 1;
+    lastAlongKm = hit.alongKm;
+  }
+
+  return {
+    hitCount: hits.length,
+    orderedHitCount
+  };
+}
+
+function nearestRouteDistanceKm(point: Coordinate, routeCoordinates: Coordinate[]) {
+  let best = { distanceKm: Number.POSITIVE_INFINITY, alongKm: 0 };
+  let walkedKm = 0;
+
+  for (let index = 1; index < routeCoordinates.length; index++) {
+    const from = routeCoordinates[index - 1];
+    const to = routeCoordinates[index];
+    const segmentKm = haversineKm(from, to);
+    const projected = projectPointToSegment(point, from, to);
+    const distanceKm = haversineKm(point, projected.coordinate);
+    if (distanceKm < best.distanceKm) {
+      best = {
+        distanceKm,
+        alongKm: walkedKm + segmentKm * projected.fraction
+      };
+    }
+    walkedKm += segmentKm;
+  }
+
+  return best;
+}
+
+function projectPointToSegment(point: Coordinate, from: Coordinate, to: Coordinate) {
+  const latitude = point[1];
+  const projectedPoint = toPlanarKm(point, latitude);
+  const projectedFrom = toPlanarKm(from, latitude);
+  const projectedTo = toPlanarKm(to, latitude);
+  const vectorX = projectedTo[0] - projectedFrom[0];
+  const vectorY = projectedTo[1] - projectedFrom[1];
+  const pointX = projectedPoint[0] - projectedFrom[0];
+  const pointY = projectedPoint[1] - projectedFrom[1];
+  const denominator = vectorX * vectorX + vectorY * vectorY;
+  const fraction = denominator === 0
+    ? 0
+    : Math.max(0, Math.min(1, (pointX * vectorX + pointY * vectorY) / denominator));
+
+  return {
+    fraction,
+    coordinate: [
+      from[0] + (to[0] - from[0]) * fraction,
+      from[1] + (to[1] - from[1]) * fraction
+    ] as Coordinate
+  };
+}
+
+function toPlanarKm(coordinate: Coordinate, latitude: number): [number, number] {
+  const kmPerDegree = 111.32;
+  return [
+    coordinate[0] * kmPerDegree * Math.cos(latitude * Math.PI / 180),
+    coordinate[1] * kmPerDegree
+  ];
+}

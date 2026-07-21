@@ -25,6 +25,11 @@ interface OSMCandidateOptions {
   endPoint?: Coordinate;
   maxRoutes?: number;
   profileIds?: string[];
+  waypointGuidance?: {
+    points: Coordinate[];
+    hitRadiusKm?: number;
+    minHits?: number;
+  };
 }
 
 type RoutePreference = "balanced" | "main-road" | "scenic" | "river-scenic";
@@ -114,6 +119,7 @@ function buildCompliantDistanceRoutes(graph: RoadGraph, options: OSMCandidateOpt
       startPoint: options.startPoint,
       ...(options.endPoint ? { endPoint: options.endPoint } : {}),
       targetDistanceKm: options.targetDistanceKm,
+      waypointGuidance: options.waypointGuidance,
       objective: preferenceToSearchObjective(profile.preference),
       maxRoutes: 1,
       maxExpandedStates: 550_000

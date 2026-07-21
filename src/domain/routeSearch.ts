@@ -10,9 +10,17 @@ export interface MarathonSearchRequest {
   startPoint: Coordinate;
   endPoint?: Coordinate;
   targetDistanceKm?: number;
+  waypointGuidance?: MarathonWaypointGuidance;
   objective: MarathonSearchObjective;
   maxRoutes?: number;
   maxExpandedStates?: number;
+}
+
+export interface MarathonWaypointGuidance {
+  points: Coordinate[];
+  hitRadiusKm?: number;
+  influenceRadiusKm?: number;
+  minHits?: number;
 }
 
 export interface SearchedPath {
@@ -21,6 +29,7 @@ export interface SearchedPath {
   physicalEdgeIds: string[];
   totalLengthKm: number;
   terminalEdgeFraction?: number;
+  waypointHitCount?: number;
 }
 
 export type MarathonSearchResult =
@@ -39,6 +48,8 @@ interface SearchState extends SearchedPath {
   visitedNodeIds: Set<string>;
   coordinates: Coordinate[];
   objectiveScore: number;
+  waypointProgress: number;
+  nextWaypointDistanceKm: number;
 }
 
 const DEFAULT_MAX_EXPANDED_STATES = 60_000;
@@ -49,6 +60,7 @@ const MAX_SNAP_DISTANCE_KM = 1.5;
 export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRequest): MarathonSearchResult {
   const hasFixedFinish = Boolean(request.endPoint);
   const distanceWindow = getSearchDistanceWindow(request.targetDistanceKm);
+  const waypointGuidance = normalizeWaypointGuidance(request.waypointGuidance);
   const componentCapacityKm = hasFixedFinish ? undefined : computeEligibleComponentCapacityKm(graph);
   const start = snapToSuitableNode(
     graph,
@@ -67,6 +79,7 @@ export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRe
   const initialCoordinate = graph.nodes.get(start.nodeId)?.coordinate;
   if (!initialCoordinate) return failure("snap-distance", "起点无法吸附到路网节点", 0);
 
+  const initialProgress = initialWaypointProgress(waypointGuidance, initialCoordinate);
   const initial: SearchState = {
     currentNodeId: start.nodeId,
     nodeIds: [start.nodeId],
@@ -76,7 +89,9 @@ export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRe
     visitedNodeIds: new Set([start.nodeId]),
     coordinates: [initialCoordinate],
     totalLengthKm: 0,
-    objectiveScore: 0
+    objectiveScore: 0,
+    waypointProgress: initialProgress,
+    nextWaypointDistanceKm: distanceToNextWaypoint(waypointGuidance, initialProgress, initialCoordinate)
   };
 
   const maxExpandedStates = request.maxExpandedStates ?? DEFAULT_MAX_EXPANDED_STATES;
@@ -130,14 +145,21 @@ export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRe
           !nextCoordinate ||
           !nextCoordinates
         ) continue;
+        const waypointUpdate = advanceWaypointProgress(
+          waypointGuidance,
+          state.waypointProgress,
+          edgeForValidation.coordinates?.length ? edgeForValidation.coordinates : [state.coordinates.at(-1)!, nextCoordinate]
+        );
 
         if (crossesDynamicFinish && terminalEdgeFraction !== undefined) {
+          if (!hasMinimumWaypointHits(waypointGuidance, waypointUpdate.progress)) continue;
           const completed = toSearchedPath(
             state,
             edge,
             physicalEdgeId,
             distanceWindow.minDistanceKm,
-            terminalEdgeFraction
+            terminalEdgeFraction,
+            waypointUpdate.progress
           );
           const key = `${completed.physicalEdgeIds.join("|")}|${terminalEdgeFraction.toFixed(6)}`;
           if (!routeKeys.has(key)) {
@@ -152,7 +174,8 @@ export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRe
           nextLengthKm <= distanceWindow.maxDistanceKm;
         if ((hasFixedFinish && nextNodeId === end.nodeId) || finishesDynamically) {
           if (nextLengthKm < distanceWindow.minDistanceKm) continue;
-          const completed = toSearchedPath(state, edge, physicalEdgeId, nextLengthKm);
+          if (!hasMinimumWaypointHits(waypointGuidance, waypointUpdate.progress)) continue;
+          const completed = toSearchedPath(state, edge, physicalEdgeId, nextLengthKm, undefined, waypointUpdate.progress);
           const key = completed.physicalEdgeIds.join("|");
           if (!routeKeys.has(key)) {
             routeKeys.add(key);
@@ -178,12 +201,14 @@ export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRe
           visitedNodeIds,
           coordinates: nextCoordinates,
           totalLengthKm: nextLengthKm,
-          objectiveScore: state.objectiveScore + objectiveEdgeScore(edge, request.objective)
+          objectiveScore: state.objectiveScore + objectiveEdgeScore(edge, request.objective) + waypointUpdate.score,
+          waypointProgress: waypointUpdate.progress,
+          nextWaypointDistanceKm: distanceToNextWaypoint(waypointGuidance, waypointUpdate.progress, nextCoordinate)
         });
       }
     }
 
-    beam = selectBeam(nextStates, lowerBounds, hasFixedFinish, distanceWindow);
+    beam = selectBeam(nextStates, lowerBounds, hasFixedFinish, distanceWindow, Boolean(waypointGuidance));
   }
 
   if (routes.length === 0) {
@@ -199,6 +224,7 @@ export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRe
     ok: true,
     routes: routes
       .sort((a, b) =>
+        (b.waypointHitCount ?? 0) - (a.waypointHitCount ?? 0) ||
         Math.abs(a.totalLengthKm - distanceWindow.midpointKm) - Math.abs(b.totalLengthKm - distanceWindow.midpointKm) ||
         a.edgeIds.join("|").localeCompare(b.edgeIds.join("|"))
       )
@@ -250,13 +276,15 @@ function toSearchedPath(
   edge: RoadEdge,
   physicalEdgeId: string,
   totalLengthKm: number,
-  terminalEdgeFraction?: number
+  terminalEdgeFraction?: number,
+  waypointHitCount = state.waypointProgress
 ): SearchedPath {
   return {
     nodeIds: [...state.nodeIds, edge.toNodeId],
     edgeIds: [...state.edgeIds, edge.id],
     physicalEdgeIds: [...state.physicalEdgeIds, physicalEdgeId],
     totalLengthKm: Math.round(totalLengthKm * 1000) / 1000,
+    waypointHitCount,
     ...(terminalEdgeFraction === undefined ? {} : { terminalEdgeFraction })
   };
 }
@@ -296,17 +324,18 @@ function selectBeam(
   states: SearchState[],
   lowerBounds: Map<string, number>,
   hasFixedFinish: boolean,
-  distanceWindow: { midpointKm: number }
+  distanceWindow: { midpointKm: number },
+  hasWaypointGuidance: boolean
 ): SearchState[] {
   const midpointKm = distanceWindow.midpointKm;
   const unique = new Map<string, SearchState>();
   for (const state of states) {
-    const key = `${state.currentNodeId}|${Math.floor(state.totalLengthKm * 10)}|${state.physicalEdgeIds.at(-1)}`;
+    const key = `${state.currentNodeId}|${Math.floor(state.totalLengthKm * 10)}|${state.waypointProgress}|${state.physicalEdgeIds.at(-1)}`;
     const existing = unique.get(key);
-    if (!existing || compareState(state, existing, lowerBounds, midpointKm, hasFixedFinish) < 0) unique.set(key, state);
+    if (!existing || compareState(state, existing, lowerBounds, midpointKm, hasFixedFinish, hasWaypointGuidance) < 0) unique.set(key, state);
   }
   return [...unique.values()]
-    .sort((a, b) => compareState(a, b, lowerBounds, midpointKm, hasFixedFinish))
+    .sort((a, b) => compareState(a, b, lowerBounds, midpointKm, hasFixedFinish, hasWaypointGuidance))
     .slice(0, BEAM_WIDTH);
 }
 
@@ -315,13 +344,16 @@ function compareState(
   b: SearchState,
   lowerBounds: Map<string, number>,
   midpointKm: number,
-  hasFixedFinish: boolean
+  hasFixedFinish: boolean,
+  hasWaypointGuidance: boolean
 ): number {
   const aProjected = a.totalLengthKm + (hasFixedFinish ? lowerBounds.get(a.currentNodeId) ?? 1_000 : 0);
   const bProjected = b.totalLengthKm + (hasFixedFinish ? lowerBounds.get(b.currentNodeId) ?? 1_000 : 0);
   const aQualityPerKm = a.objectiveScore / Math.max(a.totalLengthKm, 0.05);
   const bQualityPerKm = b.objectiveScore / Math.max(b.totalLengthKm, 0.05);
   return (
+    (hasWaypointGuidance ? b.waypointProgress - a.waypointProgress : 0) ||
+    (hasWaypointGuidance ? a.nextWaypointDistanceKm - b.nextWaypointDistanceKm : 0) ||
     (!hasFixedFinish ? bQualityPerKm - aQualityPerKm : 0) ||
     Math.abs(aProjected - midpointKm) - Math.abs(bProjected - midpointKm) ||
     b.objectiveScore - a.objectiveScore ||
@@ -371,6 +403,100 @@ function getSearchDistanceWindow(targetDistanceKm?: number): { minDistanceKm: nu
     maxDistanceKm,
     midpointKm: (minDistanceKm + maxDistanceKm) / 2
   };
+}
+
+function normalizeWaypointGuidance(guidance: MarathonWaypointGuidance | undefined): Required<MarathonWaypointGuidance> | null {
+  if (!guidance || guidance.points.length === 0) return null;
+  return {
+    points: guidance.points,
+    hitRadiusKm: guidance.hitRadiusKm ?? 0.5,
+    influenceRadiusKm: guidance.influenceRadiusKm ?? 3,
+    minHits: guidance.minHits ?? 0
+  };
+}
+
+function initialWaypointProgress(guidance: Required<MarathonWaypointGuidance> | null, coordinate: Coordinate): number {
+  if (!guidance) return 0;
+  let progress = 0;
+  while (progress < guidance.points.length && haversineKm(coordinate, guidance.points[progress]) <= guidance.hitRadiusKm) {
+    progress += 1;
+  }
+  return progress;
+}
+
+function advanceWaypointProgress(
+  guidance: Required<MarathonWaypointGuidance> | null,
+  currentProgress: number,
+  coordinates: Coordinate[]
+): { progress: number; score: number } {
+  if (!guidance) return { progress: currentProgress, score: 0 };
+
+  let progress = currentProgress;
+  let score = 0;
+  while (progress < guidance.points.length) {
+    const distanceKm = distanceFromPointToPolylineKm(guidance.points[progress], coordinates);
+    if (distanceKm > guidance.hitRadiusKm) {
+      score += Math.max(0, guidance.influenceRadiusKm - distanceKm) * 60;
+      break;
+    }
+    progress += 1;
+    score += 8_000;
+  }
+
+  return { progress, score };
+}
+
+function distanceToNextWaypoint(
+  guidance: Required<MarathonWaypointGuidance> | null,
+  progress: number,
+  coordinate: Coordinate
+): number {
+  if (!guidance || progress >= guidance.points.length) return 0;
+  return haversineKm(coordinate, guidance.points[progress]);
+}
+
+function hasMinimumWaypointHits(guidance: Required<MarathonWaypointGuidance> | null, progress: number): boolean {
+  return !guidance || progress >= guidance.minHits;
+}
+
+function distanceFromPointToPolylineKm(point: Coordinate, coordinates: Coordinate[]): number {
+  if (coordinates.length === 0) return Number.POSITIVE_INFINITY;
+  if (coordinates.length === 1) return haversineKm(point, coordinates[0]);
+
+  let nearestKm = Number.POSITIVE_INFINITY;
+  for (let index = 1; index < coordinates.length; index++) {
+    const projected = projectPointToSegment(point, coordinates[index - 1], coordinates[index]);
+    nearestKm = Math.min(nearestKm, haversineKm(point, projected));
+  }
+  return nearestKm;
+}
+
+function projectPointToSegment(point: Coordinate, from: Coordinate, to: Coordinate): Coordinate {
+  const latitude = point[1];
+  const pointKm = toPlanarKm(point, latitude);
+  const fromKm = toPlanarKm(from, latitude);
+  const toKm = toPlanarKm(to, latitude);
+  const vectorX = toKm[0] - fromKm[0];
+  const vectorY = toKm[1] - fromKm[1];
+  const pointX = pointKm[0] - fromKm[0];
+  const pointY = pointKm[1] - fromKm[1];
+  const denominator = vectorX * vectorX + vectorY * vectorY;
+  const fraction = denominator === 0
+    ? 0
+    : Math.max(0, Math.min(1, (pointX * vectorX + pointY * vectorY) / denominator));
+
+  return [
+    from[0] + (to[0] - from[0]) * fraction,
+    from[1] + (to[1] - from[1]) * fraction
+  ];
+}
+
+function toPlanarKm(coordinate: Coordinate, latitude: number): [number, number] {
+  const kmPerDegree = 111.32;
+  return [
+    coordinate[0] * kmPerDegree * Math.cos(latitude * Math.PI / 180),
+    coordinate[1] * kmPerDegree
+  ];
 }
 
 function calibratedRaceGradePercent(rasterSlopePercent: number): number {

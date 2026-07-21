@@ -112,15 +112,17 @@ const waypointProfileMap: Record<WaypointRouteId, RouteSelectionProfile> = {
 };
 
 const waypointProfileSeedPoints: Partial<Record<WaypointRouteId, Coordinate[]>> = {
+  "waypoint-east-lake": [
+    [114.3044, 30.5462],
+    [114.3317, 30.5615]
+  ],
   "waypoint-riverside": [
-    [114.2892, 30.6074],
     [114.2845, 30.5542],
     [114.3038, 30.5470]
   ],
   "waypoint-city-scenic": [
-    [114.3368, 30.5601],
-    [114.3987, 30.5985],
-    [114.4132, 30.6130]
+    [114.2860, 30.5526],
+    [114.3368, 30.5601]
   ]
 };
 
@@ -204,7 +206,7 @@ export const profileRoutePlans: Record<RouteSelectionProfile, ProfileRoutePlan> 
 export function buildBestRouteForSelectionProfile(
   geojson: unknown,
   profile: RouteSelectionProfile,
-  options: { targetDistanceKm?: number; seedPoints?: Coordinate[] } = {}
+  options: { targetDistanceKm?: number; seedPoints?: Coordinate[]; waypointGuidance?: Coordinate[] } = {}
 ): MarathonRoute | null {
   const plan = profileRoutePlans[profile];
   const candidates: MarathonRoute[] = [];
@@ -219,11 +221,11 @@ export function buildBestRouteForSelectionProfile(
       profileIds: plan.preferredCandidateIds
     });
     candidates.push(...routes);
-    if (candidates.length > 0) break;
+    if (candidates.length > 0 && !options.waypointGuidance) break;
   }
 
   const scoredCandidates = orderedPreferredCandidates(candidates, plan.preferredCandidateIds);
-  const bestRoute = chooseBestProfileRoute(scoredCandidates.length > 0 ? scoredCandidates : candidates, profile);
+  const bestRoute = chooseBestProfileRoute(scoredCandidates.length > 0 ? scoredCandidates : candidates, profile, options.waypointGuidance);
   if (!bestRoute) return null;
 
   return {
@@ -240,7 +242,11 @@ export function buildBestRouteForSelectionProfile(
   };
 }
 
-function chooseBestProfileRoute(routes: MarathonRoute[], profile: RouteSelectionProfile): MarathonRoute | null {
+function chooseBestProfileRoute(
+  routes: MarathonRoute[],
+  profile: RouteSelectionProfile,
+  waypointGuidance?: Coordinate[]
+): MarathonRoute | null {
   const eligibleRoutes = profile === "river-scenic"
     ? routes.filter((route) => route.metrics.wuhanYangtzeBridgePassed === true)
     : routes;
@@ -249,11 +255,83 @@ function chooseBestProfileRoute(routes: MarathonRoute[], profile: RouteSelection
   const ranked = [...eligibleRoutes]
     .map((route) => ({
       route,
-      score: scoreRouteForProfile(route, profile).profileScore + corridorSimilarityScore(route) * corridorWeight(profile)
+      score:
+        scoreRouteForProfile(route, profile).profileScore +
+        corridorSimilarityScore(route) * corridorWeight(profile) +
+        waypointCoverageScore(route, waypointGuidance) * 1.8
     }))
     .sort((a, b) => b.score - a.score || compareRoutes([a.route, b.route], profile)[0].id.localeCompare(a.route.id));
 
   return ranked[0].route;
+}
+
+function waypointCoverageScore(route: MarathonRoute, waypointGuidance: Coordinate[] | undefined): number {
+  if (!waypointGuidance?.length) return 0;
+
+  let hitCount = 0;
+  let orderedHitCount = 0;
+  let lastAlongKm = -Infinity;
+  for (const waypoint of waypointGuidance) {
+    const hit = nearestRouteHit(waypoint, route.coordinates);
+    if (hit.distanceKm > 1) continue;
+    hitCount += 1;
+    if (hit.alongKm >= lastAlongKm) {
+      orderedHitCount += 1;
+      lastAlongKm = hit.alongKm;
+    }
+  }
+
+  return hitCount * 100 + orderedHitCount * 40;
+}
+
+function nearestRouteHit(point: Coordinate, coordinates: Coordinate[]): { distanceKm: number; alongKm: number } {
+  let nearest = { distanceKm: Number.POSITIVE_INFINITY, alongKm: 0 };
+  let walkedKm = 0;
+
+  for (let index = 1; index < coordinates.length; index++) {
+    const from = coordinates[index - 1];
+    const to = coordinates[index];
+    const segmentKm = haversineKm(from, to);
+    const projected = projectPointToSegment(point, from, to);
+    const distanceKm = haversineKm(point, projected);
+    if (distanceKm < nearest.distanceKm) {
+      nearest = { distanceKm, alongKm: walkedKm + segmentKm * projectionFraction(point, from, to) };
+    }
+    walkedKm += segmentKm;
+  }
+
+  return nearest;
+}
+
+function projectPointToSegment(point: Coordinate, from: Coordinate, to: Coordinate): Coordinate {
+  const fraction = projectionFraction(point, from, to);
+  return [
+    from[0] + (to[0] - from[0]) * fraction,
+    from[1] + (to[1] - from[1]) * fraction
+  ];
+}
+
+function projectionFraction(point: Coordinate, from: Coordinate, to: Coordinate): number {
+  const latitude = point[1];
+  const pointKm = toPlanarKm(point, latitude);
+  const fromKm = toPlanarKm(from, latitude);
+  const toKm = toPlanarKm(to, latitude);
+  const vectorX = toKm[0] - fromKm[0];
+  const vectorY = toKm[1] - fromKm[1];
+  const pointX = pointKm[0] - fromKm[0];
+  const pointY = pointKm[1] - fromKm[1];
+  const denominator = vectorX * vectorX + vectorY * vectorY;
+  return denominator === 0
+    ? 0
+    : Math.max(0, Math.min(1, (pointX * vectorX + pointY * vectorY) / denominator));
+}
+
+function toPlanarKm(coordinate: Coordinate, latitude: number): [number, number] {
+  const kmPerDegree = 111.32;
+  return [
+    coordinate[0] * kmPerDegree * Math.cos(latitude * Math.PI / 180),
+    coordinate[1] * kmPerDegree
+  ];
 }
 
 function corridorWeight(profile: RouteSelectionProfile): number {
@@ -290,9 +368,16 @@ export function buildWaypointRoute(
   plan: WaypointRoutePlan,
   options: { maxAttempts?: number } = {}
 ): MarathonRoute | null {
+  const seedPoints = [
+    ...(waypointProfileSeedPoints[plan.id] ?? profileRoutePlans[waypointProfileMap[plan.id]].seedPoints)
+  ];
   const profileRoute = buildBestRouteForSelectionProfile(geojson, waypointProfileMap[plan.id], {
     targetDistanceKm: plan.targetDistanceKm,
-    seedPoints: waypointProfileSeedPoints[plan.id]
+    seedPoints,
+    waypointGuidance: plan.waypoints.map((waypoint) => waypoint.coordinate)
+  }) ?? buildBestRouteForSelectionProfile(geojson, waypointProfileMap[plan.id], {
+    targetDistanceKm: plan.targetDistanceKm,
+    seedPoints
   });
   if (profileRoute && evaluateRouteQuality(profileRoute, { targetDistanceKm: plan.targetDistanceKm }).passed) {
     return {
