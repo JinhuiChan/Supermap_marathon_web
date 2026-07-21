@@ -4,6 +4,8 @@ import { compareRoutes, scoreRouteForProfile } from "../domain/routeMetrics";
 import { evaluateRouteQuality } from "../domain/routeQuality";
 import { haversineKm } from "../domain/roadAttributes";
 
+export const waypointHitRadiusKm = 2;
+
 export interface WaypointRoutePlan {
   id: string;
   name: string;
@@ -276,7 +278,7 @@ function waypointCoverageScore(route: MarathonRoute, waypointGuidance: Coordinat
   let lastAlongKm = -Infinity;
   for (const waypoint of waypointGuidance) {
     const hit = nearestRouteHit(waypoint, route.coordinates);
-    if (hit.distanceKm > 1) continue;
+    if (hit.distanceKm > waypointHitRadiusKm) continue;
     hitCount += 1;
     if (hit.alongKm >= lastAlongKm) {
       orderedHitCount += 1;

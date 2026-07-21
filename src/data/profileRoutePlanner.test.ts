@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { buildBestRouteForSelectionProfile, profileRoutePlans, waypointRoutePlans } from "./profileRoutePlanner";
+import { buildBestRouteForSelectionProfile, profileRoutePlans, waypointHitRadiusKm, waypointRoutePlans } from "./profileRoutePlanner";
 
 const roadNetwork = {
   type: "FeatureCollection",
@@ -100,5 +100,9 @@ describe("profileRoutePlanner", () => {
     expect(cityScenic?.features).toEqual(expect.arrayContaining([
       expect.stringContaining("一城两江三镇")
     ]));
+  });
+
+  test("uses a relaxed waypoint hit radius for local road-network control points", () => {
+    expect(waypointHitRadiusKm).toBe(2);
   });
 });

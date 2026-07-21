@@ -3,13 +3,13 @@ import realWuhanRoadsText from "../../public/data/local-wuhan-marathon-area-road
 import type { Coordinate, MarathonRoute } from "../domain/routeMetrics";
 import { evaluateRouteQuality } from "../domain/routeQuality";
 import { haversineKm } from "../domain/roadAttributes";
-import { buildWaypointRoute, waypointRoutePlans } from "./profileRoutePlanner";
+import { buildWaypointRoute, waypointHitRadiusKm, waypointRoutePlans } from "./profileRoutePlanner";
 
 const realWuhanRoads = JSON.parse(realWuhanRoadsText);
 const minimumWaypointHitsByRouteId = new Map([
-  ["waypoint-east-lake", 5],
-  ["waypoint-riverside", 4],
-  ["waypoint-city-scenic", 4]
+  ["waypoint-east-lake", 6],
+  ["waypoint-riverside", 5],
+  ["waypoint-city-scenic", 6]
 ]);
 describe("osmMarathonRoute visible real-data waypoint routes", () => {
   const routesByPlan = new Map<string, MarathonRoute | null>();
@@ -66,7 +66,7 @@ describe("osmMarathonRoute visible real-data waypoint routes", () => {
       const route = routesByPlan.get(plan.id) ?? null;
 
       expect(route, plan.id).not.toBeNull();
-      const summary = summarizeWaypointHits(route!, plan.waypoints.map((waypoint) => waypoint.coordinate), 1);
+      const summary = summarizeWaypointHits(route!, plan.waypoints.map((waypoint) => waypoint.coordinate), waypointHitRadiusKm);
       expect(summary.hitCount, plan.id).toBeGreaterThanOrEqual(minimumWaypointHitsByRouteId.get(plan.id) ?? 4);
     }
   }, 60000);
