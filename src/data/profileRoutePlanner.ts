@@ -217,8 +217,8 @@ export function buildBestRouteForSelectionProfile(
     const routes = buildOsmMarathonCandidateRoutes(geojson, {
       targetDistanceKm,
       startPoint: seedPoint,
-      maxRoutes: 1,
-      profileIds: plan.preferredCandidateIds
+      maxRoutes: options.waypointGuidance ? 4 : 1,
+      ...(options.waypointGuidance ? {} : { profileIds: plan.preferredCandidateIds })
     });
     candidates.push(...routes);
     if (candidates.length > 0 && !options.waypointGuidance) break;
