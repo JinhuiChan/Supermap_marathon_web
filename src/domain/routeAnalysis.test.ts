@@ -53,7 +53,7 @@ describe("routeAnalysis", () => {
       "experience"
     ]);
     expect(analysis.dimensionCards.find((card) => card.id === "venue")?.score).toBeGreaterThan(0);
-    expect(analysis.dimensionCards.find((card) => card.id === "support")?.reliability).toBe("estimated");
+    expect(analysis.dimensionCards.find((card) => card.id === "support")?.reliability).toBe("derived");
     expect(analysis.dimensionCards.find((card) => card.id === "support")?.evidence).toContain("不是官方保障点部署");
   });
 
@@ -116,9 +116,32 @@ describe("routeAnalysis", () => {
     expect(analysis.dataSources).toContain("路线几何坐标");
     expect(analysis.dataSources).toContain("道路拓扑检测指标");
     expect(analysis.dataGaps).toContain("未接入官方补给点、医疗点、厕所、停车与交通管制部署数据");
-    expect(support?.reliability).toBe("estimated");
-    expect(support?.source).toContain("模型估算");
+    expect(support?.reliability).toBe("derived");
+    expect(support?.source).toContain("基于线路长度");
     expect(support?.evidence).toContain("不是官方保障点部署");
     expect([...analysis.highlights, ...analysis.risks, analysis.recommendation].join(" ")).not.toMatch(/利于|可控|适配|优先方案|大众跑者完赛/);
+  });
+
+  it("turns support analysis into route-based planning recommendations", () => {
+    const analysis = analyzeRoute({
+      ...generatedRoute,
+      lengthKm: 42.195,
+      metrics: {
+        ...generatedRoute.metrics,
+        selfIntersectionCount: 2,
+        repeatedRoadRatio: 0.08,
+        bridgeDistanceKm: 2.4,
+        turnPenaltyScore: 62
+      }
+    }, []);
+    const support = analysis.dimensionCards.find((card) => card.id === "support");
+
+    expect(support?.label).toBe("保障规划");
+    expect(support?.reliability).toBe("derived");
+    expect(analysis.supportPlan.map((item) => item.type)).toEqual(["补给", "医疗", "厕所", "引导"]);
+    expect(analysis.supportPlan.find((item) => item.type === "补给")?.recommendation).toContain("建议 9 个");
+    expect(analysis.supportPlan.find((item) => item.type === "医疗")?.recommendation).toContain("起点、半程点、30km 后");
+    expect(analysis.supportPlan.find((item) => item.type === "引导")?.basis).toContain("自交 2 处");
+    expect(analysis.supportPlan.map((item) => item.recommendation).join(" ")).toContain("不是官方保障方案");
   });
 });

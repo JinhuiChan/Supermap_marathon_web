@@ -45,6 +45,16 @@ export function RouteAnalysisPanel({ route, supportPoints }: RouteAnalysisPanelP
           <p key={item}>{item}</p>
         ))}
       </div>
+      <div className="analysis-list support-plan">
+        <strong>保障规划建议</strong>
+        {analysis.supportPlan.map((item) => (
+          <article key={item.type} className="support-plan-item">
+            <b>{item.type}</b>
+            <p>{item.recommendation}</p>
+            <small>{item.basis}</small>
+          </article>
+        ))}
+      </div>
       <div className="analysis-list evidence-scope">
         <strong>数据来源</strong>
         {analysis.dataSources.map((item) => (

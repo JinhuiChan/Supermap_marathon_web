@@ -17,6 +17,12 @@ export interface AnalysisDimensionCard {
   inputs: string[];
 }
 
+export interface SupportPlanningRecommendation {
+  type: "补给" | "医疗" | "厕所" | "引导";
+  recommendation: string;
+  basis: string;
+}
+
 export interface RouteAnalysis {
   routeId: string;
   routeName: string;
@@ -28,6 +34,7 @@ export interface RouteAnalysis {
   recommendation: string;
   dataSources: string[];
   dataGaps: string[];
+  supportPlan: SupportPlanningRecommendation[];
 }
 
 const clamp = (value: number, min = 0, max = 100) => Math.min(Math.max(value, min), max);
@@ -95,17 +102,45 @@ function getExperienceScore(route: MarathonRoute) {
   return Math.round(clamp(m.shadeCoverageRatio * 42 + landmarkScore * 0.34 + riverScore * 0.2 + (route.closedLoop ? 4 : 0)));
 }
 
-function isGeneratedFromFullOsm(route: MarathonRoute) {
-  return route.lineage?.source === "osm-generated";
-}
-
-function getSupportReliability(route: MarathonRoute, supportPointCount: number): AnalysisReliability {
-  if (isGeneratedFromFullOsm(route)) return "estimated";
-  return supportPointCount > 0 ? "derived" : "estimated";
-}
-
 function unique(items: string[]) {
   return [...new Set(items)];
+}
+
+function buildSupportPlan(route: MarathonRoute, supportPointCount: number): SupportPlanningRecommendation[] {
+  const supplyStationCount = Math.max(1, Math.ceil(route.lengthKm / 5));
+  const restroomStationCount = Math.max(2, Math.ceil(route.lengthKm / 10) + 1);
+  const bridgeKm = route.metrics.bridgeDistanceKm ?? 0;
+  const selfIntersectionCount = route.metrics.selfIntersectionCount ?? 0;
+  const repeatedRoadRatio = route.metrics.repeatedRoadRatio ?? 0;
+  const turnPenaltyScore = getTurnPenaltyScore(route);
+  const controlCount = route.metrics.landmarkPassedCount ?? 0;
+
+  return [
+    {
+      type: "补给",
+      recommendation: `建议 ${supplyStationCount} 个补给站，按约 5km 间距布设；该建议按 ${route.lengthKm.toFixed(1)}km 线路长度推导，不是官方保障方案。`,
+      basis: `线路长度 ${route.lengthKm.toFixed(1)}km，已接入服务点 ${supportPointCount} 个，控制点命中 ${controlCount} 个`
+    },
+    {
+      type: "医疗",
+      recommendation: `建议在起点、半程点、30km 后疲劳段和终点布设医疗点；桥梁或长坡后可增加观察点，不是官方保障方案。`,
+      basis: `医疗间距指标 ${route.metrics.medicalAvgIntervalKm.toFixed(1)}km，桥梁段 ${bridgeKm.toFixed(2)}km，最大坡度 ${route.metrics.maxSlopePercent.toFixed(1)}%`
+    },
+    {
+      type: "厕所",
+      recommendation: `建议 ${restroomStationCount} 组厕所服务点，覆盖起终点及约每 10km 一个服务区；具体位置需结合场地条件复核，不是官方保障方案。`,
+      basis: `线路长度 ${route.lengthKm.toFixed(1)}km，当前面板不含官方厕所部署数据`
+    },
+    {
+      type: "引导",
+      recommendation: `建议在折返、交叉、桥梁上下桥和重复道路附近布设志愿者、隔离带与方向标识；不是官方保障方案。`,
+      basis: `自交 ${selfIntersectionCount} 处，重复道路 ${percent(repeatedRoadRatio)}，转弯惩罚 ${Math.round(turnPenaltyScore)}，桥梁段 ${bridgeKm.toFixed(2)}km`
+    }
+  ];
+}
+
+function isGeneratedFromFullOsm(route: MarathonRoute) {
+  return route.lineage?.source === "osm-generated";
 }
 
 export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): RouteAnalysis {
@@ -127,7 +162,7 @@ export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): Rout
   const unsuitableRoadRatio = route.metrics.unsuitableRoadRatio ?? route.metrics.narrowRoadRatio;
   const selfIntersectionCount = route.metrics.selfIntersectionCount ?? 0;
   const turnPenaltyScore = getTurnPenaltyScore(route);
-  const supportReliability = getSupportReliability(route, summary.total);
+  const supportPlan = buildSupportPlan(route, summary.total);
   const experienceReliability: AnalysisReliability = isGeneratedFromFullOsm(route) ? "estimated" : "derived";
 
   const dimensionCards: AnalysisDimensionCard[] = [
@@ -163,16 +198,13 @@ export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): Rout
     },
     {
       id: "support",
-      label: "赛事保障",
+      label: "保障规划",
       score: supportScore,
       level: getLevel(supportScore),
-      source: supportReliability === "estimated" ? "模型估算，未接入官方保障部署" : "本地服务点 GeoJSON 与路线指标派生",
-      reliability: supportReliability,
-      inputs: ["supportPoints", "supplyCoverageRatio", "medicalAvgIntervalKm", "parkingServiceScore"],
-      evidence:
-        supportReliability === "estimated"
-          ? `${summary.total} 个已匹配服务点；补给覆盖 ${percent(route.metrics.supplyCoverageRatio)}、医疗间距 ${route.metrics.medicalAvgIntervalKm.toFixed(1)}km、停车分 ${route.metrics.parkingServiceScore} 为模型估算，不是官方保障点部署`
-          : `${summary.total} 个服务点，补给 ${supplyCount} 个，医疗/应急 ${medicalCount} 个，地铁 ${transitCount} 个，公厕 ${restroomCount} 个；补给覆盖 ${percent(route.metrics.supplyCoverageRatio)}`
+      source: "基于线路长度、拓扑风险、桥梁/坡度和已接入服务点推导",
+      reliability: "derived",
+      inputs: ["lengthKm", "supportPoints", "medicalAvgIntervalKm", "selfIntersectionCount", "bridgeDistanceKm"],
+      evidence: `建议补给 ${Math.ceil(route.lengthKm / 5)} 个、厕所 ${Math.ceil(route.lengthKm / 10) + 1} 组；已匹配服务点 ${summary.total} 个。该卡输出保障规划建议，不是官方保障点部署。`
     },
     {
       id: "experience",
@@ -192,9 +224,7 @@ export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): Rout
     `道路属性：主干路 ${percent(mainRoadRatio)}，不适宜道路 ${percent(unsuitableRoadRatio)}，窄路 ${percent(route.metrics.narrowRoadRatio)}`,
     `地形：累计爬升 ${route.metrics.totalClimbM}m，最大坡度 ${route.metrics.maxSlopePercent.toFixed(1)}%，长坡占比 ${percent(route.metrics.longSteepRatio)}`,
     `景观指标：地标覆盖 ${route.metrics.landmarkCoverageScore ?? 0} 分，桥梁段 ${(route.metrics.bridgeDistanceKm ?? 0).toFixed(2)}km，跨江景观 ${route.metrics.riverCrossingScore ?? 0} 分`,
-    supportReliability === "estimated"
-      ? `保障指标为估算：补给覆盖 ${percent(route.metrics.supplyCoverageRatio)}，医疗间距 ${route.metrics.medicalAvgIntervalKm.toFixed(1)}km，已匹配服务点 ${routePoints.length} 个`
-      : `保障点数据：已匹配服务点 ${routePoints.length} 个，补给 ${supplyCount} 个，医疗/应急 ${medicalCount} 个，公厕 ${restroomCount} 个`
+    `保障规划：${supportPlan.map((item) => `${item.type}-${item.recommendation}`).join("；")}`
   ];
 
   const risks = [
@@ -206,9 +236,7 @@ export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): Rout
       : `转弯惩罚 ${Math.round(turnPenaltyScore)}`,
     selfIntersectionCount > 0 ? `路线自交 ${selfIntersectionCount} 处` : "路线自交 0 处",
     `局部绳结 ${route.metrics.localKnotCount ?? 0} 处，平行折返 ${route.metrics.parallelBacktrackCount ?? 0} 处，发卡掉头 ${route.metrics.hairpinTurnCount ?? 0} 处`,
-    supportReliability === "estimated"
-      ? `医疗平均间距 ${route.metrics.medicalAvgIntervalKm.toFixed(1)}km 为模型估算，需用官方医疗点位复核`
-      : `医疗/应急点 ${medicalCount} 个，医疗平均间距 ${route.metrics.medicalAvgIntervalKm.toFixed(1)}km`,
+    `医疗规划依据：医疗间距指标 ${route.metrics.medicalAvgIntervalKm.toFixed(1)}km，医疗/应急点 ${medicalCount} 个`,
     restroomCount === 0 ? "已匹配公厕 0 个" : `已匹配公厕 ${restroomCount} 个`
   ];
 
@@ -237,6 +265,7 @@ export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): Rout
     risks,
     dataSources,
     dataGaps,
+    supportPlan,
     recommendation: `当前推荐分 ${routeScore.recommendationScore}/100；该分数仅基于已接入的路线几何、道路属性、拓扑和本地服务点数据，正式决策前需要补齐数据缺口并现场复核。`
   };
 }

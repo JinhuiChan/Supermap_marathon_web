@@ -51,4 +51,15 @@ describe("RouteAnalysisPanel", () => {
     expect(html).toContain("不是官方保障点部署");
     expect(html).not.toMatch(/利于|可控|适配|优先方案|大众跑者完赛/);
   });
+
+  it("renders route-based support planning recommendations", () => {
+    const html = renderToStaticMarkup(<RouteAnalysisPanel route={route} supportPoints={[]} />);
+
+    expect(html).toContain("保障规划建议");
+    expect(html).toContain("补给");
+    expect(html).toContain("医疗");
+    expect(html).toContain("厕所");
+    expect(html).toContain("引导");
+    expect(html).toContain("不是官方保障方案");
+  });
 });

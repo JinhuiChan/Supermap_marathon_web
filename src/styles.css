@@ -1377,6 +1377,38 @@ textarea {
   border-color: #f0d4b8;
 }
 
+.analysis-list.support-plan {
+  background: #f8fbf7;
+  border-color: #d8e7d2;
+}
+
+.support-plan-item {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  border-top: 1px solid #e4ece2;
+  padding-top: 8px;
+}
+
+.support-plan-item:first-of-type {
+  border-top: 0;
+}
+
+.support-plan-item b {
+  color: #214c3a;
+  font-size: 12px;
+}
+
+.support-plan-item p {
+  margin: 0;
+}
+
+.support-plan-item small {
+  color: #778574;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 /* GIS map-tool workspace */
 .gis-tool-shell {
   display: grid;
