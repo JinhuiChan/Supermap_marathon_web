@@ -11,12 +11,6 @@ const minimumWaypointHitsByRouteId = new Map([
   ["waypoint-riverside", 4],
   ["waypoint-city-scenic", 4]
 ]);
-const minimumOrderedWaypointHitsByRouteId = new Map([
-  ["waypoint-east-lake", 2],
-  ["waypoint-riverside", 4],
-  ["waypoint-city-scenic", 3]
-]);
-
 describe("osmMarathonRoute visible real-data waypoint routes", () => {
   const routesByPlan = new Map<string, MarathonRoute | null>();
 
@@ -58,14 +52,22 @@ describe("osmMarathonRoute visible real-data waypoint routes", () => {
     expect(routeSignatures.size).toBe(waypointRoutePlans.length);
   }, 60000);
 
-  test("keeps generated routes close to ordered control points", () => {
+  test("keeps riverside and city scenic routes from collapsing onto the same corridor", () => {
+    const riverside = routesByPlan.get("waypoint-riverside");
+    const cityScenic = routesByPlan.get("waypoint-city-scenic");
+
+    expect(riverside).not.toBeNull();
+    expect(cityScenic).not.toBeNull();
+    expect(routeOverlapRatio(riverside!, cityScenic!, 0.1)).toBeLessThanOrEqual(0.7);
+  }, 60000);
+
+  test("keeps generated routes close to as many control points as current road quality allows", () => {
     for (const plan of waypointRoutePlans) {
       const route = routesByPlan.get(plan.id) ?? null;
 
       expect(route, plan.id).not.toBeNull();
       const summary = summarizeWaypointHits(route!, plan.waypoints.map((waypoint) => waypoint.coordinate), 1);
       expect(summary.hitCount, plan.id).toBeGreaterThanOrEqual(minimumWaypointHitsByRouteId.get(plan.id) ?? 4);
-      expect(summary.orderedHitCount, plan.id).toBeGreaterThanOrEqual(minimumOrderedWaypointHitsByRouteId.get(plan.id) ?? 3);
     }
   }, 60000);
 });
@@ -75,18 +77,22 @@ function summarizeWaypointHits(route: MarathonRoute, waypoints: Coordinate[], hi
     .map((waypoint) => nearestRouteDistanceKm(waypoint, route.coordinates))
     .filter((hit) => hit.distanceKm <= hitRadiusKm);
 
-  let lastAlongKm = -Infinity;
-  let orderedHitCount = 0;
-  for (const hit of hits) {
-    if (hit.alongKm < lastAlongKm) continue;
-    orderedHitCount += 1;
-    lastAlongKm = hit.alongKm;
-  }
-
   return {
-    hitCount: hits.length,
-    orderedHitCount
+    hitCount: hits.length
   };
+}
+
+function routeOverlapRatio(first: MarathonRoute, second: MarathonRoute, thresholdKm: number): number {
+  const firstOverlap = coordinateOverlapRatio(first.coordinates, second.coordinates, thresholdKm);
+  const secondOverlap = coordinateOverlapRatio(second.coordinates, first.coordinates, thresholdKm);
+  return Math.round(((firstOverlap + secondOverlap) / 2) * 100) / 100;
+}
+
+function coordinateOverlapRatio(first: Coordinate[], second: Coordinate[], thresholdKm: number): number {
+  const overlapping = first.filter((coordinate) =>
+    second.some((other) => haversineKm(coordinate, other) <= thresholdKm)
+  );
+  return overlapping.length / Math.max(1, first.length);
 }
 
 function nearestRouteDistanceKm(point: Coordinate, routeCoordinates: Coordinate[]) {

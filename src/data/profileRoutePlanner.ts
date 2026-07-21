@@ -117,13 +117,16 @@ const waypointProfileSeedPoints: Partial<Record<WaypointRouteId, Coordinate[]>> 
     [114.3317, 30.5615]
   ],
   "waypoint-riverside": [
-    [114.2845, 30.5542],
     [114.3038, 30.5470]
   ],
   "waypoint-city-scenic": [
-    [114.2860, 30.5526],
-    [114.3368, 30.5601]
+    [114.2860, 30.5526]
   ]
+};
+
+const waypointCandidateProfileIds: Partial<Record<WaypointRouteId, string[]>> = {
+  "waypoint-riverside": ["osm-balanced"],
+  "waypoint-city-scenic": ["osm-scenic"]
 };
 
 interface ProfileRoutePlan {
@@ -206,7 +209,7 @@ export const profileRoutePlans: Record<RouteSelectionProfile, ProfileRoutePlan> 
 export function buildBestRouteForSelectionProfile(
   geojson: unknown,
   profile: RouteSelectionProfile,
-  options: { targetDistanceKm?: number; seedPoints?: Coordinate[]; waypointGuidance?: Coordinate[] } = {}
+  options: { targetDistanceKm?: number; seedPoints?: Coordinate[]; profileIds?: string[]; waypointGuidance?: Coordinate[] } = {}
 ): MarathonRoute | null {
   const plan = profileRoutePlans[profile];
   const candidates: MarathonRoute[] = [];
@@ -218,7 +221,7 @@ export function buildBestRouteForSelectionProfile(
       targetDistanceKm,
       startPoint: seedPoint,
       maxRoutes: options.waypointGuidance ? 4 : 1,
-      ...(options.waypointGuidance ? {} : { profileIds: plan.preferredCandidateIds })
+      profileIds: options.profileIds ?? plan.preferredCandidateIds
     });
     candidates.push(...routes);
     if (candidates.length > 0 && !options.waypointGuidance) break;
@@ -374,6 +377,7 @@ export function buildWaypointRoute(
   const profileRoute = buildBestRouteForSelectionProfile(geojson, waypointProfileMap[plan.id], {
     targetDistanceKm: plan.targetDistanceKm,
     seedPoints,
+    profileIds: waypointCandidateProfileIds[plan.id],
     waypointGuidance: plan.waypoints.map((waypoint) => waypoint.coordinate)
   }) ?? buildBestRouteForSelectionProfile(geojson, waypointProfileMap[plan.id], {
     targetDistanceKm: plan.targetDistanceKm,
