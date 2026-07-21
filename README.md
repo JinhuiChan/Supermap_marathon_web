@@ -60,7 +60,7 @@ public/data/local-wuhan-road-network-osm.geojson
 | --- | --- |
 | `.gitignore` | 忽略依赖、构建产物、本地 SuperMap 工作空间和本地大数据文件。 |
 | `README.md` | 项目总览、运行方式和仓库文件说明；仓库中唯一保留的 Markdown 文档。 |
-| `Application.md` | 使用说明和详细技术说明，面向最终交付和答辩说明。 |
+| `Documentation.md` | 使用说明和详细技术说明，面向最终交付和答辩说明。 |
 | `package.json` | npm 脚本、运行依赖和开发依赖声明。 |
 | `package-lock.json` | 锁定 npm 依赖版本，保证安装一致性。 |
 | `tsconfig.json` | TypeScript 编译配置。 |
@@ -200,10 +200,10 @@ public/data/local-wuhan-road-network-osm.geojson
 | `supermapHealth.ts` / `.test.ts` | 检测 SuperMap iServer 服务是否可访问。 |
 | `iserverPoi.ts` / `.test.ts` | 从 iServer REST 数据服务读取 POI 标签。 |
 
-## Application Guide
+## 说明文档
 
 使用说明和详细技术说明见根目录：
 
 ```text
-Application.md
+Documentation.md
 ```
