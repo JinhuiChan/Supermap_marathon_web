@@ -52,6 +52,7 @@ export interface MarathonRoute {
   name: string;
   color: string;
   lengthKm: number;
+  targetDistanceKm?: number;
   closedLoop: boolean;
   coordinates: Coordinate[];
   elevationProfile: ElevationPoint[];

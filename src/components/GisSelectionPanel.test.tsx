@@ -48,7 +48,7 @@ describe("GisSelectionPanel", () => {
   it("shows the enforceable marathon route thresholds", () => {
     const html = renderPanel();
     expect(html).toContain("42.195–42.237 km");
-    expect(html).not.toContain("21.0975");
+    expect(html).not.toContain("21.0975 km");
     expect(html).toContain("起终点净下降 ≤ 42.195 m");
     expect(html).toContain("累计爬升 ≤ 180 m");
     expect(html).toContain("重复道路 0%");

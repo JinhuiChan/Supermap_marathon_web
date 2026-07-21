@@ -9,6 +9,7 @@ export type MarathonSearchObjective = "race-fast" | "operations" | "city-experie
 export interface MarathonSearchRequest {
   startPoint: Coordinate;
   endPoint?: Coordinate;
+  targetDistanceKm?: number;
   objective: MarathonSearchObjective;
   maxRoutes?: number;
   maxExpandedStates?: number;
@@ -47,12 +48,13 @@ const MAX_SNAP_DISTANCE_KM = 1.5;
 
 export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRequest): MarathonSearchResult {
   const hasFixedFinish = Boolean(request.endPoint);
+  const distanceWindow = getSearchDistanceWindow(request.targetDistanceKm);
   const componentCapacityKm = hasFixedFinish ? undefined : computeEligibleComponentCapacityKm(graph);
   const start = snapToSuitableNode(
     graph,
     request.startPoint,
     componentCapacityKm,
-    hasFixedFinish ? 0 : marathonQualityThresholds.minDistanceKm
+    hasFixedFinish ? 0 : distanceWindow.minDistanceKm
   );
   const end = request.endPoint ? snapToSuitableNode(graph, request.endPoint) : start;
   const startTooFar = hasFixedFinish && (start?.distanceKm ?? Number.POSITIVE_INFINITY) > MAX_SNAP_DISTANCE_KM;
@@ -106,12 +108,12 @@ export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRe
           maxReachedNodeId = nextNodeId;
         }
         const crossesDynamicFinish = !hasFixedFinish &&
-          state.totalLengthKm < marathonQualityThresholds.minDistanceKm &&
-          nextLengthKm >= marathonQualityThresholds.minDistanceKm;
+          state.totalLengthKm < distanceWindow.minDistanceKm &&
+          nextLengthKm >= distanceWindow.minDistanceKm;
         const terminalEdgeFraction = crossesDynamicFinish
-          ? (marathonQualityThresholds.minDistanceKm - state.totalLengthKm) / edge.lengthKm
+          ? (distanceWindow.minDistanceKm - state.totalLengthKm) / edge.lengthKm
           : undefined;
-        if (!crossesDynamicFinish && nextLengthKm > marathonQualityThresholds.maxDistanceKm) continue;
+        if (!crossesDynamicFinish && nextLengthKm > distanceWindow.maxDistanceKm) continue;
         const fullNextCoordinate = graph.nodes.get(nextNodeId)?.coordinate;
         const edgeForValidation = terminalEdgeFraction === undefined
           ? edge
@@ -134,7 +136,7 @@ export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRe
             state,
             edge,
             physicalEdgeId,
-            marathonQualityThresholds.minDistanceKm,
+            distanceWindow.minDistanceKm,
             terminalEdgeFraction
           );
           const key = `${completed.physicalEdgeIds.join("|")}|${terminalEdgeFraction.toFixed(6)}`;
@@ -146,10 +148,10 @@ export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRe
         }
 
         const finishesDynamically = !hasFixedFinish &&
-          nextLengthKm >= marathonQualityThresholds.minDistanceKm &&
-          nextLengthKm <= marathonQualityThresholds.maxDistanceKm;
+          nextLengthKm >= distanceWindow.minDistanceKm &&
+          nextLengthKm <= distanceWindow.maxDistanceKm;
         if ((hasFixedFinish && nextNodeId === end.nodeId) || finishesDynamically) {
-          if (nextLengthKm < marathonQualityThresholds.minDistanceKm) continue;
+          if (nextLengthKm < distanceWindow.minDistanceKm) continue;
           const completed = toSearchedPath(state, edge, physicalEdgeId, nextLengthKm);
           const key = completed.physicalEdgeIds.join("|");
           if (!routeKeys.has(key)) {
@@ -161,7 +163,7 @@ export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRe
 
         const lowerBoundKm = hasFixedFinish ? lowerBounds.get(nextNodeId) : 0;
         if (lowerBoundKm === undefined) continue;
-        if (nextLengthKm + lowerBoundKm > marathonQualityThresholds.maxDistanceKm) continue;
+        if (nextLengthKm + lowerBoundKm > distanceWindow.maxDistanceKm) continue;
 
         const usedPhysicalEdges = new Set(state.usedPhysicalEdges);
         usedPhysicalEdges.add(physicalEdgeId);
@@ -181,13 +183,13 @@ export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRe
       }
     }
 
-    beam = selectBeam(nextStates, lowerBounds, hasFixedFinish);
+    beam = selectBeam(nextStates, lowerBounds, hasFixedFinish, distanceWindow);
   }
 
   if (routes.length === 0) {
     return failure(
       "no-compliant-route",
-      "可用道路网络无法在硬约束内形成 42.195 km 简单路线",
+      `可用道路网络无法在硬约束内形成 ${distanceWindow.minDistanceKm} km 简单路线`,
       expandedStates,
       { maxReachedKm: Math.round(maxReachedKm * 1000) / 1000, maxReachedNodeId }
     );
@@ -197,7 +199,7 @@ export function searchMarathonRoutes(graph: RoadGraph, request: MarathonSearchRe
     ok: true,
     routes: routes
       .sort((a, b) =>
-        Math.abs(a.totalLengthKm - 42.216) - Math.abs(b.totalLengthKm - 42.216) ||
+        Math.abs(a.totalLengthKm - distanceWindow.midpointKm) - Math.abs(b.totalLengthKm - distanceWindow.midpointKm) ||
         a.edgeIds.join("|").localeCompare(b.edgeIds.join("|"))
       )
       .slice(0, maxRoutes),
@@ -290,8 +292,13 @@ function clipCoordinatesByFraction(coordinates: Coordinate[], fraction: number):
   return clipped;
 }
 
-function selectBeam(states: SearchState[], lowerBounds: Map<string, number>, hasFixedFinish: boolean): SearchState[] {
-  const midpointKm = (marathonQualityThresholds.minDistanceKm + marathonQualityThresholds.maxDistanceKm) / 2;
+function selectBeam(
+  states: SearchState[],
+  lowerBounds: Map<string, number>,
+  hasFixedFinish: boolean,
+  distanceWindow: { midpointKm: number }
+): SearchState[] {
+  const midpointKm = distanceWindow.midpointKm;
   const unique = new Map<string, SearchState>();
   for (const state of states) {
     const key = `${state.currentNodeId}|${Math.floor(state.totalLengthKm * 10)}|${state.physicalEdgeIds.at(-1)}`;
@@ -344,6 +351,26 @@ function edgeIsEligible(edge: RoadEdge): boolean {
     (edge.terrainMeasured === true || typeof edge.slopeMean === "number") &&
     calibratedRaceGradePercent(edge.slopeMean ?? Number.POSITIVE_INFINITY) <= marathonQualityThresholds.maxAbsGradePercent
   );
+}
+
+function getSearchDistanceWindow(targetDistanceKm?: number): { minDistanceKm: number; maxDistanceKm: number; midpointKm: number } {
+  if (!targetDistanceKm || Math.abs(targetDistanceKm - marathonQualityThresholds.minDistanceKm) <= 0.25) {
+    const minDistanceKm = marathonQualityThresholds.minDistanceKm;
+    const maxDistanceKm = marathonQualityThresholds.maxDistanceKm;
+    return {
+      minDistanceKm,
+      maxDistanceKm,
+      midpointKm: (minDistanceKm + maxDistanceKm) / 2
+    };
+  }
+
+  const minDistanceKm = targetDistanceKm;
+  const maxDistanceKm = targetDistanceKm + Math.max(0.001, targetDistanceKm * 0.001);
+  return {
+    minDistanceKm,
+    maxDistanceKm,
+    midpointKm: (minDistanceKm + maxDistanceKm) / 2
+  };
 }
 
 function calibratedRaceGradePercent(rasterSlopePercent: number): number {

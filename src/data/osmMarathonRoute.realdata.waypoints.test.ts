@@ -10,7 +10,7 @@ describe("osmMarathonRoute visible real-data waypoint routes", () => {
     for (const plan of waypointRoutePlans) {
       const route = buildWaypointRoute(realWuhanRoads, plan, { maxAttempts: 5 });
 
-      expect(route === null || evaluateRouteQuality(route).passed, plan.id).toBe(true);
+      expect(route === null || evaluateRouteQuality(route, { targetDistanceKm: plan.targetDistanceKm }).passed, plan.id).toBe(true);
     }
   }, 60000);
 
@@ -19,7 +19,8 @@ describe("osmMarathonRoute visible real-data waypoint routes", () => {
       const route = buildWaypointRoute(realWuhanRoads, plan, { maxAttempts: 5 });
 
       expect(route, plan.id).not.toBeNull();
-      expect(evaluateRouteQuality(route!), plan.id).toMatchObject({ passed: true, issues: [] });
+      expect(route!.lengthKm, plan.id).toBeCloseTo(plan.targetDistanceKm, 3);
+      expect(evaluateRouteQuality(route!, { targetDistanceKm: plan.targetDistanceKm }), plan.id).toMatchObject({ passed: true, issues: [] });
       expect(route!.metrics.localBacktrackCount ?? 0, plan.id).toBeLessThanOrEqual(40);
     }
   }, 60000);

@@ -96,27 +96,15 @@ export function buildOsmMarathonCandidateRoutes(
 ): MarathonRoute[] {
   const graph = buildRoadGraphFromGeoJson(filterGeoJsonByRouteEnvelope(geojson, options));
   augmentGraphWithSupportPois(graph);
-  if (isFullMarathonTarget(options.targetDistanceKm)) {
-    return buildCompliantFullMarathonRoutes(graph, options);
-  }
   if (options.endPoint) {
     return buildUserConstrainedRoutes(graph, { ...options, endPoint: options.endPoint });
   }
-  const activeProfiles = selectCandidateProfiles(options.profileIds);
-  const routeLimit = Math.max(1, Math.min(activeProfiles.length, options.maxRoutes ?? activeProfiles.length));
-  const routes: MarathonRoute[] = [];
-
-  for (const [index, profile] of activeProfiles.entries()) {
-    const route = buildFirstAcceptableProfileRoute(graph, profile, index, options);
-    if (!route) continue;
-    routes.push(route);
-    if (routes.length >= routeLimit) break;
-  }
-
-  return routes;
+  const compliantRoutes = buildCompliantDistanceRoutes(graph, options);
+  if (compliantRoutes.length > 0 || options.targetDistanceKm >= 10) return compliantRoutes;
+  return buildLegacyGeneratedDistanceRoutes(graph, options);
 }
 
-function buildCompliantFullMarathonRoutes(graph: RoadGraph, options: OSMCandidateOptions): MarathonRoute[] {
+function buildCompliantDistanceRoutes(graph: RoadGraph, options: OSMCandidateOptions): MarathonRoute[] {
   const activeProfiles = selectCandidateProfiles(options.profileIds);
   const routeLimit = Math.max(1, Math.min(activeProfiles.length, options.maxRoutes ?? activeProfiles.length));
   const routes: MarathonRoute[] = [];
@@ -125,6 +113,7 @@ function buildCompliantFullMarathonRoutes(graph: RoadGraph, options: OSMCandidat
     const result = searchMarathonRoutes(graph, {
       startPoint: options.startPoint,
       ...(options.endPoint ? { endPoint: options.endPoint } : {}),
+      targetDistanceKm: options.targetDistanceKm,
       objective: preferenceToSearchObjective(profile.preference),
       maxRoutes: 1,
       maxExpandedStates: 550_000
@@ -136,17 +125,33 @@ function buildCompliantFullMarathonRoutes(graph: RoadGraph, options: OSMCandidat
         id: profile.id,
         name: profile.name,
         color: profile.color,
+        targetDistanceKm: options.targetDistanceKm,
         lineage: {
           source: "osm-generated",
           roadAligned: true,
           note: "由约束感知路网搜索生成，并通过马拉松距离、地形、连续性和拓扑质量检查"
         }
       };
-      if (evaluateRouteQuality(candidate).passed) {
+      if (evaluateRouteQuality(candidate, { targetDistanceKm: options.targetDistanceKm }).passed) {
         routes.push(candidate);
         if (routes.length >= routeLimit) break;
       }
     }
+  }
+
+  return routes;
+}
+
+function buildLegacyGeneratedDistanceRoutes(graph: RoadGraph, options: OSMCandidateOptions): MarathonRoute[] {
+  const activeProfiles = selectCandidateProfiles(options.profileIds);
+  const routeLimit = Math.max(1, Math.min(activeProfiles.length, options.maxRoutes ?? activeProfiles.length));
+  const routes: MarathonRoute[] = [];
+
+  for (const [index, profile] of activeProfiles.entries()) {
+    const route = buildFirstAcceptableProfileRoute(graph, profile, index, options);
+    if (!route) continue;
+    routes.push(route);
+    if (routes.length >= routeLimit) break;
   }
 
   return routes;
@@ -246,6 +251,7 @@ export function buildWaypointMarathonRoute(
     id: options.id,
     name: options.name,
     color: options.color,
+    targetDistanceKm: options.targetDistanceKm,
     lengthKm: Math.round(spineKm * 1000) / 1000,
     closedLoop: false,
     coordinates: spineCoords,
@@ -861,6 +867,7 @@ function routeFromGeneratedWalk(
     id: options.id,
     name: options.name,
     color: options.color,
+    targetDistanceKm: options.targetDistanceKm,
     lengthKm: roundedLengthKm,
     closedLoop: haversineKm(displayCoordinates[0], displayCoordinates.at(-1) ?? displayCoordinates[0]) < 0.5,
     coordinates: displayCoordinates,

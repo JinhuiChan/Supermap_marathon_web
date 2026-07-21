@@ -29,7 +29,7 @@ export const defaultGisPlanningSettings: GisPlanningSettings = {
     corridor: "武汉铺装道路网络 · 高程与道路属性已校核",
     startFinish: "自动选择路网上的合规起点与终点",
     routeRules: [
-      "42.195–42.237 km",
+      "全马 42.195–42.237 km",
       "起终点净下降 ≤ 42.195 m",
       "累计爬升 ≤ 180 m",
       "最大坡度 ≤ 5%",
@@ -49,6 +49,10 @@ export const defaultGisPlanningSettings: GisPlanningSettings = {
     avoid: ["高架与匝道", "长隧道", "软质路面", "不可封闭道路"]
   }
 };
+
+function formatRouteDistance(distanceKm: number): string {
+  return distanceKm < 25 ? distanceKm.toFixed(4) : distanceKm.toFixed(3);
+}
 
 export function GisSelectionPanel({
   settings,
@@ -83,8 +87,9 @@ export function GisSelectionPanel({
               style={{ borderLeftColor: plan.color }}
             >
               <strong style={{ color: plan.color }}>{plan.name}</strong>
-              <span>{plan.targetDistanceKm.toFixed(1)} km · {plan.description}</span>
-              <small>{plan.waypoints.length} 个途经控制点 · {plan.note}</small>
+              <span>{formatRouteDistance(plan.targetDistanceKm)} km · {plan.description}</span>
+              <small>{plan.waypoints.length} 个途经控制点 · {plan.audience}</small>
+              <small>{plan.features[0]}</small>
             </button>
           ))}
         </div>

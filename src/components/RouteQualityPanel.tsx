@@ -13,7 +13,7 @@ export function RouteQualityPanel({ route }: { route: MarathonRoute | null }) {
     );
   }
 
-  const report = evaluateRouteQuality(route);
+  const report = evaluateRouteQuality(route, { targetDistanceKm: route.targetDistanceKm });
   const metrics = route.metrics;
   const rows = [
     ["规划里程", `${route.lengthKm.toFixed(3)} km`],

@@ -1,6 +1,7 @@
 import { buildOsmMarathonCandidateRoutes, buildWaypointMarathonRoute } from "./osmMarathonRoute";
 import type { Coordinate, MarathonRoute, RouteSelectionProfile } from "../domain/routeMetrics";
 import { compareRoutes, scoreRouteForProfile } from "../domain/routeMetrics";
+import { evaluateRouteQuality } from "../domain/routeQuality";
 import { haversineKm } from "../domain/roadAttributes";
 
 export interface WaypointRoutePlan {
@@ -11,6 +12,9 @@ export interface WaypointRoutePlan {
   waypoints: Array<{ label: string; coordinate: Coordinate }>;
   note: string;
   description: string;
+  positioning: string;
+  audience: string;
+  features: string[];
 }
 
 export const waypointRoutePlans: WaypointRoutePlan[] = [
@@ -19,27 +23,37 @@ export const waypointRoutePlans: WaypointRoutePlan[] = [
     name: "东湖线",
     color: "#00a86b",
     targetDistanceKm: 42.195,
-    description: "全马竞速 · 东湖绿道平缓环湖",
+    description: "竞速PB赛道 · 东湖绿道平缓环湖",
+    positioning: "全马竞技冲PB专用，后半程14km东湖绿道平缓环湖，坡少、树荫足、视野开阔，汉马官方全马核心赛段。",
+    audience: "专业跑者、破PB选手",
     waypoints: [
       { label: "起点：三阳路沿江大道", coordinate: [114.30230, 30.60287] },
       { label: "江汉路步行街", coordinate: [114.2916, 30.6062] },
       { label: "武胜路·江汉一桥", coordinate: [114.2685, 30.5971] },
       { label: "龟山南路·长江大桥上桥口", coordinate: [114.2701, 30.5583] },
       { label: "黄鹤楼南门·汉阳门江滩", coordinate: [114.3044, 30.5462] },
+      { label: "半程分流点·省图书馆书卷路", coordinate: [114.3317, 30.5615] },
       { label: "凌波门·东湖栈道", coordinate: [114.3586, 30.5682] },
       { label: "东湖绿道·湖中道湖心岛", coordinate: [114.3864, 30.5896] },
       { label: "华侨城白马道·湿地公园", coordinate: [114.4012, 30.6018] },
       { label: "仁和路主干道交叉口", coordinate: [114.4163, 30.6105] },
       { label: "终点：青山江滩", coordinate: [114.30933, 30.60991] }
     ],
-    note: "22.5~36.5km 完整东湖环湖绿道，路面平整、长缓坡极少，后半程弯道少冲刺友好"
+    note: "22.5~36.5km 完整东湖环湖绿道，路面平整、长缓坡极少，后半程弯道少冲刺友好",
+    features: [
+      "22.5~36.5km完整东湖环湖绿道，路面平整、长缓坡极少，大量樱花、湖面景观",
+      "后半程弯道少，34km后全程平直主干道，冲刺友好",
+      "湖风降温，遮阳充足，长距离耐力赛体感更佳"
+    ]
   },
   {
     id: "waypoint-riverside",
     name: "滨江线",
     color: "#2563eb",
     targetDistanceKm: 42.195,
-    description: "全马滨江 · 汉口汉阳武昌江滩",
+    description: "休闲全马 · 两江四岸滨水观光",
+    positioning: "全马42.195km观光休闲路线，全程沿长江、汉江两岸江滩主干道，主打江景、城市滨江风光，不进入东湖。",
+    audience: "新手、休闲观光跑者、观光游客",
     waypoints: [
       { label: "起点：三阳路沿江大道", coordinate: [114.30230, 30.60287] },
       { label: "汉口江滩·武汉科技馆", coordinate: [114.3061, 30.6103] },
@@ -52,7 +66,12 @@ export const waypointRoutePlans: WaypointRoutePlan[] = [
       { label: "沙湖大桥", coordinate: [114.3276, 30.5578] },
       { label: "终点：湖北省图书馆·书卷路", coordinate: [114.3317, 30.5615] }
     ],
-    note: "80% 路段临江，长江+汉江双江景视野，串联三大江滩，难度适中"
+    note: "全马滨江观光线，长江+汉江双江景视野，串联三大江滩，难度适中",
+    features: [
+      "长距离路段临江，长江+汉江双江景视野，无长距离环湖",
+      "串联汉口、汉阳、武昌三大江滩，城市滨水天际线尽收眼底",
+      "难度适中，主要爬坡集中在跨江桥梁段，适合新手、观光游客"
+    ]
   },
   {
     id: "waypoint-city-scenic",
@@ -60,6 +79,8 @@ export const waypointRoutePlans: WaypointRoutePlan[] = [
     color: "#e85d04",
     targetDistanceKm: 42.195,
     description: "全域文旅 · 三镇地标全覆盖",
+    positioning: "文旅打卡专用全马路线，串联武汉历史、工业、自然、现代地标，兼顾老城街巷、大桥、东湖、青山工业滨江。",
+    audience: "游客、城市宣传展示、文旅打卡跑者",
     waypoints: [
       { label: "起点：三阳路沿江大道", coordinate: [114.30230, 30.60287] },
       { label: "中山大道·老汉口里份街区", coordinate: [114.2840, 30.6048] },
@@ -73,7 +94,12 @@ export const waypointRoutePlans: WaypointRoutePlan[] = [
       { label: "青山红房子·工业文创街区", coordinate: [114.4132, 30.6130] },
       { label: "终点：青山江滩滨江广场", coordinate: [114.30933, 30.60991] }
     ],
-    note: "一城两江三镇四桥五湖全覆盖，历史、自然、工业、现代景观分层呈现"
+    note: "一城两江三镇四桥五湖全覆盖，历史、自然、工业、现代景观分层呈现",
+    features: [
+      "一城两江三镇四桥五湖全部覆盖，历史、自然、工业、现代景观分层呈现",
+      "打卡点位密度最高，兼顾老城烟火、湖光山色、长江天际、工业滨江",
+      "起伏均衡，兼具观赏性与赛事完整性，适合城市宣传可视化展示"
+    ]
   }
 ];
 
@@ -205,6 +231,7 @@ export function buildBestRouteForSelectionProfile(
     id: plan.id,
     name: plan.name,
     color: plan.color,
+    targetDistanceKm,
     lineage: {
       source: "osm-generated",
       roadAligned: true,
@@ -264,14 +291,16 @@ export function buildWaypointRoute(
   options: { maxAttempts?: number } = {}
 ): MarathonRoute | null {
   const profileRoute = buildBestRouteForSelectionProfile(geojson, waypointProfileMap[plan.id], {
+    targetDistanceKm: plan.targetDistanceKm,
     seedPoints: waypointProfileSeedPoints[plan.id]
   });
-  if (profileRoute) {
+  if (profileRoute && evaluateRouteQuality(profileRoute, { targetDistanceKm: plan.targetDistanceKm }).passed) {
     return {
       ...profileRoute,
       id: plan.id,
       name: plan.name,
       color: plan.color,
+      targetDistanceKm: plan.targetDistanceKm,
       lineage: {
         ...profileRoute.lineage,
         source: "osm-generated",
@@ -293,7 +322,12 @@ export function buildWaypointRoute(
       color: plan.color,
       note: plan.note
     });
-    if (route) return route;
+    if (route) {
+      return {
+        ...route,
+        targetDistanceKm: plan.targetDistanceKm
+      };
+    }
   }
 
   return null;

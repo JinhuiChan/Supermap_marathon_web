@@ -58,6 +58,14 @@ describe("evaluateRouteQuality", () => {
     expect(issueCodes(validRoute({ lengthKm: 42.238 }))).toContain("distance");
   });
 
+  it("uses target-specific distance windows for half marathon routes", () => {
+    const route = validRoute({ lengthKm: 21.0975 });
+
+    expect(evaluateRouteQuality(route, { targetDistanceKm: 21.0975 }).passed).toBe(true);
+    expect(evaluateRouteQuality(route).issues.map((issue) => issue.code)).toContain("distance");
+    expect(evaluateRouteQuality(validRoute({ lengthKm: 21.12 }), { targetDistanceKm: 21.0975 }).issues.map((issue) => issue.code)).toContain("distance");
+  });
+
   it("does not constrain the straight-line distance between start and finish", () => {
     const route = validRoute({
       coordinates: [[114.1, 30.6], [114.4, 30.6]]

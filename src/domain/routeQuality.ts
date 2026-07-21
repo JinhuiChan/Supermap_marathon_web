@@ -45,15 +45,20 @@ export interface RouteQualityReport {
   endpointSeparationKm: number;
 }
 
-export function evaluateRouteQuality(route: MarathonRoute): RouteQualityReport {
+export interface RouteQualityOptions {
+  targetDistanceKm?: number;
+}
+
+export function evaluateRouteQuality(route: MarathonRoute, options: RouteQualityOptions = {}): RouteQualityReport {
   const issues: RouteQualityIssue[] = [];
   const metrics = route.metrics;
   const first = route.coordinates[0];
   const last = route.coordinates.at(-1);
   const endpointSeparationKm = first && last ? haversineKm(first, last) : Number.POSITIVE_INFINITY;
+  const distanceThresholds = getDistanceThresholds(options.targetDistanceKm);
 
-  if (route.lengthKm < marathonQualityThresholds.minDistanceKm || route.lengthKm > marathonQualityThresholds.maxDistanceKm) {
-    addIssue(issues, "distance", "规划里程", route.lengthKm, marathonQualityThresholds.maxDistanceKm);
+  if (route.lengthKm < distanceThresholds.minDistanceKm || route.lengthKm > distanceThresholds.maxDistanceKm) {
+    addIssue(issues, "distance", "规划里程", route.lengthKm, distanceThresholds.maxDistanceKm);
   }
   if ((metrics.netElevationDropM ?? Number.POSITIVE_INFINITY) > marathonQualityThresholds.maxNetDropM) {
     addIssue(issues, "net-drop", "起终点净下降", metrics.netElevationDropM ?? false, marathonQualityThresholds.maxNetDropM);
@@ -113,6 +118,20 @@ export function evaluateRouteQuality(route: MarathonRoute): RouteQualityReport {
     passed: issues.length === 0,
     issues,
     endpointSeparationKm: round(endpointSeparationKm, 4)
+  };
+}
+
+function getDistanceThresholds(targetDistanceKm?: number): { minDistanceKm: number; maxDistanceKm: number } {
+  if (!targetDistanceKm || Math.abs(targetDistanceKm - marathonQualityThresholds.minDistanceKm) <= 0.25) {
+    return {
+      minDistanceKm: marathonQualityThresholds.minDistanceKm,
+      maxDistanceKm: marathonQualityThresholds.maxDistanceKm
+    };
+  }
+
+  return {
+    minDistanceKm: targetDistanceKm,
+    maxDistanceKm: targetDistanceKm + Math.max(0.001, targetDistanceKm * 0.001)
   };
 }
 

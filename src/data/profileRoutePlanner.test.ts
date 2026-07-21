@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { buildBestRouteForSelectionProfile, profileRoutePlans } from "./profileRoutePlanner";
+import { buildBestRouteForSelectionProfile, profileRoutePlans, waypointRoutePlans } from "./profileRoutePlanner";
 
 const roadNetwork = {
   type: "FeatureCollection",
@@ -65,5 +65,40 @@ describe("profileRoutePlanner", () => {
   test("does not require a bridge for the visible city-experience plan", () => {
     expect(profileRoutePlans.scenic.name).toContain("城市体验");
     expect(profileRoutePlans.scenic.preferredCandidateIds).toContain("osm-scenic");
+  });
+
+  test("keeps visible route plans aligned with requested differentiated constraints", () => {
+    const eastLake = waypointRoutePlans.find((plan) => plan.id === "waypoint-east-lake");
+    const riverside = waypointRoutePlans.find((plan) => plan.id === "waypoint-riverside");
+    const cityScenic = waypointRoutePlans.find((plan) => plan.id === "waypoint-city-scenic");
+
+    expect(eastLake).toMatchObject({
+      targetDistanceKm: 42.195,
+      positioning: expect.stringContaining("PB"),
+      audience: expect.stringContaining("专业跑者")
+    });
+    expect(eastLake?.waypoints).toHaveLength(11);
+    expect(eastLake?.waypoints.map((waypoint) => waypoint.coordinate)).toContainEqual([114.3317, 30.5615]);
+    expect(eastLake?.features).toEqual(expect.arrayContaining([
+      expect.stringContaining("东湖环湖绿道")
+    ]));
+
+    expect(riverside).toMatchObject({
+      targetDistanceKm: 42.195,
+      positioning: expect.stringContaining("全马"),
+      audience: expect.stringContaining("新手")
+    });
+    expect(riverside?.features).toEqual(expect.arrayContaining([
+      expect.stringContaining("双江景")
+    ]));
+
+    expect(cityScenic).toMatchObject({
+      targetDistanceKm: 42.195,
+      positioning: expect.stringContaining("文旅"),
+      audience: expect.stringContaining("城市宣传")
+    });
+    expect(cityScenic?.features).toEqual(expect.arrayContaining([
+      expect.stringContaining("一城两江三镇")
+    ]));
   });
 });
