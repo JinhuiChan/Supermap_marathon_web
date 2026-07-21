@@ -60,7 +60,7 @@ public/data/local-wuhan-road-network-osm.geojson
 | --- | --- |
 | `.gitignore` | 忽略依赖、构建产物、本地 SuperMap 工作空间和本地大数据文件。 |
 | `README.md` | 项目总览、运行方式和仓库文件说明；仓库中唯一保留的 Markdown 文档。 |
-| `说明文档.txt` | 使用说明和详细技术说明，面向最终交付和答辩说明。 |
+| `说明文档.md` | 使用说明和详细技术说明，面向最终交付和答辩说明。 |
 | `package.json` | npm 脚本、运行依赖和开发依赖声明。 |
 | `package-lock.json` | 锁定 npm 依赖版本，保证安装一致性。 |
 | `tsconfig.json` | TypeScript 编译配置。 |
@@ -205,5 +205,5 @@ public/data/local-wuhan-road-network-osm.geojson
 使用说明和详细技术说明见根目录：
 
 ```text
-说明文档.txt
+说明文档.md
 ```
