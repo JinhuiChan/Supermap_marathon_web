@@ -84,8 +84,6 @@ public/data/local-wuhan-road-network-osm.geojson
 | --- | --- |
 | `public/preview_roads.html` | 本地路网预览页面，用于快速查看道路 GeoJSON。 |
 | `public/data/wuhan-marathon-routes.geojson` | 可下载/展示的武汉马拉松候选路线 GeoJSON。 |
-| `public/data/experimental-full-osm-all-waypoint-routes.geojson` | Full OSM 全控制点实验路线 GeoJSON。 |
-| `public/data/wuhan-marathon-support-points.geojson` | 赛事服务点 GeoJSON，包括起终点、补给、医疗、停车等示意点。 |
 | `public/data/local-wuhan-road-network-osm.geojson` | Web 运行和 Full OSM 路线生成使用的完整武汉 OSM 路网。 |
 | `public/data/local-wuhan-marathon-area-roads.geojson` | 真实路网单元测试使用的武汉马拉松区域道路数据。 |
 | `public/data/gis/constraint_sensitive_hospital_area.geojson` | 医院敏感区约束图层。 |
