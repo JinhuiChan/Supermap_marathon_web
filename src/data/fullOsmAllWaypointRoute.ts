@@ -49,6 +49,17 @@ interface FillerState {
 
 export interface FullOsmAllWaypointRouteOptions {
   waypointHitRadiusKm?: number;
+  onProgress?: (event: FullOsmRouteProgressEvent) => void;
+}
+
+export type FullOsmRouteProgressStage = "graph" | "snap" | "controls" | "filler" | "metrics" | "complete";
+
+export interface FullOsmRouteProgressEvent {
+  stage: FullOsmRouteProgressStage;
+  percent: number;
+  message: string;
+  current?: number;
+  total?: number;
 }
 
 export interface WaypointHitDistance {
@@ -68,6 +79,45 @@ export function buildFullOsmAllWaypointRoute(
   const assembly = buildAllWaypointAssembly(graph, plan);
   if (!assembly) return null;
 
+  return buildMarathonRoute(assembly, plan, options);
+}
+
+export async function buildFullOsmAllWaypointRouteAsync(
+  geojson: unknown,
+  plan: WaypointRoutePlan,
+  options: FullOsmAllWaypointRouteOptions = {}
+): Promise<MarathonRoute | null> {
+  const graph = getCachedGraph(geojson);
+  await reportProgress(options, {
+    stage: "graph",
+    percent: 12,
+    message: "Full OSM road graph is ready"
+  });
+
+  const assembly = await buildAllWaypointAssemblyAsync(graph, plan, options);
+  if (!assembly) return null;
+
+  await reportProgress(options, {
+    stage: "metrics",
+    percent: 92,
+    message: "Computing route metrics and waypoint hits"
+  });
+  const route = buildMarathonRoute(assembly, plan, options);
+
+  await reportProgress(options, {
+    stage: "complete",
+    percent: 100,
+    message: "Route generation complete"
+  });
+
+  return route;
+}
+
+function buildMarathonRoute(
+  assembly: RouteAssembly,
+  plan: WaypointRoutePlan,
+  options: FullOsmAllWaypointRouteOptions
+): MarathonRoute {
   const roundedLengthKm = round(assembly.lengthKm, 3);
   const hitDistances = getWaypointHitDistancesM({ coordinates: assembly.coordinates }, plan, options.waypointHitRadiusKm);
   const hitCount = hitDistances.filter((item) => item.hit).length;
@@ -102,6 +152,14 @@ function getCachedGraph(geojson: unknown): RoadGraph {
   const graph = buildRoadGraphFromGeoJson(geojson);
   graphCache.set(geojson, graph);
   return graph;
+}
+
+async function reportProgress(
+  options: FullOsmAllWaypointRouteOptions,
+  event: FullOsmRouteProgressEvent
+): Promise<void> {
+  options.onProgress?.(event);
+  await new Promise<void>((resolve) => globalThis.setTimeout(resolve, 0));
 }
 
 export function getWaypointHitDistancesM(
@@ -199,6 +257,107 @@ function buildAllWaypointAssembly(graph: RoadGraph, plan: WaypointRoutePlan): Ro
     appendNodeIds(nodeIds, filler.outNodeIds.slice(1));
     edges.push(...filler.outEdges);
     lengthKm += filler.totalKm;
+  }
+
+  return { coordinates, nodeIds, edges, lengthKm, controlOrder };
+}
+
+async function buildAllWaypointAssemblyAsync(
+  graph: RoadGraph,
+  plan: WaypointRoutePlan,
+  options: FullOsmAllWaypointRouteOptions
+): Promise<RouteAssembly | null> {
+  const snapped = plan.waypoints.map((waypoint) => ({
+    coordinate: waypoint.coordinate,
+    nodeId: nearestNodeId(graph, waypoint.coordinate)
+  }));
+  if (snapped.some((item) => item.nodeId === "")) return null;
+
+  await reportProgress(options, {
+    stage: "snap",
+    percent: 22,
+    message: `Snapped ${snapped.length} control points to the Full OSM graph`,
+    current: snapped.length,
+    total: snapped.length
+  });
+
+  const remainingControls = new Set(snapped.slice(1).map((_, index) => index + 1));
+  const totalControls = remainingControls.size;
+  const usedEdges = new Set<string>();
+  const coordinates: Coordinate[] = [];
+  const nodeIds: string[] = [];
+  const edges: RoadEdge[] = [];
+  const controlOrder = [0];
+  let currentIndex = 0;
+  let currentNodeId = snapped[0].nodeId;
+  let lengthKm = 0;
+
+  appendCoordinate(coordinates, graph.nodes.get(currentNodeId)?.coordinate ?? snapped[0].coordinate);
+  appendNodeId(nodeIds, currentNodeId);
+
+  while (remainingControls.size > 0) {
+    const next = bestPathToRemainingControl(
+      graph,
+      currentNodeId,
+      [...remainingControls],
+      snapped.map((item) => item.nodeId),
+      usedEdges,
+      coordinates,
+      nodeIds,
+      lengthKm,
+      plan.targetDistanceKm
+    );
+    if (!next) return null;
+
+    const { targetIndex, path } = next;
+
+    appendSegment(coordinates, path);
+    appendNodeIds(nodeIds, path.nodeIds.slice(1));
+    edges.push(...path.edges);
+    rememberUsedEdges(usedEdges, path.edges);
+    lengthKm += path.totalKm;
+    currentIndex = targetIndex;
+    currentNodeId = snapped[currentIndex].nodeId;
+    remainingControls.delete(currentIndex);
+    controlOrder.push(currentIndex);
+
+    const completedControls = totalControls - remainingControls.size;
+    await reportProgress(options, {
+      stage: "controls",
+      percent: Math.round(25 + (completedControls / Math.max(totalControls, 1)) * 45),
+      message: `Connected ${completedControls}/${totalControls} control-point legs`,
+      current: completedControls,
+      total: totalControls
+    });
+  }
+
+  const targetKm = plan.targetDistanceKm;
+  if (lengthKm < targetKm) {
+    await reportProgress(options, {
+      stage: "filler",
+      percent: 78,
+      message: `Extending remaining ${(targetKm - lengthKm).toFixed(1)} km to target distance`,
+      current: Math.round(lengthKm * 1000),
+      total: Math.round(targetKm * 1000)
+    });
+
+    const filler = buildForwardFiller(graph, currentNodeId, targetKm - lengthKm, {
+      coordinates,
+      nodeIds,
+      usedEdges
+    });
+    appendCoordinates(coordinates, filler.outCoordinates.slice(1));
+    appendNodeIds(nodeIds, filler.outNodeIds.slice(1));
+    edges.push(...filler.outEdges);
+    lengthKm += filler.totalKm;
+  } else {
+    await reportProgress(options, {
+      stage: "filler",
+      percent: 78,
+      message: "Target distance already reached after control-point routing",
+      current: Math.round(lengthKm * 1000),
+      total: Math.round(targetKm * 1000)
+    });
   }
 
   return { coordinates, nodeIds, edges, lengthKm, controlOrder };

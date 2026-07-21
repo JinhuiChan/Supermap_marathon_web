@@ -17,7 +17,11 @@ import { RouteDetails } from "./components/RouteDetails";
 import { RouteQualityPanel } from "./components/RouteQualityPanel";
 import { SuperMapStatusPanel } from "./components/SuperMapStatusPanel";
 import { superMapConfig } from "./config/supermap";
-import { buildFullOsmAllWaypointRoute, getWaypointHitDistancesM } from "./data/fullOsmAllWaypointRoute";
+import {
+  buildFullOsmAllWaypointRouteAsync,
+  getWaypointHitDistancesM,
+  type FullOsmRouteProgressEvent
+} from "./data/fullOsmAllWaypointRoute";
 import { waypointRoutePlans, type WaypointRouteId } from "./data/profileRoutePlanner";
 import { supportPoints } from "./data/supportPoints";
 import { upsertGeneratedRoute } from "./domain/routeCollection";
@@ -33,6 +37,25 @@ interface AppProps {
 }
 
 const waitForUiFrame = () => new Promise<void>((resolve) => window.setTimeout(resolve, 25));
+
+function formatGenerationProgress(routeName: string, event: FullOsmRouteProgressEvent): string {
+  switch (event.stage) {
+    case "graph":
+      return "Full OSM road graph is ready";
+    case "snap":
+      return `Snapped ${event.current}/${event.total} control points for ${routeName}`;
+    case "controls":
+      return `${routeName}: connected ${event.current}/${event.total} control-point legs`;
+    case "filler":
+      return `${routeName}: extending route to target distance`;
+    case "metrics":
+      return `${routeName}: computing route quality and waypoint hits`;
+    case "complete":
+      return `${routeName}: route generation complete`;
+    default:
+      return event.message;
+  }
+}
 
 export default function App({ initialLayerVisibility }: AppProps = {}) {
   const [workspaceMode, setWorkspaceMode] = useState<GisWorkspaceMode>("selection");
@@ -118,17 +141,19 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
 
     try {
       await waitForUiFrame();
-      setGenerationProgress(26);
-      await waitForUiFrame();
 
-      const route = buildFullOsmAllWaypointRoute(roadGeoJson, plan);
+      const route = await buildFullOsmAllWaypointRouteAsync(roadGeoJson, plan, {
+        onProgress: (event) => {
+          setGenerationProgress(event.percent);
+          setGenerationStatus(formatGenerationProgress(plan.name, event));
+        }
+      });
       if (!route) {
         setGenerationStatus(`${plan.name} generation failed: road network is not connected between control points.`);
         setGenerationProgress(null);
         return;
       }
 
-      setGenerationProgress(88);
       const hitDistances = getWaypointHitDistancesM(route, plan);
       const hitCount = hitDistances.filter((item) => item.hit).length;
       setRoutes((current) => upsertGeneratedRoute(current, route));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildFullOsmAllWaypointRoute, getWaypointHitDistancesM } from "./fullOsmAllWaypointRoute";
+import { buildFullOsmAllWaypointRoute, buildFullOsmAllWaypointRouteAsync, getWaypointHitDistancesM } from "./fullOsmAllWaypointRoute";
 import type { WaypointRoutePlan } from "./profileRoutePlanner";
 
 const featureCollection = {
@@ -110,6 +110,29 @@ describe("buildFullOsmAllWaypointRoute", () => {
 
     expect(route).not.toBeNull();
     expect(route?.metrics.selfIntersectionCount).toBe(0);
+  });
+
+  it("reports real route-building stages through progress callbacks", async () => {
+    const events: Array<{ stage: string; percent: number; current?: number; total?: number }> = [];
+
+    const route = await buildFullOsmAllWaypointRouteAsync(featureCollection, plan, {
+      waypointHitRadiusKm: 0.2,
+      onProgress: (event) => events.push(event)
+    });
+
+    expect(route).not.toBeNull();
+    expect(events.map((event) => event.stage)).toEqual([
+      "graph",
+      "snap",
+      "controls",
+      "controls",
+      "filler",
+      "metrics",
+      "complete"
+    ]);
+    expect(events.at(-1)?.percent).toBe(100);
+    expect(events.find((event) => event.stage === "controls" && event.current === 2 && event.total === 2)).toBeDefined();
+    expect(events.every((event, index) => index === 0 || event.percent >= events[index - 1].percent)).toBe(true);
   });
 });
 
