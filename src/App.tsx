@@ -62,7 +62,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
   const [routes, setRoutes] = useState<MarathonRoute[]>([]);
   const [roadGeoJson, setRoadGeoJson] = useState<unknown>(null);
-  const [generationStatus, setGenerationStatus] = useState("姝ｅ湪鍔犺浇姝︽眽閬撹矾鐭㈤噺缃戠粶");
+  const [generationStatus, setGenerationStatus] = useState("正在加载武汉道路矢量网络");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState<number | null>(null);
   const [activeRouteId, setActiveRouteId] = useState("");
@@ -206,11 +206,11 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
       <header className="gis-app-header">
         <div className="gis-brand">
           <span>SuperMap WebGIS</span>
-          <strong>姝︽眽椹媺鏉捐禌閬撶┖闂撮€夌嚎骞冲彴</strong>
+          <strong>武汉马拉松赛道空间选线平台</strong>
         </div>
         <GisModeNav mode={workspaceMode} onModeChange={setWorkspaceMode} />
         <button type="button" className="gis-header-action" disabled={routes.length === 0} onClick={() => applyRecommendation()}>
-          閲囩敤褰撳墠鎺ㄨ崘
+          采用当前推荐
         </button>
       </header>
 
@@ -248,7 +248,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
         {workspaceMode === "analysis" && (
           <aside className="gis-analysis-dock" aria-label="Route analysis panel">
             <button type="button" className="back-to-selection" onClick={() => setWorkspaceMode("selection")}>
-              杩斿洖鏅鸿兘閫夊瀷
+              返回智能选型
             </button>
             {activeRoute ? (
               <>

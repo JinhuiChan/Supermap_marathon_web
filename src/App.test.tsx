@@ -7,8 +7,10 @@ describe("App", () => {
     const html = renderToStaticMarkup(<App />);
 
     expect(html).toContain("gis-mode-nav");
+    expect(html).toContain("武汉马拉松赛道空间选线平台");
     expect(html).toContain("智能选型");
     expect(html).toContain("赛道分析");
+    expect(html).toContain("采用当前推荐");
     expect(html).toContain("硬性合规规则");
     expect(html).toContain("东湖线");
     expect(html).toContain("城市景观线");
@@ -30,6 +32,7 @@ describe("App", () => {
     expect(html).toContain("Routing data");
     expect(html).toContain("Full OSM");
     expect(html).not.toContain("Area roads");
+    expect(html).not.toMatch(/姝|閲|杩|闃|鍙|璧|绾|鍔|鐐/);
   });
 
   it("keeps route selection controls visible when candidate routes are hidden on the map", () => {
