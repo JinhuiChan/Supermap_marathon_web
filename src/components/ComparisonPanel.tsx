@@ -1,4 +1,4 @@
-import type { MarathonRoute, RouteSelectionProfile } from "../domain/routeMetrics";
+import type { MarathonRoute, RouteScore, RouteSelectionProfile } from "../domain/routeMetrics";
 import { compareRoutes } from "../domain/routeMetrics";
 
 interface ComparisonPanelProps {
@@ -6,9 +6,31 @@ interface ComparisonPanelProps {
   selectionProfile?: RouteSelectionProfile;
 }
 
+export interface ComparisonRow extends RouteScore {
+  comparisonIndex: number;
+}
+
+export function buildComparisonRows(scores: RouteScore[]): ComparisonRow[] {
+  if (scores.length === 0) return [];
+
+  const targetScores = scores.map((score) => score.profileScore);
+  const minScore = Math.min(...targetScores);
+  const maxScore = Math.max(...targetScores);
+
+  if (maxScore === minScore) {
+    return scores.map((score) => ({ ...score, comparisonIndex: 80 }));
+  }
+
+  return scores.map((score) => ({
+    ...score,
+    comparisonIndex: Math.round(65 + ((score.profileScore - minScore) / (maxScore - minScore)) * 25)
+  }));
+}
+
 export function ComparisonPanel({ routes, selectionProfile = "balanced" }: ComparisonPanelProps) {
   const scores = compareRoutes(routes, selectionProfile);
-  const winner = scores[0];
+  const rows = buildComparisonRows(scores);
+  const winner = rows[0];
 
   if (routes.length < 2) {
     return (
@@ -26,7 +48,7 @@ export function ComparisonPanel({ routes, selectionProfile = "balanced" }: Compa
         <span>推荐方案</span>
         <strong>{winner.name}</strong>
         <p>
-          目标分 {winner.profileScore}，推荐分 {winner.recommendationScore}，适配：{winner.runnerFit}
+          原始目标分 {winner.profileScore}，对比指数 {winner.comparisonIndex}，推荐分 {winner.recommendationScore}，适配：{winner.runnerFit}
         </p>
       </div>
       <table className="compare-table">
@@ -37,28 +59,34 @@ export function ComparisonPanel({ routes, selectionProfile = "balanced" }: Compa
             <th>难度</th>
             <th>保障</th>
             <th>目标</th>
+            <th>对比</th>
           </tr>
         </thead>
         <tbody>
-          {scores.map((score) => (
+          {rows.map((score) => (
             <tr key={score.id}>
               <td>{score.rank}</td>
               <td>{score.name}</td>
               <td>{score.difficultyScore}</td>
               <td>{score.supportScore}</td>
               <td>{score.profileScore}</td>
+              <td>{score.comparisonIndex}</td>
             </tr>
           ))}
         </tbody>
       </table>
       <div className="bar-chart">
-        {scores.map((score) => (
+        <p className="comparison-note">对比指数用于当前候选方案内横向比较；原始目标分仍基于路线指标计算。</p>
+        {rows.map((score) => (
           <div className="bar-row" key={score.id}>
-            <span>{score.name}</span>
+            <span>
+              {score.name}
+              <small>原始目标分 {score.profileScore}</small>
+            </span>
             <div>
-              <i style={{ width: `${score.profileScore}%` }} />
+              <i style={{ width: `${score.comparisonIndex}%` }} />
             </div>
-            <b>{score.profileScore}</b>
+            <b>{score.comparisonIndex}</b>
           </div>
         ))}
       </div>

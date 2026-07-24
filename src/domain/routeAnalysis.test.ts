@@ -48,11 +48,10 @@ describe("routeAnalysis", () => {
     expect(analysis.dimensionCards.map((card) => card.id)).toEqual([
       "terrain",
       "passage",
-      "venue",
       "support",
       "experience"
     ]);
-    expect(analysis.dimensionCards.find((card) => card.id === "venue")?.score).toBeGreaterThan(0);
+    expect(analysis.dimensionCards.map((card) => card.label)).not.toContain("办赛条件");
     expect(analysis.dimensionCards.find((card) => card.id === "support")?.reliability).toBe("derived");
     expect(analysis.dimensionCards.find((card) => card.id === "support")?.evidence).toContain("不是官方保障点部署");
   });
@@ -63,6 +62,7 @@ describe("routeAnalysis", () => {
     expect(report).toContain("SuperMap iServer");
     expect(report).toContain("不采用已删除的 2026 官方道路级矢量路线");
     expect(report).not.toContain("2026 Wuhan Marathon official route reference");
+    expect(report).not.toContain("办赛条件");
     expect(report).toContain("推荐");
   });
 
@@ -109,17 +109,31 @@ describe("routeAnalysis", () => {
     expect(new Set(worse.dimensionCards.map((card) => card.score)).size).toBeGreaterThan(2);
   });
 
-  it("labels data sources and downgrades unsupported claims to estimates", () => {
+  it("labels data sources and frames implementation planning as downstream of route selection", () => {
     const analysis = analyzeRoute(generatedRoute, []);
     const support = analysis.dimensionCards.find((card) => card.id === "support");
 
     expect(analysis.dataSources).toContain("路线几何坐标");
     expect(analysis.dataSources).toContain("道路拓扑检测指标");
-    expect(analysis.dataGaps).toContain("未接入官方补给点、医疗点、厕所、停车与交通管制部署数据");
+    expect(analysis.implementationNotes).toContain("补给、医疗、厕所、志愿者与隔离设施应以候选路线里程、桥梁、转弯、折返点和人流集散位置为依据进一步布设");
+    expect(analysis.implementationNotes.join(" ")).toContain("现场踏勘用于确认道路宽度");
+    expect(analysis.recommendation).toContain("用于候选路线比选");
+    expect(analysis.recommendation).toContain("保障方案应在选定候选路线后分段细化");
+    expect(analysis.recommendation).not.toContain("补齐数据缺口");
     expect(support?.reliability).toBe("derived");
     expect(support?.source).toContain("基于线路长度");
     expect(support?.evidence).toContain("不是官方保障点部署");
     expect([...analysis.highlights, ...analysis.risks, analysis.recommendation].join(" ")).not.toMatch(/利于|可控|适配|优先方案|大众跑者完赛/);
+  });
+
+  it("reports support and traffic controls as route-based follow-up planning", () => {
+    const report = buildDecisionReport([generatedRoute], supportPoints);
+
+    expect(report).toContain("后续保障规划口径");
+    expect(report).toContain("以候选路线为基础分段制定");
+    expect(report).toContain("可作为路线比选和后续保障规划的依据");
+    expect(report).not.toContain("数据缺口：未接入官方补给点");
+    expect(report).not.toContain("正式采用前必须补齐数据缺口");
   });
 
   it("turns support analysis into route-based planning recommendations", () => {

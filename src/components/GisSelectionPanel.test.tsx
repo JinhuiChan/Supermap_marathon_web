@@ -15,11 +15,11 @@ function renderPanel(overrides: Partial<Parameters<typeof GisSelectionPanel>[0]>
 
 describe("GisSelectionPanel", () => {
   it("shows immediate feedback while the route model is running", () => {
-    const html = renderPanel({ isGenerating: true, generationProgress: 32 });
+    const html = renderPanel({ isGenerating: true });
     expect(html).toContain("正在搜索合规路线");
     expect(html).toContain("disabled");
-    expect(html).toContain('role="progressbar"');
-    expect(html).toContain('aria-valuenow="32"');
+    expect(html).not.toContain('role="progressbar"');
+    expect(html).not.toContain("gis-generation-progress");
   });
 
   it("explains why route generation is disabled", () => {

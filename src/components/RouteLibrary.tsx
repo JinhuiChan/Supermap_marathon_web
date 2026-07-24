@@ -35,7 +35,6 @@ export function RouteLibrary({
           const selected = comparedRouteIds.includes(route.id);
           const roadAligned = route.lineage?.roadAligned === true;
           const score = scoreRoute(route);
-          const venueScore = route.metrics.competitionReadinessScore ?? Math.round((100 - score.difficultyScore) * 0.45 + score.supportScore * 0.55);
 
           return (
             <article className={`route-card ${route.id === activeRouteId ? "active" : ""}`} key={route.id}>
@@ -61,10 +60,6 @@ export function RouteLibrary({
                 <span>
                   <strong>{score.supportScore}</strong>
                   保障
-                </span>
-                <span>
-                  <strong>{venueScore}</strong>
-                  办赛
                 </span>
               </div>
               <label className="compare-toggle">

@@ -18,7 +18,6 @@ interface GisSelectionPanelProps {
   canGenerate: boolean;
   generateDisabledReason?: string;
   isGenerating?: boolean;
-  generationProgress?: number | null;
   onGenerateRoute: (routeId: WaypointRouteId) => void;
 }
 
@@ -60,14 +59,11 @@ export function GisSelectionPanel({
   canGenerate,
   generateDisabledReason,
   isGenerating = false,
-  generationProgress = null,
   onGenerateRoute
 }: GisSelectionPanelProps) {
   const routeButtonTitle = !canGenerate && generateDisabledReason
     ? generateDisabledReason
     : isGenerating ? "正在搜索合规路线" : undefined;
-
-  const progressValue = Math.max(0, Math.min(100, Math.round(generationProgress ?? 12)));
 
   return (
     <aside className="gis-selection-panel" aria-label="武汉马拉松赛道选型">
@@ -118,20 +114,6 @@ export function GisSelectionPanel({
         <h3>3. 生成路线</h3>
         <p className="gis-tool-hint">点击上方路线按钮即可生成。系统将途经点吸附到最近路网节点，分段生成子路径后拼接为完整路线，并通过距离容差和质量闸门校验。</p>
         {isGenerating && <p className="gis-tool-hint">正在搜索合规路线</p>}
-        {isGenerating && (
-          <div className="gis-generation-progress" aria-label="Route generation progress">
-            <div
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={progressValue}
-              aria-valuetext={`Full OSM route generation ${progressValue}%`}
-            >
-              <span style={{ width: `${progressValue}%` }} />
-            </div>
-            <small>{progressValue}%</small>
-          </div>
-        )}
         {!canGenerate && generateDisabledReason && <p className="gis-tool-hint">{generateDisabledReason}</p>}
       </section>
     </aside>

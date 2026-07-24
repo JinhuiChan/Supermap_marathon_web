@@ -32,7 +32,7 @@ const route: MarathonRoute = {
 };
 
 describe("RouteLibrary", () => {
-  test("shows generation controls, route scores, and venue readiness", () => {
+  test("shows generation controls and route scores without venue readiness", () => {
     const html = renderToStaticMarkup(
       <RouteLibrary
         routes={[route]}
@@ -50,7 +50,8 @@ describe("RouteLibrary", () => {
     expect(html).toContain("已生成 3 条 OSM 候选路线");
     expect(html).toContain("推荐");
     expect(html).toContain("难度");
-    expect(html).toContain("办赛");
-    expect(html).toContain("91");
+    expect(html).toContain("保障");
+    expect(html).not.toContain("办赛");
+    expect(html).not.toContain("办赛条件");
   });
 });

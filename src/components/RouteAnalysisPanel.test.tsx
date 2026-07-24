@@ -45,10 +45,14 @@ describe("RouteAnalysisPanel", () => {
     const html = renderToStaticMarkup(<RouteAnalysisPanel route={route} supportPoints={[]} />);
 
     expect(html).toContain("数据来源");
-    expect(html).toContain("数据缺口");
+    expect(html).toContain("落地复核与保障细化");
+    expect(html).not.toContain("办赛条件");
+    expect(html).not.toContain("数据缺口");
     expect(html).toContain("estimated");
     expect(html).toContain("模型估算");
     expect(html).toContain("不是官方保障点部署");
+    expect(html).toContain("应以候选路线里程");
+    expect(html).toContain("不作为当前选线算法的前置输入");
     expect(html).not.toMatch(/利于|可控|适配|优先方案|大众跑者完赛/);
   });
 

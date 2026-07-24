@@ -1,4 +1,5 @@
 import type { MarathonRoute } from "../domain/routeMetrics";
+import { waypointRoutePlans } from "../data/profileRoutePlanner";
 import { buildRouteDirectionMarkers } from "../map/layers/RouteLayer";
 
 interface RouteMapProps {
@@ -23,7 +24,7 @@ export function RouteMap({ routes, activeRouteId, comparedRouteIds, onSelectRout
     <section className="map-panel" aria-label="武汉马拉松赛道地图">
       <div className="map-toolbar">
         <span>武汉 WebGIS 赛道工作台 · SuperMap iServer</span>
-        <strong>{comparedRouteIds.length}/5 已加入对比</strong>
+        <strong>{comparedRouteIds.length}/{waypointRoutePlans.length} 已加入对比</strong>
       </div>
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="路线示意图">
         <rect x="0" y="0" width="100" height="100" rx="0" className="map-bg" />

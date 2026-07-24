@@ -1,6 +1,8 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { MarathonRoute } from "../../domain/routeMetrics";
-import { getVisibleMapRoutes } from "./SuperMapMap";
+import { clampDraggedProgressPosition, getVisibleMapRoutes, SuperMapMap } from "./SuperMapMap";
 
 function makeRoute(id: string): MarathonRoute {
   return {
@@ -46,5 +48,51 @@ describe("getVisibleMapRoutes", () => {
     const routes = [makeRoute("checked")];
 
     expect(getVisibleMapRoutes(routes, "checked", ["checked"], false)).toEqual([]);
+  });
+
+  it("renders the comparison count as an independent map status with the route-plan limit", () => {
+    const html = renderToStaticMarkup(
+      createElement(SuperMapMap, {
+        routes: [],
+        activeRouteId: "",
+        comparedRouteIds: ["one", "two", "three"],
+        layerVisibility: { routes: true, roadNetwork: true },
+        onSelectRoute: () => {}
+      })
+    );
+
+    expect(html).toContain("3/3 已加入对比");
+    expect(html).not.toContain("3/5 已加入对比");
+  });
+
+  it("renders route generation progress on the map instead of the selection panel", () => {
+    const html = renderToStaticMarkup(
+      createElement(SuperMapMap, {
+        routes: [],
+        activeRouteId: "",
+        comparedRouteIds: [],
+        layerVisibility: { routes: true, roadNetwork: true },
+        isGenerating: true,
+        generationProgress: 41,
+        generationStatus: "滨江线: connected 3/9 control-point legs",
+        onSelectRoute: () => {}
+      })
+    );
+
+    expect(html).toContain("map-generation-progress");
+    expect(html).toContain("拖动生成进度");
+    expect(html).toContain('aria-valuenow="41"');
+    expect(html).toContain("滨江线: connected 3/9 control-point legs");
+  });
+
+  it("clamps dragged generation progress inside the map panel", () => {
+    expect(clampDraggedProgressPosition({ x: -80, y: 20 }, { width: 900, height: 500 }, { width: 420, height: 118 })).toEqual({
+      x: 0,
+      y: 20
+    });
+    expect(clampDraggedProgressPosition({ x: 820, y: 470 }, { width: 900, height: 500 }, { width: 420, height: 118 })).toEqual({
+      x: 480,
+      y: 382
+    });
   });
 });

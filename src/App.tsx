@@ -15,6 +15,7 @@ import { LayerControlPanel } from "./components/LayerControlPanel";
 import { RouteAnalysisPanel } from "./components/RouteAnalysisPanel";
 import { RouteDetails } from "./components/RouteDetails";
 import { RouteQualityPanel } from "./components/RouteQualityPanel";
+import { RouteWaypointPanel } from "./components/RouteWaypointPanel";
 import { SuperMapStatusPanel } from "./components/SuperMapStatusPanel";
 import { superMapConfig } from "./config/supermap";
 import {
@@ -36,7 +37,19 @@ interface AppProps {
   initialLayerVisibility?: MapLayerVisibility;
 }
 
+export const routeCompareLimit = waypointRoutePlans.length;
+
 const waitForUiFrame = () => new Promise<void>((resolve) => window.setTimeout(resolve, 25));
+
+export function updateComparedRouteIds(current: string[], id: string): string[] {
+  if (current.includes(id)) return current;
+  if (current.length >= routeCompareLimit) return current;
+  return [...current, id];
+}
+
+function appendGeneratedComparedRouteId(current: string[], id: string): string[] {
+  return [...current.filter((item) => item !== id).slice(-(routeCompareLimit - 1)), id];
+}
 
 function formatGenerationProgress(routeName: string, event: FullOsmRouteProgressEvent): string {
   switch (event.stage) {
@@ -127,6 +140,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
     const plan = waypointRoutePlans.find((p) => p.id === routeId);
     if (!plan) return;
 
+    setActiveRouteId(routeId);
     setGenerationStatus(`Generating ${plan.name} with ${plan.waypoints.length} control points`);
     setGenerationProgress(8);
     setIsGenerating(true);
@@ -160,7 +174,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
       setGenerationProgress(100);
       setGenerationStatus(`Full OSM generated ${route.name}: ${route.lengthKm.toFixed(1)} km, hit ${hitCount}/${plan.waypoints.length} control points`);
       setActiveRouteId(route.id);
-      setComparedRouteIds((current) => [...current.filter((id) => id !== route.id).slice(-4), route.id]);
+      setComparedRouteIds((current) => appendGeneratedComparedRouteId(current, route.id));
     } catch {
       setGenerationStatus("Route generation failed. Check full OSM road network connectivity.");
       setGenerationProgress(null);
@@ -169,16 +183,9 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
     }
   };
 
-  const applyRecommendation = () => {
-    const ranked = compareRoutes(routes, "balanced");
-    if (ranked.length === 0) return;
-    setActiveRouteId(ranked[0].id);
-    setComparedRouteIds(ranked.slice(0, 3).map((route) => route.id));
-  };
-
   const analyzeRoute = (id: string) => {
     setActiveRouteId(id);
-    setComparedRouteIds((current) => (current.includes(id) ? current : [...current.slice(-4), id]));
+    setComparedRouteIds((current) => updateComparedRouteIds(current, id));
     setWorkspaceMode("analysis");
     setDetailPanelOpen(true);
   };
@@ -192,26 +199,23 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
         }
         return next;
       }
-      if (current.length >= 5) return current;
-      return [...current, id];
+      return updateComparedRouteIds(current, id);
     });
   };
 
   const generateDisabledReason = !roadGeoJson
     ? "Full OSM road network is still loading or failed. Check public/data/local-wuhan-road-network-osm.geojson"
     : "";
+  const hasCandidateRoutes = workspaceMode === "selection" && routes.length > 0;
 
   return (
-    <main className={`app-shell gis-tool-shell ${workspaceMode}`}>
+    <main className={`app-shell gis-tool-shell ${workspaceMode} ${hasCandidateRoutes ? "has-candidates" : ""}`}>
       <header className="gis-app-header">
         <div className="gis-brand">
           <span>SuperMap WebGIS</span>
           <strong>武汉马拉松赛道空间选线平台</strong>
         </div>
         <GisModeNav mode={workspaceMode} onModeChange={setWorkspaceMode} />
-        <button type="button" className="gis-header-action" disabled={routes.length === 0} onClick={() => applyRecommendation()}>
-          采用当前推荐
-        </button>
       </header>
 
       <section className="gis-map-stage">
@@ -220,6 +224,9 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
           activeRouteId={activeRouteId}
           comparedRouteIds={comparedRouteIds}
           layerVisibility={mapLayerVisibility}
+          isGenerating={isGenerating}
+          generationProgress={generationProgress}
+          generationStatus={generationStatus}
           onSelectRoute={setActiveRouteId}
         />
 
@@ -230,19 +237,22 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
               canGenerate={Boolean(roadGeoJson)}
               generateDisabledReason={generateDisabledReason}
               isGenerating={isGenerating}
-              generationProgress={generationProgress}
               onGenerateRoute={generateRoute}
             />
-            <CandidateRouteDrawer
-              routes={rankedRoutes}
-              activeRouteId={activeRouteId}
-              comparedRouteIds={comparedRouteIds}
-              generationStatus={generationStatus}
-              onSelectRoute={setActiveRouteId}
-              onToggleCompare={toggleCompare}
-              onAnalyzeRoute={analyzeRoute}
-            />
+            <RouteWaypointPanel activeRouteId={activeRouteId} />
           </aside>
+        )}
+
+        {hasCandidateRoutes && (
+          <CandidateRouteDrawer
+            routes={rankedRoutes}
+            activeRouteId={activeRouteId}
+            comparedRouteIds={comparedRouteIds}
+            generationStatus={generationStatus}
+            onSelectRoute={setActiveRouteId}
+            onToggleCompare={toggleCompare}
+            onAnalyzeRoute={analyzeRoute}
+          />
         )}
 
         {workspaceMode === "analysis" && (

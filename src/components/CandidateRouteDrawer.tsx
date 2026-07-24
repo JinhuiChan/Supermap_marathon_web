@@ -1,4 +1,4 @@
-import { scoreRoute, type MarathonRoute } from "../domain/routeMetrics";
+import type { MarathonRoute } from "../domain/routeMetrics";
 
 interface CandidateRouteDrawerProps {
   routes: MarathonRoute[];
@@ -33,9 +33,7 @@ export function CandidateRouteDrawer({
           </div>
         )}
         {routes.map((route) => {
-          const score = scoreRoute(route);
           const selected = comparedRouteIds.includes(route.id);
-          const venueScore = route.metrics.competitionReadinessScore ?? Math.round((100 - score.difficultyScore) * 0.45 + score.supportScore * 0.55);
           const risks = [
             (route.metrics.selfIntersectionCount ?? 0) > 0 ? "交织风险" : null,
             (route.metrics.localKnotCount ?? 0) > 0 ? "局部绕结" : null,
@@ -60,9 +58,9 @@ export function CandidateRouteDrawer({
                 <span>连续误差 {(route.metrics.maxContinuityGapM ?? 0).toFixed(1)} m</span>
               </div>
               <div className="drawer-score-grid">
-                <span><strong>{score.recommendationScore}</strong>推荐</span>
-                <span><strong>{venueScore}</strong>办赛</span>
-                <span><strong>{score.supportScore}</strong>保障</span>
+                <span><strong>{count(route.metrics.landmarkPassedCount)}</strong>控制点</span>
+                <span><strong>{percent(route.metrics.roadAlignedRatio)}</strong>贴合</span>
+                <span><strong>{percent(passableRoadRatio(route))}</strong>通行路</span>
               </div>
               <div className="drawer-risk-tags">
                 {(risks.length > 0 ? risks : ["硬规则已通过"]).map((risk) => (
@@ -82,4 +80,18 @@ export function CandidateRouteDrawer({
       </div>
     </aside>
   );
+}
+
+function percent(value: number | undefined): string {
+  return typeof value === "number" ? `${Math.round(value * 100)}%` : "—";
+}
+
+function count(value: number | undefined): string {
+  return typeof value === "number" ? String(value) : "—";
+}
+
+function passableRoadRatio(route: MarathonRoute): number | undefined {
+  if (typeof route.metrics.mainRoadRatio === "number") return route.metrics.mainRoadRatio;
+  if (typeof route.metrics.narrowRoadRatio !== "number") return undefined;
+  return Math.max(0, 1 - route.metrics.narrowRoadRatio - (route.metrics.unsuitableRoadRatio ?? 0));
 }

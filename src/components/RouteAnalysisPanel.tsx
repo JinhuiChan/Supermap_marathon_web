@@ -61,9 +61,9 @@ export function RouteAnalysisPanel({ route, supportPoints }: RouteAnalysisPanelP
           <p key={item}>{item}</p>
         ))}
       </div>
-      <div className="analysis-list data-gaps">
-        <strong>数据缺口</strong>
-        {analysis.dataGaps.map((item) => (
+      <div className="analysis-list implementation-notes">
+        <strong>落地复核与保障细化</strong>
+        {analysis.implementationNotes.map((item) => (
           <p key={item}>{item}</p>
         ))}
       </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { superMapConfig } from "../../config/supermap";
 import { waypointRoutePlans } from "../../data/profileRoutePlanner";
 import { wuhanLandmarkPoiLabels } from "../../data/wuhanLandmarks";
@@ -25,6 +25,9 @@ interface SuperMapMapProps {
   activeRouteId: string;
   comparedRouteIds: string[];
   layerVisibility: MapLayerVisibility;
+  isGenerating?: boolean;
+  generationProgress?: number | null;
+  generationStatus?: string;
   onSelectRoute: (id: string) => void;
 }
 
@@ -34,6 +37,8 @@ export interface MapLayerVisibility {
 }
 
 type MapPhase = "loading" | "initializing" | "ready" | "fallback";
+type DragPosition = { x: number; y: number };
+type DragBounds = { width: number; height: number };
 
 export function getVisibleMapRoutes(
   routes: MarathonRoute[],
@@ -46,12 +51,22 @@ export function getVisibleMapRoutes(
   return routes.filter((route) => visibleIds.has(route.id));
 }
 
+export function clampDraggedProgressPosition(position: DragPosition, panel: DragBounds, floating: DragBounds): DragPosition {
+  return {
+    x: Math.max(0, Math.min(position.x, Math.max(0, panel.width - floating.width))),
+    y: Math.max(0, Math.min(position.y, Math.max(0, panel.height - floating.height)))
+  };
+}
+
 export function SuperMapMap(props: SuperMapMapProps) {
   const {
     routes,
     activeRouteId,
     comparedRouteIds,
     layerVisibility,
+    isGenerating = false,
+    generationProgress = null,
+    generationStatus = "",
     onSelectRoute
   } = props;
   const visibleRoutes = useMemo(
@@ -318,6 +333,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
           comparedRouteIds={comparedRouteIds}
           onSelectRoute={onSelectRoute}
         />
+        <MapGenerationProgress isGenerating={isGenerating} progress={generationProgress} status={generationStatus} />
       </div>
     );
   }
@@ -328,12 +344,94 @@ export function SuperMapMap(props: SuperMapMapProps) {
         <span>
           武汉 WebGIS 赛道工作台 · iDesktop 发布图 + 路线/POI 矢量图层
         </span>
-        <strong>{comparedRouteIds.length}/5 已加入对比</strong>
+        <strong>{comparedRouteIds.length}/{waypointRoutePlans.length} 已加入对比</strong>
       </div>
+      <MapGenerationProgress isGenerating={isGenerating} progress={generationProgress} status={generationStatus} />
       <div className="road-network-status">{roadNetworkStatus}</div>
       {phase !== "ready" && <LoadingSpinner message={phaseMessage} />}
       <div ref={containerRef} className="iclient-map-container" />
     </section>
+  );
+}
+
+function MapGenerationProgress({
+  isGenerating,
+  progress,
+  status
+}: {
+  isGenerating: boolean;
+  progress: number | null;
+  status: string;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [dragPosition, setDragPosition] = useState<DragPosition | null>(null);
+
+  if (!isGenerating) return null;
+
+  const progressValue = Math.max(0, Math.min(100, Math.round(progress ?? 12)));
+  const dragStyle = dragPosition
+    ? { left: `${dragPosition.x}px`, top: `${dragPosition.y}px`, transform: "none" }
+    : undefined;
+
+  const beginDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const floating = panelRef.current;
+    const mapPanel = floating?.closest(".map-panel") as HTMLElement | null;
+    if (!floating || !mapPanel) return;
+
+    event.preventDefault();
+    floating.setPointerCapture?.(event.pointerId);
+
+    const floatingRect = floating.getBoundingClientRect();
+    const mapRect = mapPanel.getBoundingClientRect();
+    const offsetX = event.clientX - floatingRect.left;
+    const offsetY = event.clientY - floatingRect.top;
+
+    const move = (moveEvent: PointerEvent) => {
+      setDragPosition(
+        clampDraggedProgressPosition(
+          {
+            x: moveEvent.clientX - mapRect.left - offsetX,
+            y: moveEvent.clientY - mapRect.top - offsetY
+          },
+          { width: mapRect.width, height: mapRect.height },
+          { width: floatingRect.width, height: floatingRect.height }
+        )
+      );
+    };
+
+    const end = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+    };
+
+    move(event.nativeEvent);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end, { once: true });
+  };
+
+  return (
+    <div
+      ref={panelRef}
+      className="map-generation-progress"
+      aria-label="Route generation progress"
+      style={dragStyle}
+      onPointerDown={beginDrag}
+    >
+      <div className="map-generation-progress-title">
+        <span>拖动生成进度</span>
+        <small>{status || "正在搜索合规路线"}</small>
+      </div>
+      <div
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={progressValue}
+        aria-valuetext={`Full OSM route generation ${progressValue}%`}
+      >
+        <i style={{ width: `${progressValue}%` }} />
+      </div>
+      <strong>{progressValue}%</strong>
+    </div>
   );
 }
 

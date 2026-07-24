@@ -3,7 +3,7 @@ import { compareRoutes, scoreRoute } from "./routeMetrics";
 import type { SupportPoint } from "../data/supportPoints";
 import { getSupportPointSummary, getSupportPointsForRoute } from "../data/supportPoints";
 
-export type AnalysisDimensionId = "terrain" | "passage" | "venue" | "support" | "experience";
+export type AnalysisDimensionId = "terrain" | "passage" | "support" | "experience";
 export type AnalysisReliability = "measured" | "derived" | "estimated";
 
 export interface AnalysisDimensionCard {
@@ -33,7 +33,7 @@ export interface RouteAnalysis {
   risks: string[];
   recommendation: string;
   dataSources: string[];
-  dataGaps: string[];
+  implementationNotes: string[];
   supportPlan: SupportPlanningRecommendation[];
 }
 
@@ -77,22 +77,6 @@ function getPassageScore(route: MarathonRoute) {
 function inferMainRoadRatio(route: MarathonRoute) {
   if (typeof route.metrics.mainRoadRatio === "number") return route.metrics.mainRoadRatio;
   return clamp(1 - route.metrics.narrowRoadRatio - (route.metrics.unsuitableRoadRatio ?? 0), 0, 1);
-}
-
-function getVenueReadinessScore(route: MarathonRoute) {
-  const m = route.metrics;
-  if (typeof m.competitionReadinessScore === "number") {
-    const geometryPenalty =
-      (m.selfIntersectionCount ?? 0) * 5 +
-      (m.repeatedRoadRatio ?? 0) * 100 * 0.12 +
-      getTurnPenaltyScore(route) * 0.08;
-    return Math.round(clamp(m.competitionReadinessScore - geometryPenalty));
-  }
-
-  const mainRoadRatio = inferMainRoadRatio(route);
-  const unsuitableRoadRatio = m.unsuitableRoadRatio ?? m.narrowRoadRatio;
-  const geometryPenalty = (m.selfIntersectionCount ?? 0) * 8 + (m.localKnotCount ?? 0) * 10;
-  return Math.round(clamp(mainRoadRatio * 62 + getPassageScore(route) * 0.28 - unsuitableRoadRatio * 100 * 0.28 - geometryPenalty));
 }
 
 function getExperienceScore(route: MarathonRoute) {
@@ -155,7 +139,6 @@ export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): Rout
 
   const terrainScore = getTerrainScore(route);
   const passageScore = getPassageScore(route);
-  const venueReadinessScore = getVenueReadinessScore(route);
   const supportScore = routeScore.supportScore;
   const experienceScore = getExperienceScore(route);
   const mainRoadRatio = inferMainRoadRatio(route);
@@ -185,16 +168,6 @@ export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): Rout
       reliability: "derived",
       inputs: ["turnPenaltyScore", "sharpTurnRatio", "narrowRoadRatio", "repeatedRoadRatio", "localKnotCount"],
       evidence: `转弯惩罚 ${Math.round(turnPenaltyScore)}，急弯占比 ${percent(route.metrics.sharpTurnRatio)}，窄路占比 ${percent(route.metrics.narrowRoadRatio)}`
-    },
-    {
-      id: "venue",
-      label: "办赛条件",
-      score: venueReadinessScore,
-      level: getLevel(venueReadinessScore),
-      source: "道路等级、适赛性与拓扑约束指标",
-      reliability: "derived",
-      inputs: ["mainRoadRatio", "unsuitableRoadRatio", "repeatedRoadRatio", "selfIntersectionCount"],
-      evidence: `主干路 ${percent(mainRoadRatio)}，不适宜道路 ${percent(unsuitableRoadRatio)}，重复道路 ${percent(route.metrics.repeatedRoadRatio ?? 0)}，自交 ${selfIntersectionCount} 处`
     },
     {
       id: "support",
@@ -249,10 +222,11 @@ export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): Rout
     points.length > 0 ? "本地服务点 GeoJSON" : "未提供服务点数据"
   ]);
 
-  const dataGaps = [
-    "未接入官方补给点、医疗点、厕所、停车与交通管制部署数据",
-    "未接入实时交通、封路许可、人流疏散与现场道路宽度实测数据",
-    "遮荫、停车、医疗间距等指标在 Full OSM 生成路线中为模型估算"
+  const implementationNotes = [
+    "补给、医疗、厕所、志愿者与隔离设施应以候选路线里程、桥梁、转弯、折返点和人流集散位置为依据进一步布设",
+    "交通管制、封路许可和疏散方案应围绕最终候选路线分段制定，并结合交警、城管和赛事执行条件复核",
+    "现场踏勘用于确认道路宽度、施工围挡、路面状态和临时障碍，不作为当前选线算法的前置输入",
+    "遮荫、停车、医疗间距等部分指标为模型估算，落地阶段应结合现场和部门数据校核"
   ];
 
   return {
@@ -264,9 +238,9 @@ export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): Rout
     highlights,
     risks,
     dataSources,
-    dataGaps,
+    implementationNotes,
     supportPlan,
-    recommendation: `当前推荐分 ${routeScore.recommendationScore}/100；该分数仅基于已接入的路线几何、道路属性、拓扑和本地服务点数据，正式决策前需要补齐数据缺口并现场复核。`
+    recommendation: `当前推荐分 ${routeScore.recommendationScore}/100；该分数基于路线几何、道路属性、拓扑和本地服务点数据，用于候选路线比选。补给、医疗、交通管制等保障方案应在选定候选路线后分段细化，并通过现场复核确认实施条件。`
   };
 }
 
@@ -278,8 +252,8 @@ export function buildDecisionReport(routes: MarathonRoute[], points: SupportPoin
     "",
     "数据依据：SuperMap iServer 发布的 map-wuhan-road-network WMS 服务、道路网络 GeoJSON、路线几何、道路等级、坡度/爬升、拓扑检测与本地服务点 GeoJSON。",
     "路线基准：当前报告仅分析由道路网络生成算法输出的候选路线，不采用已删除的 2026 官方道路级矢量路线。",
-    "评分口径：难度、保障、办赛条件和体验分均从每条路线的几何、坡度、道路等级、POI 覆盖、地标与跨江指标计算；估算指标会在分析卡中标注。",
-    "数据缺口：未接入官方补给点、医疗点、厕所、停车、交通管制、实时交通、人流疏散与现场道路宽度实测数据。",
+    "评分口径：难度、保障和体验分均从每条路线的几何、坡度、道路等级、POI 覆盖、地标与跨江指标计算；估算指标会在分析卡中标注。",
+    "后续保障规划口径：补给、医疗、厕所、交通管制与疏散方案以候选路线为基础分段制定，本报告先给出选线比选与保障建议。",
     "",
     "推荐排序："
   ];
@@ -296,7 +270,7 @@ export function buildDecisionReport(routes: MarathonRoute[], points: SupportPoin
   }
 
   lines.push("");
-  lines.push("结论：排序只反映当前已接入数据下的相对表现；正式采用前必须补齐数据缺口并进行现场踏勘。");
+  lines.push("结论：排序反映当前已接入数据下的候选路线适配性，可作为路线比选和后续保障规划的依据；正式落地时需围绕拟采用路线细化补给、医疗、交通管制与现场执行方案。");
 
   return lines.join("\n");
 }
