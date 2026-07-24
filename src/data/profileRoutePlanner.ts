@@ -61,12 +61,12 @@ export const waypointRoutePlans: WaypointRoutePlan[] = [
       { label: "汉口江滩·武汉科技馆", coordinate: [114.3061, 30.6103] },
       { label: "江汉关钟楼", coordinate: [114.2892, 30.6074] },
       { label: "南岸嘴·两江交汇观景台", coordinate: [114.2667, 30.5921] },
-      { label: "龟山·晴川阁", coordinate: [114.2690, 30.5647] },
       { label: "武汉长江大桥·桥面观景段", coordinate: [114.2845, 30.5542] },
       { label: "户部巷·汉阳门码头", coordinate: [114.3038, 30.5470] },
       { label: "武昌临江大道·江滩折返点", coordinate: [114.3195, 30.5524] },
       { label: "沙湖大桥", coordinate: [114.3276, 30.5578] },
-      { label: "终点：湖北省图书馆·书卷路", coordinate: [114.3317, 30.5615] }
+      { label: "终点：湖北省图书馆·书卷路", coordinate: [114.3317, 30.5615] },
+      { label: "青山江滩·滨江过渡点", coordinate: [114.3660, 30.6270] }
     ],
     note: "全马滨江观光线，长江+汉江双江景视野，串联三大江滩，难度适中",
     features: [

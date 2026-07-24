@@ -112,6 +112,42 @@ describe("buildFullOsmAllWaypointRoute", () => {
     expect(route?.metrics.selfIntersectionCount).toBe(0);
   });
 
+  it("avoids an internally hairpin-shaped control link when a smoother candidate is available", () => {
+    const route = buildFullOsmAllWaypointRoute(
+      {
+        type: "FeatureCollection",
+        features: [
+          line([
+            [114.0000, 30.0000],
+            [114.0100, 30.0000],
+            [114.0020, 30.0001],
+            [114.0140, 30.0001]
+          ]),
+          line([
+            [114.0000, 30.0000],
+            [114.0000, 30.0100],
+            [114.0140, 30.0100],
+            [114.0140, 30.0001]
+          ])
+        ]
+      },
+      {
+        ...plan,
+        targetDistanceKm: 4,
+        waypoints: [
+          { label: "start", coordinate: [114.0000, 30.0000] },
+          { label: "finish", coordinate: [114.0140, 30.0001] }
+        ]
+      },
+      { waypointHitRadiusKm: 0.2 }
+    );
+
+    expect(route).not.toBeNull();
+    expect(route?.coordinates).not.toContainEqual([114.0100, 30.0000]);
+    expect(route?.coordinates).not.toContainEqual([114.0020, 30.0001]);
+    expect(route?.metrics.hairpinTurnCount).toBe(0);
+  });
+
   it("reports real route-building stages through progress callbacks", async () => {
     const events: Array<{ stage: string; percent: number; current?: number; total?: number }> = [];
 

@@ -472,6 +472,11 @@ function scoreControlPathTopology(
   const candidateCoordinates = coordinatesForPath(path, routeCoordinates.at(-1));
   const routeNodeSet = new Set(routeNodeIds);
   let penalty = countPolylineSelfIntersections(candidateCoordinates) * 600;
+  const internalTopology = analyzeRouteTopology(candidateCoordinates, path.nodeIds, Math.max(path.totalKm, 0.001));
+  penalty += internalTopology.parallelBacktrackCount * 650;
+  penalty += internalTopology.hairpinTurnCount * 900;
+  penalty += internalTopology.revisitedNodeCount * 180;
+  penalty += Math.max(0, internalTopology.sharpTurnDensityPerKm - 1.5) * 220;
 
   for (let index = 1; index < candidateCoordinates.length; index++) {
     if (segmentIntersectsRoute(routeCoordinates, candidateCoordinates[index - 1], candidateCoordinates[index])) {
