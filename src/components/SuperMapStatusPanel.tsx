@@ -37,7 +37,6 @@ const initialServiceStatuses = Object.fromEntries(
 export function SuperMapStatusPanel() {
   const [status, setStatus] = useState<SuperMapStatus>("checking");
   const [serviceStatuses, setServiceStatuses] = useState<Record<ServiceKey, SuperMapResourceStatus>>(initialServiceStatuses);
-  const [sceneStatus, setSceneStatus] = useState<SuperMapResourceStatus>("checking");
   const [lastCheck, setLastCheck] = useState<string>("--");
 
   const runCheck = useCallback((isActive: () => boolean) => {
@@ -47,9 +46,6 @@ export function SuperMapStatusPanel() {
 
     checkSuperMapIserver(superMapConfig.iServerBaseUrl).then((s) => {
       setIfActive(setStatus, s);
-    });
-    checkSuperMapResource(superMapConfig.expectedSceneServiceUrl).then((s) => {
-      setIfActive(setSceneStatus, s);
     });
     for (const item of serviceItems) {
       const checker = item.kind === "wms" ? checkSuperMapWms : checkSuperMapResource;
@@ -87,22 +83,18 @@ export function SuperMapStatusPanel() {
         <strong>{statusText[status]}</strong>
       </div>
 
-      <div className="service-readiness" aria-label="SuperMap 服务发布状态">
+      <div className="service-readiness" aria-label="SuperMap 二维 GIS 服务发布状态">
         {serviceItems.map((item) => (
           <div key={item.key} className={`readiness-item ${serviceStatuses[item.key]}`}>
             <span>{item.label}</span>
             <strong>{resourceText[serviceStatuses[item.key]]}</strong>
           </div>
         ))}
-        <div className={`readiness-item ${sceneStatus}`}>
-          <span>三维场景服务</span>
-          <strong>{resourceText[sceneStatus]}</strong>
-        </div>
       </div>
 
       {allFoundationServicesReady ? (
         <div className="service-ready-banner">
-          武汉马拉松基础 GIS 服务已齐备，Web 端可同时使用道路、POI、约束和 DEM/坡度服务。
+          武汉马拉松基础二维 GIS 服务已齐备，Web 端可同时使用道路、POI、约束和 DEM/坡度服务。
         </div>
       ) : (
         <div className="service-pending-hint">
@@ -134,10 +126,6 @@ export function SuperMapStatusPanel() {
         <div>
           <dt>iClient JavaScript</dt>
           <dd>{superMapConfig.iClientJavaScriptUrl}</dd>
-        </div>
-        <div>
-          <dt>iClient3D WebGL</dt>
-          <dd>{superMapConfig.iClient3DUrl}</dd>
         </div>
         <div>
           <dt>武汉 DEM / 坡度数据</dt>

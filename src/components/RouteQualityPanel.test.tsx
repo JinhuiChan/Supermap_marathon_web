@@ -8,6 +8,7 @@ const route: MarathonRoute = {
   name: "竞速平坦路线",
   color: "#0f766e",
   lengthKm: 42.204,
+  targetDistanceKm: 42.195,
   closedLoop: false,
   coordinates: [[114.3, 30.6], [114.36, 30.62]],
   elevationProfile: [],
@@ -40,10 +41,25 @@ const route: MarathonRoute = {
   }
 };
 
+const riskyCandidateRoute: MarathonRoute = {
+  ...route,
+  id: "risk-review-route",
+  name: "风险复核候选线",
+  metrics: {
+    ...route.metrics,
+    maxSlopePercent: 8.2,
+    repeatedRoadRatio: 0.01,
+    localKnotCount: 12,
+    revisitedNodeCount: 4,
+    parallelBacktrackCount: 3,
+    hairpinTurnCount: 1
+  }
+};
+
 describe("RouteQualityPanel", () => {
   it("shows the hard-gate evidence and certification boundary", () => {
     const html = renderToStaticMarkup(<RouteQualityPanel route={route} />);
-    expect(html).toContain("质量闸门已通过");
+    expect(html).toContain("核心指标通过");
     expect(html).toContain("42.204 km");
     expect(html).toContain("重复道路");
     expect(html).toContain("0%");
@@ -59,6 +75,17 @@ describe("RouteQualityPanel", () => {
 
   it("shows a useful empty state before route generation", () => {
     const html = renderToStaticMarkup(<RouteQualityPanel route={null} />);
-    expect(html).toContain("等待合规路线");
+    expect(html).toContain("等待候选路线");
+  });
+
+  it("frames failed hard gates as candidate-route risk review instead of final compliance failure", () => {
+    const html = renderToStaticMarkup(<RouteQualityPanel route={riskyCandidateRoute} />);
+
+    expect(html).toContain("风险复核项");
+    expect(html).toContain("候选赛道");
+    expect(html).toContain("需现场复核/优化");
+    expect(html).toContain("最大坡度");
+    expect(html).not.toContain("质量闸门未通过");
+    expect(html).not.toContain("未达标");
   });
 });

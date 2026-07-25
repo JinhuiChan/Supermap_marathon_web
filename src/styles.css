@@ -1084,53 +1084,6 @@ textarea {
   backdrop-filter: blur(4px);
 }
 
-/* ── 3D Scene Panel ── */
-.scene3d-panel .scene3d-header {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-}
-
-.scene3d-panel .scene3d-header h2 {
-  margin: 0;
-}
-
-.scene3d-body {
-  display: grid;
-  gap: 12px;
-  margin-top: 14px;
-}
-
-.scene3d-container {
-  display: grid;
-  gap: 10px;
-}
-
-.scene3d-viewport {
-  min-height: 260px;
-  border: 1px solid #dce6ec;
-  border-radius: 8px;
-  background: #f4f7fa;
-  overflow: hidden;
-}
-
-.scene3d-unavailable {
-  display: grid;
-  gap: 6px;
-}
-
-.scene3d-unavailable p {
-  margin: 0;
-  font-size: 12px;
-}
-
 /* ── Service Status Banners ── */
 .service-ready-banner {
   border-radius: 8px;

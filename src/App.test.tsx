@@ -14,7 +14,7 @@ describe("App", () => {
     expect(html).toContain("硬性合规规则");
     expect(html).toContain("东湖线");
     expect(html).toContain("城市景观线");
-    expect(html).toContain("等待合规路线");
+    expect(html).toContain("等待候选路线");
     expect(html).toContain("规划结果不替代 World Athletics / AIMS 认证测量");
     expect(html).not.toContain("选择起点");
     expect(html).not.toContain("选择终点");
@@ -27,6 +27,8 @@ describe("App", () => {
     expect(html).toContain('class="gis-utility-details"');
     expect(html).not.toContain("OpenStreetMap");
     expect(html).toContain("iClient JavaScript");
+    expect(html).not.toContain("iClient3D");
+    expect(html).not.toContain("三维");
     expect(html).toContain("ASTGTMV003_N30E114");
     expect(html).toContain("wuhan-marathon-routes.geojson");
     expect(html).toContain("Routing data");

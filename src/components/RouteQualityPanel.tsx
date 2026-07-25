@@ -5,8 +5,8 @@ export function RouteQualityPanel({ route }: { route: MarathonRoute | null }) {
   if (!route) {
     return (
       <section className="side-section route-quality-panel empty">
-        <span className="quality-eyebrow">规划合规检查</span>
-        <h2>等待合规路线</h2>
+        <span className="quality-eyebrow">候选赛道风险复核</span>
+        <h2>等待候选路线</h2>
         <p>生成路线后，这里会逐项展示距离、坡度、道路贴合、交叉口复访和折返检测证据。</p>
         <CertificationNotice />
       </section>
@@ -33,9 +33,9 @@ export function RouteQualityPanel({ route }: { route: MarathonRoute | null }) {
 
   return (
     <section className={`side-section route-quality-panel ${report.passed ? "passed" : "failed"}`}>
-      <span className="quality-eyebrow">规划合规检查</span>
-      <h2>{report.passed ? "质量闸门已通过" : "质量闸门未通过"}</h2>
-      <p className="quality-route-name">{route.name}</p>
+      <span className="quality-eyebrow">候选赛道风险复核</span>
+      <h2>{report.passed ? "核心指标通过" : "风险复核项"}</h2>
+      <p className="quality-route-name">{route.name} · 候选赛道</p>
       <dl className="quality-fact-grid">
         {rows.map(([label, value]) => (
           <div key={label}><dt>{label}</dt><dd>{value}</dd></div>
@@ -43,7 +43,7 @@ export function RouteQualityPanel({ route }: { route: MarathonRoute | null }) {
       </dl>
       {report.issues.length > 0 ? (
         <ul className="quality-issues">
-          {report.issues.map((issue) => <li key={issue.code}>{issue.label}未达标</li>)}
+          {report.issues.map((issue) => <li key={issue.code}>{issue.label}需现场复核/优化</li>)}
         </ul>
       ) : null}
       <CertificationNotice />

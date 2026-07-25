@@ -26,12 +26,10 @@ export const superMapConfig = {
   wmsMapUrl: `${iServerBaseUrl}/services/map-wuhan-road-network/wms111`,
   wmsLayerName: "0",
 
-  // iClient references for later spatial query / 3D enhancement work.
+  // iClient reference for later spatial query enhancement work.
   iClientJavaScriptUrl: `${iServerBaseUrl}/iClient/forJavaScript/web/index.html`,
-  iClient3DUrl: `${iServerBaseUrl}/iClient/for3D/webgl/index.html`,
 
   expectedMapServiceUrl: `${iServerBaseUrl}/services/map-wuhan-road-network/rest/maps/road_network_osm%40wuhan_marathon_base`,
-  expectedSceneServiceUrl: `${iServerBaseUrl}/services/3D-wuhan-marathon/rest/realspace`,
   basemapPolicy: "比赛底图严格使用 iDesktopX 制图后发布到 iServer 的 WMS 服务。",
 
   displayRoadNetworkGeoJsonUrl: "data/local-wuhan-road-network-osm.geojson",

@@ -30,7 +30,6 @@ import {
   compareRoutes,
   type MarathonRoute
 } from "./domain/routeMetrics";
-import { Scene3DPanel } from "./map/components/Scene3DPanel";
 import { SuperMapMap, type MapLayerVisibility } from "./map/components/SuperMapMap";
 
 interface AppProps {
@@ -286,7 +285,6 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
               onChange={setMapLayerVisibility}
             />
             <DataPackagePanel />
-            {workspaceMode === "analysis" && <Scene3DPanel />}
           </aside>
         </details>
       </section>
