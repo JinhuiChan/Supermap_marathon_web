@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { superMapConfig } from "../config/supermap";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { activeCityPackage, type CityPackage } from "../config/cityPackages";
 import {
   checkSuperMapIserver,
   checkSuperMapResource,
@@ -21,20 +21,26 @@ const resourceText: Record<SuperMapResourceStatus, string> = {
 };
 
 type ServiceKey = "roadMap" | "roadData" | "poiData" | "constraints" | "demSlope";
+type ServiceItem = { key: ServiceKey; label: string; kind: "wms" | "rest"; url: string };
 
-const serviceItems: Array<{ key: ServiceKey; label: string; kind: "wms" | "rest"; url: string }> = [
-  { key: "roadMap", label: "道路底图服务", kind: "wms", url: superMapConfig.serviceUrls.roadMapWms },
-  { key: "roadData", label: "道路数据服务", kind: "rest", url: superMapConfig.serviceUrls.roadDataRest },
-  { key: "poiData", label: "POI 数据服务", kind: "rest", url: superMapConfig.serviceUrls.poiDataRest },
-  { key: "constraints", label: "约束图层服务", kind: "rest", url: superMapConfig.serviceUrls.constraintMapRest },
-  { key: "demSlope", label: "DEM/坡度图层服务", kind: "rest", url: superMapConfig.serviceUrls.demSlopeMapRest }
-];
+function buildServiceItems(cityPackage: CityPackage): ServiceItem[] {
+  const serviceUrls = cityPackage.superMap.serviceUrls;
+  return [
+    { key: "roadMap", label: "道路底图服务", kind: "wms", url: serviceUrls.roadMapWms },
+    { key: "roadData", label: "道路数据服务", kind: "rest", url: serviceUrls.roadDataRest },
+    { key: "poiData", label: "POI 数据服务", kind: "rest", url: serviceUrls.poiDataRest },
+    { key: "constraints", label: "约束图层服务", kind: "rest", url: serviceUrls.constraintMapRest },
+    { key: "demSlope", label: "DEM/坡度图层服务", kind: "rest", url: serviceUrls.demSlopeMapRest }
+  ];
+}
 
 const initialServiceStatuses = Object.fromEntries(
-  serviceItems.map((item) => [item.key, "checking"])
+  buildServiceItems(activeCityPackage).map((item) => [item.key, "checking"])
 ) as Record<ServiceKey, SuperMapResourceStatus>;
 
-export function SuperMapStatusPanel() {
+export function SuperMapStatusPanel({ cityPackage = activeCityPackage }: { cityPackage?: CityPackage }) {
+  const serviceItems = useMemo(() => buildServiceItems(cityPackage), [cityPackage]);
+  const superMapConfig = cityPackage.superMap;
   const [status, setStatus] = useState<SuperMapStatus>("checking");
   const [serviceStatuses, setServiceStatuses] = useState<Record<ServiceKey, SuperMapResourceStatus>>(initialServiceStatuses);
   const [lastCheck, setLastCheck] = useState<string>("--");
@@ -56,12 +62,13 @@ export function SuperMapStatusPanel() {
     }
 
     if (isActive()) setLastCheck(new Date().toLocaleTimeString("zh-CN"));
-  }, []);
+  }, [serviceItems, superMapConfig.iServerBaseUrl]);
 
   useEffect(() => {
     let active = true;
     const isActive = () => active;
 
+    setServiceStatuses(initialServiceStatuses);
     runCheck(isActive);
     const interval = window.setInterval(() => runCheck(isActive), 30000);
 
@@ -94,7 +101,7 @@ export function SuperMapStatusPanel() {
 
       {allFoundationServicesReady ? (
         <div className="service-ready-banner">
-          武汉马拉松基础二维 GIS 服务已齐备，Web 端可同时使用道路、POI、约束和 DEM/坡度服务。
+          {cityPackage.name}马拉松基础二维 GIS 服务已齐备，Web 端可同时使用道路、POI、约束和 DEM/坡度服务。
         </div>
       ) : (
         <div className="service-pending-hint">
@@ -117,18 +124,18 @@ export function SuperMapStatusPanel() {
         </div>
         <div>
           <dt>约束图层服务</dt>
-          <dd title={superMapConfig.serviceUrls.constraintMapRest}>map-wuhan-constraints</dd>
+          <dd title={superMapConfig.serviceUrls.constraintMapRest}>{cityPackage.id}-constraints</dd>
         </div>
         <div>
           <dt>DEM/坡度服务</dt>
-          <dd title={superMapConfig.serviceUrls.demSlopeMapRest}>map-wuhan-dem-slope</dd>
+          <dd title={superMapConfig.serviceUrls.demSlopeMapRest}>{cityPackage.id}-dem-slope</dd>
         </div>
         <div>
           <dt>iClient JavaScript</dt>
           <dd>{superMapConfig.iClientJavaScriptUrl}</dd>
         </div>
         <div>
-          <dt>武汉 DEM / 坡度数据</dt>
+          <dt>{cityPackage.name} DEM / 坡度数据</dt>
           <dd>{superMapConfig.demMetadata.name} · {superMapConfig.demMetadata.crs}</dd>
         </div>
         <div>
@@ -138,7 +145,7 @@ export function SuperMapStatusPanel() {
       </dl>
 
       <p className="integration-note">
-        地图面板默认使用 iDesktop 发布到 iServer 的武汉道路 WMS 地图；候选路线、路网、约束和 POI 由前端矢量图层叠加。
+        地图面板默认使用 iDesktop 发布到 iServer 的{cityPackage.name}道路 WMS 地图；候选路线、路网、约束和 POI 由前端矢量图层叠加。
         上次检测：{lastCheck}
       </p>
     </section>

@@ -1,4 +1,5 @@
-import { waypointRoutePlans } from "../data/profileRoutePlanner";
+import { activeCityPackage, type CityPackage } from "../config/cityPackages";
+import type { WaypointRoutePlan } from "../data/profileRoutePlanner";
 
 interface DataPackageItem {
   name: string;
@@ -6,24 +7,28 @@ interface DataPackageItem {
   href: string;
 }
 
-const dataItems = [
-  {
-    name: "候选赛道线数据",
-    file: "wuhan-marathon-routes.geojson",
-    href: "/data/wuhan-marathon-routes.geojson"
-  },
-  {
-    name: "三条路线途经控制点 CSV",
-    file: "wuhan-marathon-waypoints.csv",
-    href: buildWaypointCsvHref()
-  }
-] satisfies DataPackageItem[];
-
-function buildWaypointCsvHref(): string {
-  return `data:text/csv;charset=utf-8,${encodeURIComponent(`\uFEFF${buildWaypointCsv()}`)}`;
+function buildWaypointCsvHref(routePlans: WaypointRoutePlan[]): string {
+  return `data:text/csv;charset=utf-8,${encodeURIComponent(`\uFEFF${buildWaypointCsv(routePlans)}`)}`;
 }
 
-export function buildWaypointCsv(): string {
+function buildDataItems(cityPackage: CityPackage): DataPackageItem[] {
+  const routeFile = `${cityPackage.id}-marathon-routes.geojson`;
+  const waypointFile = `${cityPackage.id}-marathon-waypoints.csv`;
+  return [
+    {
+      name: "候选赛道线数据",
+      file: routeFile,
+      href: `/data/${routeFile}`
+    },
+    {
+      name: `${cityPackage.routePlans.length} 条路线途经控制点 CSV`,
+      file: waypointFile,
+      href: buildWaypointCsvHref(cityPackage.routePlans)
+    }
+  ];
+}
+
+export function buildWaypointCsv(routePlans: WaypointRoutePlan[] = activeCityPackage.routePlans): string {
   const rows = [
     [
       "route_id",
@@ -37,7 +42,7 @@ export function buildWaypointCsv(): string {
       "audience",
       "features"
     ],
-    ...waypointRoutePlans.flatMap((plan) =>
+    ...routePlans.flatMap((plan) =>
       plan.waypoints.map((waypoint, index) => [
         plan.id,
         plan.name,
@@ -60,11 +65,12 @@ function csvCell(value: string): string {
   return `"${value.replaceAll('"', '""')}"`;
 }
 
-export function DataPackagePanel() {
+export function DataPackagePanel({ cityPackage = activeCityPackage }: { cityPackage?: CityPackage }) {
+  const dataItems = buildDataItems(cityPackage);
   return (
     <section className="side-section data-package">
       <h2>GIS 数据包</h2>
-      <p className="muted">可导入 SuperMap iDesktopX，用于制作武汉马拉松二维地图和后续 iServer 服务。</p>
+      <p className="muted">可导入 SuperMap iDesktopX，用于制作{cityPackage.displayName}二维地图和后续 iServer 服务。</p>
       <div className="data-file-list">
         {dataItems.map((item) => (
           <a href={item.href} key={item.file} download={item.file}>

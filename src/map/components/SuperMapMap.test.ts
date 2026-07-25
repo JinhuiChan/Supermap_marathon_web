@@ -1,6 +1,7 @@
-import { createElement } from "react";
+﻿import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { activeCityPackage } from "../../config/cityPackages";
 import type { MarathonRoute } from "../../domain/routeMetrics";
 import { clampDraggedProgressPosition, getVisibleMapRoutes, SuperMapMap } from "./SuperMapMap";
 
@@ -56,6 +57,7 @@ describe("getVisibleMapRoutes", () => {
         routes: [],
         activeRouteId: "",
         comparedRouteIds: ["one", "two", "three"],
+        routePlans: activeCityPackage.routePlans,
         layerVisibility: { routes: true, roadNetwork: true },
         onSelectRoute: () => {}
       })
@@ -71,18 +73,19 @@ describe("getVisibleMapRoutes", () => {
         routes: [],
         activeRouteId: "",
         comparedRouteIds: [],
+        routePlans: activeCityPackage.routePlans,
         layerVisibility: { routes: true, roadNetwork: true },
         isGenerating: true,
         generationProgress: 41,
-        generationStatus: "滨江线: connected 3/9 control-point legs",
+        generationStatus: "婊ㄦ睙绾? connected 3/9 control-point legs",
         onSelectRoute: () => {}
       })
     );
 
     expect(html).toContain("map-generation-progress");
-    expect(html).toContain("拖动生成进度");
+    expect(html).toContain("鎷栧姩鐢熸垚杩涘害");
     expect(html).toContain('aria-valuenow="41"');
-    expect(html).toContain("滨江线: connected 3/9 control-point legs");
+    expect(html).toContain("婊ㄦ睙绾? connected 3/9 control-point legs");
   });
 
   it("clamps dragged generation progress inside the map panel", () => {
@@ -94,5 +97,21 @@ describe("getVisibleMapRoutes", () => {
       x: 480,
       y: 382
     });
+  });
+
+  it("uses the provided route-plan count in the map comparison status", () => {
+    const html = renderToStaticMarkup(
+      createElement(SuperMapMap, {
+        routes: [],
+        activeRouteId: "",
+        comparedRouteIds: ["one", "two"],
+        routePlans: activeCityPackage.routePlans.slice(0, 2),
+        layerVisibility: { routes: true, roadNetwork: true },
+        onSelectRoute: () => {}
+      })
+    );
+
+    expect(html).toContain("2/2 已加入对比");
+    expect(html).not.toContain("2/3 已加入对比");
   });
 });

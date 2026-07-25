@@ -1,8 +1,9 @@
-import { waypointRoutePlans } from "../data/profileRoutePlanner";
+import type { WaypointRoutePlan } from "../data/profileRoutePlanner";
 import type { Coordinate } from "../domain/routeMetrics";
 
 interface RouteWaypointPanelProps {
   activeRouteId: string;
+  routePlans: WaypointRoutePlan[];
 }
 
 function formatCoordinate(coordinate: Coordinate): string {
@@ -13,8 +14,8 @@ function displayLabel(label: string): string {
   return label.replace(/^(起点|终点)[：:]\s*/, "");
 }
 
-export function RouteWaypointPanel({ activeRouteId }: RouteWaypointPanelProps) {
-  const plan = waypointRoutePlans.find((item) => item.id === activeRouteId) ?? null;
+export function RouteWaypointPanel({ activeRouteId, routePlans }: RouteWaypointPanelProps) {
+  const plan = routePlans.find((item) => item.id === activeRouteId) ?? null;
 
   return (
     <section className="route-waypoint-panel" aria-label="当前路线控制点">

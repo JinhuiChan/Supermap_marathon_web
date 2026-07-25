@@ -1,15 +1,25 @@
+import { activeCityPackage, type CityPackage } from "../config/cityPackages";
+import type { WaypointRoutePlan } from "../data/profileRoutePlanner";
 import type { MarathonRoute } from "../domain/routeMetrics";
-import { waypointRoutePlans } from "../data/profileRoutePlanner";
 import { buildRouteDirectionMarkers } from "../map/layers/RouteLayer";
 
 interface RouteMapProps {
+  cityPackage?: CityPackage;
+  routePlans?: WaypointRoutePlan[];
   routes: MarathonRoute[];
   activeRouteId: string;
   comparedRouteIds: string[];
   onSelectRoute: (id: string) => void;
 }
 
-export function RouteMap({ routes, activeRouteId, comparedRouteIds, onSelectRoute }: RouteMapProps) {
+export function RouteMap({
+  cityPackage = activeCityPackage,
+  routePlans = cityPackage.routePlans,
+  routes,
+  activeRouteId,
+  comparedRouteIds,
+  onSelectRoute
+}: RouteMapProps) {
   const minLon = 114.25;
   const maxLon = 114.47;
   const minLat = 30.52;
@@ -21,10 +31,10 @@ export function RouteMap({ routes, activeRouteId, comparedRouteIds, onSelectRout
   };
 
   return (
-    <section className="map-panel" aria-label="武汉马拉松赛道地图">
+    <section className="map-panel" aria-label={`${cityPackage.displayName}赛道地图`}>
       <div className="map-toolbar">
-        <span>武汉 WebGIS 赛道工作台 · SuperMap iServer</span>
-        <strong>{comparedRouteIds.length}/{waypointRoutePlans.length} 已加入对比</strong>
+        <span>{cityPackage.name} WebGIS 赛道工作台 · SuperMap iServer</span>
+        <strong>{comparedRouteIds.length}/{routePlans.length} 已加入对比</strong>
       </div>
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="路线示意图">
         <rect x="0" y="0" width="100" height="100" rx="0" className="map-bg" />

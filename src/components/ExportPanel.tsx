@@ -1,5 +1,6 @@
 import type { SupportPoint } from "../data/supportPoints";
 import type { MarathonRoute } from "../domain/routeMetrics";
+import { activeCityPackage, type CityPackage } from "../config/cityPackages";
 import {
   buildRouteComparisonHtmlReport,
   buildSingleRouteHtmlReport
@@ -8,15 +9,20 @@ import {
 interface ExportPanelProps {
   routes: MarathonRoute[];
   supportPoints: SupportPoint[];
+  cityPackage?: CityPackage;
 }
 
-export function ExportPanel({ routes, supportPoints }: ExportPanelProps) {
+export function ExportPanel({ routes, supportPoints, cityPackage = activeCityPackage }: ExportPanelProps) {
   const primaryRoute = routes[0] ?? null;
+  const reportOptions = {
+    reportBrand: cityPackage.marathonName,
+    dataBasis: `数据依据：${cityPackage.name} CityPackage、SuperMap iServer 服务、道路网络 GeoJSON、路线几何、道路等级、坡度/爬升、拓扑检测与本地服务点 GeoJSON。`
+  };
   const singleRouteReport = primaryRoute
-    ? buildSingleRouteHtmlReport(primaryRoute, supportPoints)
+    ? buildSingleRouteHtmlReport(primaryRoute, supportPoints, reportOptions)
     : "";
   const comparisonReport = routes.length >= 2
-    ? buildRouteComparisonHtmlReport(routes, supportPoints)
+    ? buildRouteComparisonHtmlReport(routes, supportPoints, reportOptions)
     : "";
 
   const downloadHtml = (content: string, filename: string) => {

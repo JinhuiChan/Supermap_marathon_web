@@ -17,14 +17,13 @@ import { RouteDetails } from "./components/RouteDetails";
 import { RouteQualityPanel } from "./components/RouteQualityPanel";
 import { RouteWaypointPanel } from "./components/RouteWaypointPanel";
 import { SuperMapStatusPanel } from "./components/SuperMapStatusPanel";
-import { superMapConfig } from "./config/supermap";
+import { activeCityPackage, type CityPackage } from "./config/cityPackages";
 import {
   buildFullOsmAllWaypointRouteAsync,
   getWaypointHitDistancesM,
   type FullOsmRouteProgressEvent
 } from "./data/fullOsmAllWaypointRoute";
-import { waypointRoutePlans, type WaypointRouteId } from "./data/profileRoutePlanner";
-import { supportPoints } from "./data/supportPoints";
+import type { WaypointRoutePlan } from "./data/profileRoutePlanner";
 import { upsertGeneratedRoute } from "./domain/routeCollection";
 import {
   compareRoutes,
@@ -33,21 +32,22 @@ import {
 import { SuperMapMap, type MapLayerVisibility } from "./map/components/SuperMapMap";
 
 interface AppProps {
+  cityPackage?: CityPackage;
   initialLayerVisibility?: MapLayerVisibility;
 }
 
-export const routeCompareLimit = waypointRoutePlans.length;
+export const routeCompareLimit = activeCityPackage.routePlans.length;
 
 const waitForUiFrame = () => new Promise<void>((resolve) => window.setTimeout(resolve, 25));
 
-export function updateComparedRouteIds(current: string[], id: string): string[] {
+export function updateComparedRouteIds(current: string[], id: string, limit = routeCompareLimit): string[] {
   if (current.includes(id)) return current;
-  if (current.length >= routeCompareLimit) return current;
+  if (current.length >= limit) return current;
   return [...current, id];
 }
 
-function appendGeneratedComparedRouteId(current: string[], id: string): string[] {
-  return [...current.filter((item) => item !== id).slice(-(routeCompareLimit - 1)), id];
+function appendGeneratedComparedRouteId(current: string[], id: string, limit = routeCompareLimit): string[] {
+  return [...current.filter((item) => item !== id).slice(-(limit - 1)), id];
 }
 
 function formatGenerationProgress(routeName: string, event: FullOsmRouteProgressEvent): string {
@@ -69,12 +69,15 @@ function formatGenerationProgress(routeName: string, event: FullOsmRouteProgress
   }
 }
 
-export default function App({ initialLayerVisibility }: AppProps = {}) {
+export default function App({ cityPackage = activeCityPackage, initialLayerVisibility }: AppProps = {}) {
+  const routePlans = cityPackage.routePlans;
+  const supportPoints = cityPackage.supportPoints;
+  const cityRouteCompareLimit = routePlans.length;
   const [workspaceMode, setWorkspaceMode] = useState<GisWorkspaceMode>("selection");
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
   const [routes, setRoutes] = useState<MarathonRoute[]>([]);
   const [roadGeoJson, setRoadGeoJson] = useState<unknown>(null);
-  const [generationStatus, setGenerationStatus] = useState("正在加载武汉道路矢量网络");
+  const [generationStatus, setGenerationStatus] = useState(`正在加载${cityPackage.name}道路矢量网络`);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState<number | null>(null);
   const [activeRouteId, setActiveRouteId] = useState("");
@@ -103,7 +106,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
 
   useEffect(() => {
     let cancelled = false;
-    const routingUrl = superMapConfig.routingRoadNetworkGeoJsonUrls.fullOsm;
+    const routingUrl = cityPackage.superMap.routingRoadNetworkGeoJsonUrls.fullOsm;
 
     setRoadGeoJson(null);
     setRoutes([]);
@@ -131,12 +134,12 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [cityPackage]);
 
-  const generateRoute = (routeId: WaypointRouteId) => {
+  const generateRoute = (routeId: string) => {
     if (!roadGeoJson || isGenerating) return;
 
-    const plan = waypointRoutePlans.find((p) => p.id === routeId);
+    const plan = routePlans.find((p) => p.id === routeId);
     if (!plan) return;
 
     setActiveRouteId(routeId);
@@ -149,7 +152,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
     }, 50);
   };
 
-  const runRouteGeneration = async (plan: typeof waypointRoutePlans[number]) => {
+  const runRouteGeneration = async (plan: WaypointRoutePlan) => {
     if (!roadGeoJson) return;
 
     try {
@@ -173,7 +176,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
       setGenerationProgress(100);
       setGenerationStatus(`Full OSM generated ${route.name}: ${route.lengthKm.toFixed(1)} km, hit ${hitCount}/${plan.waypoints.length} control points`);
       setActiveRouteId(route.id);
-      setComparedRouteIds((current) => appendGeneratedComparedRouteId(current, route.id));
+      setComparedRouteIds((current) => appendGeneratedComparedRouteId(current, route.id, cityRouteCompareLimit));
     } catch {
       setGenerationStatus("Route generation failed. Check full OSM road network connectivity.");
       setGenerationProgress(null);
@@ -198,12 +201,12 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
         }
         return next;
       }
-      return updateComparedRouteIds(current, id);
+      return updateComparedRouteIds(current, id, cityRouteCompareLimit);
     });
   };
 
   const generateDisabledReason = !roadGeoJson
-    ? "Full OSM road network is still loading or failed. Check public/data/local-wuhan-road-network-osm.geojson"
+    ? `Full OSM road network is still loading or failed. Check public/${cityPackage.superMap.routingRoadNetworkGeoJsonUrls.fullOsm}`
     : "";
   const hasCandidateRoutes = workspaceMode === "selection" && routes.length > 0;
 
@@ -212,13 +215,15 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
       <header className="gis-app-header">
         <div className="gis-brand">
           <span>SuperMap WebGIS</span>
-          <strong>武汉马拉松赛道空间选线平台</strong>
+          <strong>{cityPackage.marathonName}</strong>
         </div>
         <GisModeNav mode={workspaceMode} onModeChange={setWorkspaceMode} />
       </header>
 
       <section className="gis-map-stage">
         <SuperMapMap
+          cityPackage={cityPackage}
+          routePlans={routePlans}
           routes={routes}
           activeRouteId={activeRouteId}
           comparedRouteIds={comparedRouteIds}
@@ -232,19 +237,22 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
         {workspaceMode === "selection" && (
           <aside className="gis-selection-dock" aria-label="Route selection workspace">
             <GisSelectionPanel
+              cityPackage={cityPackage}
               settings={defaultGisPlanningSettings}
+              routePlans={routePlans}
               canGenerate={Boolean(roadGeoJson)}
               generateDisabledReason={generateDisabledReason}
               isGenerating={isGenerating}
               onGenerateRoute={generateRoute}
             />
-            <RouteWaypointPanel activeRouteId={activeRouteId} />
+            <RouteWaypointPanel activeRouteId={activeRouteId} routePlans={routePlans} />
           </aside>
         )}
 
         {hasCandidateRoutes && (
           <CandidateRouteDrawer
             routes={rankedRoutes}
+            cityPackage={cityPackage}
             activeRouteId={activeRouteId}
             comparedRouteIds={comparedRouteIds}
             generationStatus={generationStatus}
@@ -264,7 +272,7 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
                 <RouteDetails route={activeRoute} />
                 <RouteAnalysisPanel route={activeRoute} supportPoints={supportPoints} />
                 <ComparisonPanel routes={comparedRoutes} selectionProfile="balanced" />
-                <ExportPanel routes={comparedRoutes} supportPoints={supportPoints} />
+                <ExportPanel routes={comparedRoutes} supportPoints={supportPoints} cityPackage={cityPackage} />
               </>
             ) : (
               <section className="side-section empty-analysis">
@@ -279,12 +287,13 @@ export default function App({ initialLayerVisibility }: AppProps = {}) {
           <summary>GIS 详情</summary>
           <aside className="gis-utility-dock">
             <RouteQualityPanel route={activeRoute} />
-            <SuperMapStatusPanel />
+            <SuperMapStatusPanel cityPackage={cityPackage} />
             <LayerControlPanel
+              cityPackage={cityPackage}
               visibility={mapLayerVisibility}
               onChange={setMapLayerVisibility}
             />
-            <DataPackagePanel />
+            <DataPackagePanel cityPackage={cityPackage} />
           </aside>
         </details>
       </section>

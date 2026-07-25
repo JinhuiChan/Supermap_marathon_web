@@ -38,6 +38,22 @@ export interface RouteAnalysis {
   supportPlan: SupportPlanningRecommendation[];
 }
 
+export interface RouteReportOptions {
+  reportBrand?: string;
+  dataBasis?: string;
+}
+
+const DEFAULT_REPORT_BRAND = "\u6b66\u6c49\u9a6c\u62c9\u677e\u8d5b\u9053\u667a\u80fd\u9009\u7ebf\u7cfb\u7edf";
+const DEFAULT_REPORT_DATA_BASIS =
+  "\u6570\u636e\u4f9d\u636e\uff1aSuperMap iServer \u53d1\u5e03\u7684\u9053\u8def\u7f51\u7edc WMS/REST \u670d\u52a1\u3001\u9053\u8def\u7f51\u7edc GeoJSON\u3001\u8def\u7ebf\u51e0\u4f55\u3001\u9053\u8def\u7b49\u7ea7\u3001\u5761\u5ea6/\u722c\u5347\u3001\u62d3\u6251\u68c0\u6d4b\u4e0e\u672c\u5730\u670d\u52a1\u70b9 GeoJSON\u3002";
+
+function getReportContext(options: RouteReportOptions = {}) {
+  return {
+    reportBrand: options.reportBrand ?? DEFAULT_REPORT_BRAND,
+    dataBasis: options.dataBasis ?? DEFAULT_REPORT_DATA_BASIS
+  };
+}
+
 const clamp = (value: number, min = 0, max = 100) => Math.min(Math.max(value, min), max);
 const percent = (value: number) => `${Math.round(value * 100)}%`;
 
@@ -245,19 +261,22 @@ export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): Rout
   };
 }
 
-export function buildDecisionReport(routes: MarathonRoute[], points: SupportPoint[]): string {
+export function buildDecisionReport(routes: MarathonRoute[], points: SupportPoint[], options: RouteReportOptions = {}): string {
+  const { reportBrand, dataBasis } = getReportContext(options);
   const rankedRoutes = compareRoutes(routes);
   const analysisByRoute = new Map(routes.map((route) => [route.id, analyzeRoute(route, points)]));
   const lines = [
-    "武汉马拉松赛道智能选线分析报告",
+    `${DEFAULT_REPORT_BRAND}分析报告`,
     "",
-    "数据依据：SuperMap iServer 发布的 map-wuhan-road-network WMS 服务、道路网络 GeoJSON、路线几何、道路等级、坡度/爬升、拓扑检测与本地服务点 GeoJSON。",
+    DEFAULT_REPORT_DATA_BASIS,
     "路线基准：当前报告仅分析由道路网络生成算法输出的候选路线，不采用已删除的 2026 官方道路级矢量路线。",
     "评分口径：难度、保障和体验分均从每条路线的几何、坡度、道路等级、POI 覆盖、地标与跨江指标计算；估算指标会在分析卡中标注。",
     "后续保障规划口径：补给、医疗、厕所、交通管制与疏散方案以候选路线为基础分段制定，本报告先给出选线比选与保障建议。",
     "",
     "推荐排序："
   ];
+  lines[0] = `${reportBrand}\u5206\u6790\u62a5\u544a`;
+  lines[2] = dataBasis;
 
   for (const score of rankedRoutes) {
     const analysis = analysisByRoute.get(score.id);
@@ -276,12 +295,13 @@ export function buildDecisionReport(routes: MarathonRoute[], points: SupportPoin
   return lines.join("\n");
 }
 
-export function buildSingleRouteHtmlReport(route: MarathonRoute, points: SupportPoint[]): string {
+export function buildSingleRouteHtmlReport(route: MarathonRoute, points: SupportPoint[], options: RouteReportOptions = {}): string {
+  const { reportBrand } = getReportContext(options);
   const analysis = analyzeRoute(route, points);
   const riskItems = buildRiskReviewItems(route, analysis);
   const body = `
     <section class="hero">
-      <p>武汉马拉松赛道智能选线系统</p>
+      <p>${escapeHtml(reportBrand)}</p>
       <h1>单路线分析报告</h1>
       <strong>${escapeHtml(route.name)}</strong>
     </section>
@@ -338,15 +358,16 @@ export function buildSingleRouteHtmlReport(route: MarathonRoute, points: Support
       <p class="notice">规划结果不替代 World Athletics / AIMS 认证测量；正式赛道须由合资格测量员沿最短可跑线实测。</p>
     </section>
   `;
-  return renderHtmlDocument("单路线分析报告", body);
+  return renderHtmlDocument(`${reportBrand} - 单路线分析报告`, body);
 }
 
-export function buildRouteComparisonHtmlReport(routes: MarathonRoute[], points: SupportPoint[]): string {
+export function buildRouteComparisonHtmlReport(routes: MarathonRoute[], points: SupportPoint[], options: RouteReportOptions = {}): string {
+  const { reportBrand } = getReportContext(options);
   const rankedRoutes = compareRoutes(routes);
   const routesById = new Map(routes.map((route) => [route.id, route]));
   const body = `
     <section class="hero">
-      <p>武汉马拉松赛道智能选线系统</p>
+      <p>${escapeHtml(reportBrand)}</p>
       <h1>多路线比选报告</h1>
       <strong>${routes.length} 条候选路线</strong>
     </section>
@@ -416,7 +437,7 @@ export function buildRouteComparisonHtmlReport(routes: MarathonRoute[], points: 
       <p class="notice">规划结果不替代 World Athletics / AIMS 认证测量；正式赛道须由合资格测量员沿最短可跑线实测。</p>
     </section>
   `;
-  return renderHtmlDocument("多路线比选报告", body);
+  return renderHtmlDocument(`${reportBrand} - 多路线比选报告`, body);
 }
 
 function buildRiskReviewItems(route: MarathonRoute, analysis: RouteAnalysis): string[] {

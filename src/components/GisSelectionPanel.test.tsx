@@ -1,11 +1,13 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { GisSelectionPanel, defaultGisPlanningSettings } from "./GisSelectionPanel";
+import { activeCityPackage } from "../config/cityPackages";
 
 function renderPanel(overrides: Partial<Parameters<typeof GisSelectionPanel>[0]> = {}) {
   return renderToStaticMarkup(
     <GisSelectionPanel
       settings={defaultGisPlanningSettings}
+      routePlans={activeCityPackage.routePlans}
       canGenerate
       onGenerateRoute={() => {}}
       {...overrides}
@@ -44,6 +46,23 @@ describe("GisSelectionPanel", () => {
     expect(html).toContain("城市景观线");
     expect((html.match(/class="[^"]*gis-waypoint-route-button/g) ?? [])).toHaveLength(3);
     expect(html).toContain("硬性合规规则");
+  });
+
+  it("renders route buttons from the provided city package route plans", () => {
+    const customPlan = {
+      ...activeCityPackage.routePlans[0],
+      id: "test-city-fast",
+      name: "测试城市竞速线",
+      description: "测试城市道路走廊",
+      audience: "测试跑者",
+      features: ["测试城市路线亮点"]
+    };
+    const html = renderPanel({ routePlans: [customPlan] });
+
+    expect(html).toContain("测试城市竞速线");
+    expect(html).toContain("测试城市道路走廊");
+    expect(html).not.toContain("婊ㄦ睙绾?");
+    expect((html.match(/class="[^"]*gis-waypoint-route-button/g) ?? [])).toHaveLength(1);
   });
 
   it("puts the decision flow ahead of implementation parameters", () => {

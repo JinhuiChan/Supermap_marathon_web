@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import App, { routeCompareLimit, updateComparedRouteIds } from "./App";
+import { activeCityPackage, type CityPackage } from "./config/cityPackages";
 
 describe("App", () => {
   it("renders the marathon route workbench without the deleted official vector route", () => {
@@ -57,8 +58,35 @@ describe("App", () => {
   });
 
   it("limits route comparison to the three configured route plans", () => {
-    expect(routeCompareLimit).toBe(3);
+    expect(routeCompareLimit).toBe(activeCityPackage.routePlans.length);
     expect(updateComparedRouteIds(["east", "riverside", "city"], "extra")).toEqual(["east", "riverside", "city"]);
     expect(updateComparedRouteIds(["east", "riverside"], "city")).toEqual(["east", "riverside", "city"]);
+  });
+
+  it("can render from a provided city package instead of hard-coded Wuhan data", () => {
+    const customPlan = {
+      ...activeCityPackage.routePlans[0],
+      id: "test-city-fast",
+      name: "测试城市竞速线",
+      description: "测试城市赛道走廊",
+      audience: "测试跑者",
+      features: ["测试城市路线亮点"]
+    };
+    const testCityPackage: CityPackage = {
+      ...activeCityPackage,
+      id: "test-city",
+      name: "测试城市",
+      displayName: "测试城市马拉松",
+      marathonName: "测试城市马拉松选线平台",
+      routePlans: [customPlan],
+      supportPoints: [],
+      landmarks: []
+    };
+
+    const html = renderToStaticMarkup(<App cityPackage={testCityPackage} />);
+
+    expect(html).toContain("测试城市马拉松选线平台");
+    expect(html).toContain("测试城市竞速线");
+    expect(html).not.toContain("滨江线");
   });
 });

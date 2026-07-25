@@ -1,7 +1,9 @@
 import type { MarathonRoute } from "../domain/routeMetrics";
+import { activeCityPackage, type CityPackage } from "../config/cityPackages";
 
 interface CandidateRouteDrawerProps {
   routes: MarathonRoute[];
+  cityPackage?: CityPackage;
   activeRouteId: string;
   comparedRouteIds: string[];
   generationStatus: string;
@@ -12,6 +14,7 @@ interface CandidateRouteDrawerProps {
 
 export function CandidateRouteDrawer({
   routes,
+  cityPackage = activeCityPackage,
   activeRouteId,
   comparedRouteIds,
   generationStatus,
@@ -29,7 +32,7 @@ export function CandidateRouteDrawer({
         {routes.length === 0 && (
           <div className="drawer-empty-state">
             <strong>请先生成推荐路线库</strong>
-            <p>系统会基于武汉道路网络、POI 服务、阻力因子、赛事约束和参考廊道特征生成当前目标下的最优赛道。</p>
+            <p>{`系统会基于${cityPackage.name}道路网络、POI 服务、阻力因子、赛事约束和参考廊道特征生成当前目标下的最优赛道。`}</p>
           </div>
         )}
         {routes.map((route) => {

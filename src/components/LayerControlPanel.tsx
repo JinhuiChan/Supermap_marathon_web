@@ -1,15 +1,18 @@
-import { superMapConfig } from "../config/supermap";
+import { activeCityPackage, type CityPackage } from "../config/cityPackages";
 import type { MapLayerVisibility } from "../map/components/SuperMapMap";
 
 interface LayerControlPanelProps {
+  cityPackage?: CityPackage;
   visibility: MapLayerVisibility;
   onChange: (visibility: MapLayerVisibility) => void;
 }
 
 export function LayerControlPanel({
+  cityPackage = activeCityPackage,
   visibility,
   onChange
 }: LayerControlPanelProps) {
+  const superMapConfig = cityPackage.superMap;
   const updateLayer = (key: keyof MapLayerVisibility) => {
     onChange({
       ...visibility,
@@ -35,7 +38,7 @@ export function LayerControlPanel({
       <label className="layer-toggle">
         <input type="checkbox" checked={visibility.roadNetwork} onChange={() => updateLayer("roadNetwork")} />
         <span>
-          <strong>武汉道路网络</strong>
+          <strong>{cityPackage.name}道路网络</strong>
           <small>显示用于算法生成和校核的真实 OSM 道路网络</small>
         </span>
       </label>

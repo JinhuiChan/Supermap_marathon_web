@@ -1,4 +1,5 @@
-import { waypointRoutePlans, type WaypointRouteId } from "../data/profileRoutePlanner";
+import { activeCityPackage, type CityPackage } from "../config/cityPackages";
+import type { WaypointRoutePlan } from "../data/profileRoutePlanner";
 
 export interface GisPlanningSettings {
   targetDistanceKm: number;
@@ -14,11 +15,13 @@ export interface GisPlanningSettings {
 }
 
 interface GisSelectionPanelProps {
+  cityPackage?: CityPackage;
   settings: GisPlanningSettings;
+  routePlans: WaypointRoutePlan[];
   canGenerate: boolean;
   generateDisabledReason?: string;
   isGenerating?: boolean;
-  onGenerateRoute: (routeId: WaypointRouteId) => void;
+  onGenerateRoute: (routeId: string) => void;
 }
 
 export const defaultGisPlanningSettings: GisPlanningSettings = {
@@ -26,7 +29,7 @@ export const defaultGisPlanningSettings: GisPlanningSettings = {
   poiWeights: {},
   impedanceWeights: {},
   constraints: {
-    corridor: "武汉铺装道路网络 · 高程与道路属性已校核",
+    corridor: "铺装道路网络 · 高程与道路属性已校核",
     startFinish: "自动选择路网上的合规起点与终点",
     routeRules: [
       "全马 42.195–42.237 km",
@@ -55,7 +58,9 @@ function formatRouteDistance(distanceKm: number): string {
 }
 
 export function GisSelectionPanel({
+  cityPackage = activeCityPackage,
   settings,
+  routePlans,
   canGenerate,
   generateDisabledReason,
   isGenerating = false,
@@ -66,11 +71,11 @@ export function GisSelectionPanel({
     : isGenerating ? "正在搜索合规路线" : undefined;
 
   return (
-    <aside className="gis-selection-panel" aria-label="武汉马拉松赛道选型">
+    <aside className="gis-selection-panel" aria-label={`${cityPackage.displayName}赛道选型`}>
       <div className="gis-panel-heading">
         <span>SuperMap WebGIS</span>
-        <h2>武汉马拉松赛道选型</h2>
-        <p>统一起点（三阳路沿江大道），途经点为廊道参考方向，路线由路网 Walk 算法沿合规道路生成。</p>
+        <h2>{cityPackage.displayName}赛道选型</h2>
+        <p>统一起点与途经点作为廊道参考方向，路线由路网 Walk 算法沿合规道路生成。</p>
       </div>
 
       <section className="gis-tool-group gis-step-group">
@@ -81,7 +86,7 @@ export function GisSelectionPanel({
           <small>38MB / 52649 roads, experimental</small>
         </div>
         <div className="gis-waypoint-route-grid">
-          {waypointRoutePlans.map((plan) => (
+          {routePlans.map((plan) => (
             <button
               type="button"
               key={plan.id}
@@ -112,7 +117,7 @@ export function GisSelectionPanel({
 
       <section className="gis-tool-group gis-step-group gis-generate-step">
         <h3>3. 生成路线</h3>
-        <p className="gis-tool-hint">点击上方路线按钮即可生成。系统将途经点吸附到最近路网节点，分段生成子路径后拼接为完整路线，并通过距离容差和质量闸门校验。</p>
+        <p className="gis-tool-hint">点击上方路线按钮即可生成。系统将途经点吸附到最近路网节点，分段生成子路径后拼接为完整路线，并通过距离容差和质量复核校验。</p>
         {isGenerating && <p className="gis-tool-hint">正在搜索合规路线</p>}
         {!canGenerate && generateDisabledReason && <p className="gis-tool-hint">{generateDisabledReason}</p>}
       </section>

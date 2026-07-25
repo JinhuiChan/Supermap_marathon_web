@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { superMapConfig } from "../../config/supermap";
-import { waypointRoutePlans } from "../../data/profileRoutePlanner";
-import { wuhanLandmarkPoiLabels } from "../../data/wuhanLandmarks";
+﻿import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { activeCityPackage, type CityPackage } from "../../config/cityPackages";
+import type { WaypointRoutePlan } from "../../data/profileRoutePlanner";
 import type { Coordinate, MarathonRoute } from "../../domain/routeMetrics";
 import { fetchIserverPoiLabels } from "../../services/iserverPoi";
 import { RouteMap } from "../../components/RouteMap";
@@ -21,6 +20,8 @@ import {
 import { LoadingSpinner } from "./LoadingSpinner";
 
 interface SuperMapMapProps {
+  cityPackage?: CityPackage;
+  routePlans?: WaypointRoutePlan[];
   routes: MarathonRoute[];
   activeRouteId: string;
   comparedRouteIds: string[];
@@ -69,6 +70,9 @@ export function SuperMapMap(props: SuperMapMapProps) {
     generationStatus = "",
     onSelectRoute
   } = props;
+  const cityPackage = props.cityPackage ?? activeCityPackage;
+  const routePlans = props.routePlans ?? cityPackage.routePlans;
+  const superMapConfig = cityPackage.superMap;
   const visibleRoutes = useMemo(
     () => getVisibleMapRoutes(routes, activeRouteId, comparedRouteIds, layerVisibility.routes),
     [routes, activeRouteId, comparedRouteIds, layerVisibility.routes]
@@ -79,7 +83,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
   const [roadNetworkFeatures, setRoadNetworkFeatures] = useState<RoadNetworkFeature[]>([]);
   const [poiLabels, setPoiLabels] = useState<MapPoiLabel[]>([]);
   const [vectorBasemapFeatures, setVectorBasemapFeatures] = useState<VectorBasemapFeature[]>([]);
-  const [roadNetworkStatus, setRoadNetworkStatus] = useState("汉马道路走廊：加载中");
+  const [roadNetworkStatus, setRoadNetworkStatus] = useState(`${cityPackage.name}道路走廊：加载中`);
   const [phase, setPhase] = useState<MapPhase>("loading");
   const [phaseMessage, setPhaseMessage] = useState("加载 Leaflet 地图库...");
 
@@ -123,17 +127,17 @@ export function SuperMapMap(props: SuperMapMapProps) {
         if (cancelled) return;
         const roads = extractRoadNetworkFeatures(geojson);
         setRoadNetworkFeatures(roads);
-        setRoadNetworkStatus(`汉马道路走廊：已加载 ${roads.length} 条`);
+        setRoadNetworkStatus(`${cityPackage.name}道路走廊：已加载 ${roads.length} 条`);
         engineRef.current?.setRoadNetwork(roads);
       })
       .catch(() => {
-        if (!cancelled) setRoadNetworkStatus("汉马道路走廊：未找到本地数据");
+        if (!cancelled) setRoadNetworkStatus(`${cityPackage.name}道路走廊：未找到本地数据`);
       });
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [superMapConfig.displayRoadNetworkGeoJsonUrl]);
 
   useEffect(() => {
     let cancelled = false;
@@ -158,11 +162,11 @@ export function SuperMapMap(props: SuperMapMapProps) {
       ).then((layers) => layers.flat());
     };
 
-    setPoiLabels(wuhanLandmarkPoiLabels);
+    setPoiLabels(cityPackage.landmarks);
 
     loadFallbackPoiLabels().then((labels) => {
       if (cancelled || labels.length === 0) return;
-      const nextLabels = [...wuhanLandmarkPoiLabels, ...labels];
+      const nextLabels = [...cityPackage.landmarks, ...labels];
       setPoiLabels(nextLabels);
       engineRef.current?.setPoiLabels(nextLabels);
     });
@@ -172,7 +176,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
       .then((labels) => {
       if (cancelled) return;
       if (labels.length === 0) return;
-      const nextLabels = [...wuhanLandmarkPoiLabels, ...labels];
+      const nextLabels = [...cityPackage.landmarks, ...labels];
       setPoiLabels(nextLabels);
       engineRef.current?.setPoiLabels(nextLabels);
     });
@@ -180,7 +184,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [cityPackage.landmarks, superMapConfig.constraintLayerUrls, superMapConfig.serviceUrls.poiDataRest]);
 
   useEffect(() => {
     let cancelled = false;
@@ -212,7 +216,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [superMapConfig.constraintLayerUrls]);
 
   useEffect(() => {
     let cancelled = false;
@@ -247,13 +251,13 @@ export function SuperMapMap(props: SuperMapMapProps) {
           wmsUrl: superMapConfig.wmsMapUrl,
           wmsLayerName: superMapConfig.wmsLayerName,
           defaultBasemap: superMapConfig.defaultBasemap,
-          center: superMapConfig.mapCenter,
-          zoom: superMapConfig.mapZoom
+          center: cityPackage.mapCenter,
+          zoom: cityPackage.mapZoom
         });
         engine.initialize();
         engine.onRouteClick((id) => onSelectRef.current(id));
         engine.setRoutes(visibleRoutes);
-        engine.setWaypointMarkers(buildWaypointMarkers(visibleRoutes));
+        engine.setWaypointMarkers(buildWaypointMarkers(visibleRoutes, routePlans));
         engine.setPoiLabels(poiLabels);
         engine.setVectorBasemapFeatures(vectorBasemapFeatures);
         engine.setRoadNetwork(roadNetworkFeatures);
@@ -289,9 +293,9 @@ export function SuperMapMap(props: SuperMapMapProps) {
     const engine = engineRef.current;
     if (!engine || phase !== "ready") return;
     engine.setRoutes(visibleRoutes);
-    engine.setWaypointMarkers(buildWaypointMarkers(visibleRoutes));
+    engine.setWaypointMarkers(buildWaypointMarkers(visibleRoutes, routePlans));
     scheduleViewportRefresh(engine, visibleRoutes);
-  }, [visibleRoutes, phase]);
+  }, [visibleRoutes, routePlans, phase]);
 
   useEffect(() => {
     const engine = engineRef.current;
@@ -328,6 +332,8 @@ export function SuperMapMap(props: SuperMapMapProps) {
       <div className="map-panel" style={{ position: "relative" }}>
         <div className="map-fallback-notice">{phaseMessage}</div>
         <RouteMap
+          cityPackage={cityPackage}
+          routePlans={routePlans}
           routes={visibleRoutes}
           activeRouteId={activeRouteId}
           comparedRouteIds={comparedRouteIds}
@@ -339,12 +345,12 @@ export function SuperMapMap(props: SuperMapMapProps) {
   }
 
   return (
-    <section className="map-panel" aria-label="武汉马拉松赛道地图">
+    <section className="map-panel" aria-label={`${cityPackage.displayName}赛道地图`}>
       <div className="map-toolbar">
         <span>
-          武汉 WebGIS 赛道工作台 · iDesktop 发布图 + 路线/POI 矢量图层
+          {cityPackage.name} WebGIS 赛道工作台 · iDesktop 发布图 + 路线/POI 矢量图层
         </span>
-        <strong>{comparedRouteIds.length}/{waypointRoutePlans.length} 已加入对比</strong>
+        <strong>{comparedRouteIds.length}/{routePlans.length} 已加入对比</strong>
       </div>
       <MapGenerationProgress isGenerating={isGenerating} progress={generationProgress} status={generationStatus} />
       <div className="road-network-status">{roadNetworkStatus}</div>
@@ -418,8 +424,8 @@ function MapGenerationProgress({
       onPointerDown={beginDrag}
     >
       <div className="map-generation-progress-title">
-        <span>拖动生成进度</span>
-        <small>{status || "正在搜索合规路线"}</small>
+        <span>鎷栧姩鐢熸垚杩涘害</span>
+        <small>{status || "姝ｅ湪鎼滅储鍚堣璺嚎"}</small>
       </div>
       <div
         role="progressbar"
@@ -435,10 +441,13 @@ function MapGenerationProgress({
   );
 }
 
-function buildWaypointMarkers(routes: MarathonRoute[]): Array<{ routeId: string; color: string; label: string; coordinate: Coordinate }> {
+function buildWaypointMarkers(
+  routes: MarathonRoute[],
+  routePlans: WaypointRoutePlan[] = activeCityPackage.routePlans
+): Array<{ routeId: string; color: string; label: string; coordinate: Coordinate }> {
   const markers: Array<{ routeId: string; color: string; label: string; coordinate: Coordinate }> = [];
   const routeIds = new Set(routes.map((r) => r.id));
-  for (const plan of waypointRoutePlans) {
+  for (const plan of routePlans) {
     if (!routeIds.has(plan.id)) continue;
     for (const wp of plan.waypoints) {
       markers.push({
@@ -451,3 +460,4 @@ function buildWaypointMarkers(routes: MarathonRoute[]): Array<{ routeId: string;
   }
   return markers;
 }
+

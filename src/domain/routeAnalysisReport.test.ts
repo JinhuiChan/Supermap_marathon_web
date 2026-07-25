@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MarathonRoute } from "./routeMetrics";
 import {
+  buildDecisionReport,
   buildRouteComparisonHtmlReport,
   buildSingleRouteHtmlReport
 } from "./routeAnalysis";
@@ -88,5 +89,21 @@ describe("HTML route reports", () => {
     expect(html).toContain("综合排序");
     expect(html).toContain("风险复核项");
     expect(html).toContain("数据来源");
+  });
+
+  it("uses report context from a city package when provided", () => {
+    const html = buildSingleRouteHtmlReport(route, [], {
+      reportBrand: "测试城市马拉松选线平台",
+      dataBasis: "数据依据：测试城市包。"
+    });
+    const text = buildDecisionReport([route], [], {
+      reportBrand: "测试城市马拉松选线平台",
+      dataBasis: "数据依据：测试城市包。"
+    });
+
+    expect(html).toContain("测试城市马拉松选线平台");
+    expect(html).not.toContain("武汉马拉松赛道智能选线系统");
+    expect(text).toContain("测试城市马拉松选线平台分析报告");
+    expect(text).toContain("数据依据：测试城市包。");
   });
 });
