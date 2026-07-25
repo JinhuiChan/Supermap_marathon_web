@@ -4,6 +4,7 @@ import { waypointRoutePlans } from "../data/profileRoutePlanner";
 import type { SupportPoint } from "../data/supportPoints";
 import { supportPoints } from "../data/supportPoints";
 import { wuhanLandmarkPoiLabels } from "../data/wuhanLandmarks";
+import { wuhanRoutingProfile, type CityRoutingProfile } from "./cityRoutingProfiles";
 
 export type BasemapMode = "supermapDem";
 
@@ -65,6 +66,7 @@ export interface CityPackage {
   routePlans: WaypointRoutePlan[];
   supportPoints: SupportPoint[];
   landmarks: MapPoiLabel[];
+  routingProfile: CityRoutingProfile;
 }
 
 const iServerBaseUrl = "http://127.0.0.1:8090/iserver";
@@ -79,6 +81,7 @@ export const wuhanCityPackage: CityPackage = {
   routePlans: waypointRoutePlans,
   supportPoints,
   landmarks: wuhanLandmarkPoiLabels,
+  routingProfile: wuhanRoutingProfile,
   superMap: {
     version: "SuperMap GIS 2025 Update1 / V12.0.1.0",
     iServerBaseUrl,

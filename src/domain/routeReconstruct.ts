@@ -4,6 +4,7 @@ import { isFullMarathonRoadEdge, type RoadEdge, type RoadGraph } from "./roadNet
 import { getElevation, haversineKm, turnAngle, turnPenaltyFromAngle } from "./roadAttributes";
 import { summarizeMarathonSuitability } from "./competitionSuitability";
 import { analyzeRouteTopology } from "./routeTopology";
+import { activeCityRoutingProfile, isCityRiverBridgeForProfile } from "../config/cityRoutingProfiles";
 
 const COLORS = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"];
 
@@ -216,7 +217,7 @@ function computeMetrics(
       bridgeKm += e.lengthKm;
       bridgeCount += 1;
     }
-    if (e.isBridge && /长江.*桥|长江大桥/.test(e.roadName ?? "")) {
+    if (isCityRiverBridgeForProfile(e.roadName ?? "", e.isBridge, activeCityRoutingProfile)) {
       yangtzeBridgeKm += e.lengthKm;
       if (e.roadName) yangtzeBridgeNames.add(e.roadName);
     }

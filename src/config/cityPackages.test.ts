@@ -17,6 +17,7 @@ describe("cityPackages", () => {
     expect(wuhanCityPackage.routePlans).toHaveLength(3);
     expect(wuhanCityPackage.supportPoints.length).toBeGreaterThan(0);
     expect(wuhanCityPackage.landmarks.length).toBeGreaterThan(0);
+    expect(wuhanCityPackage.routingProfile.cityId).toBe("wuhan");
     expect(wuhanCityPackage.superMap.serviceUrls.roadMapWms).toContain("map-wuhan-road-network/wms111");
     expect(wuhanCityPackage.superMap.displayRoadNetworkGeoJsonUrl).toBe("data/local-wuhan-road-network-osm.geojson");
     expect(wuhanCityPackage.superMap.routingRoadNetworkGeoJsonUrls.fullOsm).toBe("data/local-wuhan-road-network-osm.geojson");

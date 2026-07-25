@@ -5,6 +5,7 @@ import { baseEdgeId, type RoadEdge, type RoadGraph } from "../domain/roadNetwork
 import { getElevation, haversineKm, turnAngle, turnPenaltyFromAngle } from "../domain/roadAttributes";
 import { analyzeRouteTopology, createsForbiddenTopologyStep } from "../domain/routeTopology";
 import type { Coordinate, ElevationPoint, MarathonRoute, RouteMetrics } from "../domain/routeMetrics";
+import { activeCityRoutingProfile, isRequiredRiverBridgeForProfile } from "../config/cityRoutingProfiles";
 
 interface PathSegment {
   nodeIds: string[];
@@ -853,7 +854,9 @@ function buildMetrics(
     riverCrossingScore: Math.min(100, Math.round(bridgeDistanceKm * 30 + bridgeEdges.length * 10)),
     yangtzeBridgeDistanceKm: round(bridgeDistanceKm, 2),
     yangtzeBridgeNames: [...new Set(bridgeEdges.map((edge) => edge.roadName).filter(Boolean) as string[])],
-    wuhanYangtzeBridgePassed: bridgeEdges.some((edge) => /武汉长江大桥|姝︽眽闀挎睙澶фˉ/.test(edge.roadName ?? ""))
+    wuhanYangtzeBridgePassed: bridgeEdges.some((edge) =>
+      isRequiredRiverBridgeForProfile(edge.roadName ?? "", edge.isBridge, activeCityRoutingProfile)
+    )
   };
 }
 

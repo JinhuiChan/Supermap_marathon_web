@@ -5,6 +5,7 @@ import {
   filterRoadGeoJsonByRouteCorridor,
   mapOsmHighwayToRoadLevel
 } from "./roadNetworkGeoJson";
+import type { CityRoutingProfile } from "../config/cityRoutingProfiles";
 
 describe("roadNetworkGeoJson", () => {
   test("classifies short link roads by their parent road level", () => {
@@ -369,6 +370,46 @@ describe("roadNetworkGeoJson", () => {
     expect(steepRoad?.competitionSuitable).toBe(false);
     expect(bridge?.isRequiredRiverBridge).toBe(true);
     expect(bridge?.competitionSuitable).toBe(true);
+  });
+
+  test("uses a provided city routing profile for required bridge exceptions", () => {
+    const customRoutingProfile: CityRoutingProfile = {
+      id: "test-routing",
+      cityId: "test-city",
+      landmarks: [],
+      landmarkInfluenceRadiusKm: 0.3,
+      riverBridgeNamePattern: /测试跨河桥/,
+      requiredRiverBridges: [
+        {
+          id: "test-river-bridge",
+          name: "测试跨河桥",
+          namePattern: /测试跨河桥/
+        }
+      ]
+    };
+    const graph = buildRoadGraphFromGeoJson(
+      {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            properties: {
+              highway: "trunk",
+              control_ok: 0,
+              name: "测试跨河桥",
+              bridge: "yes",
+              slope_mean: 8.8
+            },
+            geometry: { type: "LineString", coordinates: [[114.29, 30.55], [114.3, 30.55]] }
+          }
+        ]
+      },
+      { routingProfile: customRoutingProfile }
+    );
+
+    const edge = [...graph.edges.values()][0];
+    expect(edge.isRequiredRiverBridge).toBe(true);
+    expect(edge.competitionSuitable).toBe(true);
   });
 
   test("filters road features to a planning bounds", () => {

@@ -8,9 +8,9 @@ import { pathToMarathonRoute } from "../domain/routeReconstruct";
 import { evaluateRouteQuality } from "../domain/routeQuality";
 import { searchMarathonRoutes, type MarathonSearchObjective } from "../domain/routeSearch";
 import type { RouteConstraints } from "../domain/routeConstraints";
+import { activeCityRoutingProfile, isCityRiverBridgeForProfile } from "../config/cityRoutingProfiles";
 import { augmentGraphWithSupportPois } from "./poiData";
 import { buildRoadGraphFromGeoJson } from "./roadNetworkGeoJson";
-import { wuhanLandmarkPoiLabels } from "./wuhanLandmarks";
 
 interface OSMRouteOptions {
   id: string;
@@ -42,7 +42,8 @@ type TerrainRequirementMetrics = {
   slopes: number[];
 };
 
-const landmarkInfluenceRadiusKm = 0.45;
+const routingLandmarks = activeCityRoutingProfile.landmarks;
+const landmarkInfluenceRadiusKm = activeCityRoutingProfile.landmarkInfluenceRadiusKm;
 const marathonDistanceToleranceRatio = 0.001;
 const maxStartFinishElevationDiffM = 42;
 const maxTotalClimbM = 80;
@@ -1396,7 +1397,7 @@ function computeBridgeEdgeBonus(edge: RoadEdge, preference: RoutePreference): nu
   if (!edge.isBridge) return 0;
   if (preference === "river-scenic") {
     if (edge.isRequiredRiverBridge) return 420 + Math.min(edge.lengthKm, 2) * 60;
-    if (isYangtzeRiverBridgeEdge(edge)) return 160 + Math.min(edge.lengthKm, 2) * 28;
+    if (isCityRiverBridgeEdge(edge)) return 160 + Math.min(edge.lengthKm, 2) * 28;
     return 24;
   }
   if (preference === "scenic") return 34 + Math.min(edge.lengthKm, 2) * 8;
@@ -1404,8 +1405,8 @@ function computeBridgeEdgeBonus(edge: RoadEdge, preference: RoutePreference): nu
   return 6;
 }
 
-function isYangtzeRiverBridgeEdge(edge: RoadEdge): boolean {
-  return edge.isBridge && /长江.*桥|长江大桥/.test(edge.roadName ?? "");
+function isCityRiverBridgeEdge(edge: RoadEdge): boolean {
+  return isCityRiverBridgeForProfile(edge.roadName ?? "", edge.isBridge, activeCityRoutingProfile);
 }
 
 function computeLandmarkEdgeBonus(
@@ -1422,7 +1423,7 @@ function computeLandmarkEdgeBonus(
   const preferenceMultiplier = preference === "river-scenic" ? 1.65 : preference === "scenic" ? 1.45 : preference === "main-road" ? 0.72 : 1;
   let bonus = 0;
 
-  for (const landmark of wuhanLandmarkPoiLabels) {
+  for (const landmark of routingLandmarks) {
     if (coveredLandmarks.has(landmark.id)) continue;
     const distanceKm = pointToSegmentDistanceKm(landmark.coordinate, from, to);
     if (distanceKm > landmarkInfluenceRadiusKm) continue;
@@ -1589,7 +1590,7 @@ function computeRouteMetrics(coordinates: Coordinate[], edges: RoadEdge[], total
     .filter((edge) => edge.isBridge)
     .reduce((sum, edge) => sum + edge.lengthKm, 0);
   const bridgeSegmentCount = edges.filter((edge) => edge.isBridge).length;
-  const yangtzeBridgeEdges = edges.filter((edge) => isYangtzeRiverBridgeEdge(edge));
+  const yangtzeBridgeEdges = edges.filter((edge) => isCityRiverBridgeEdge(edge));
   const yangtzeBridgeDistanceKm = yangtzeBridgeEdges.reduce((sum, edge) => sum + edge.lengthKm, 0);
   const yangtzeBridgeNames = [...new Set(yangtzeBridgeEdges.map((edge) => edge.roadName).filter((name): name is string => Boolean(name)))];
   const wuhanYangtzeBridgePassed = edges.some((edge) => edge.isRequiredRiverBridge);
@@ -1762,7 +1763,7 @@ function summarizeLandmarkCoverage(coordinates: Coordinate[]): { score: number; 
   let weightedCoverage = 0;
   let count = 0;
 
-  for (const landmark of wuhanLandmarkPoiLabels) {
+  for (const landmark of routingLandmarks) {
     const minDistanceKm = distanceFromPointToPolylineKm(landmark.coordinate, coordinates);
     if (minDistanceKm > landmarkInfluenceRadiusKm) continue;
 
@@ -1771,7 +1772,7 @@ function summarizeLandmarkCoverage(coordinates: Coordinate[]): { score: number; 
     count += 1;
   }
 
-  const maxWeightedCoverage = Math.max(1, wuhanLandmarkPoiLabels.length * 1.2);
+  const maxWeightedCoverage = Math.max(1, routingLandmarks.length * 1.2);
   return {
     score: Math.round(Math.min(1, weightedCoverage / maxWeightedCoverage) * 100),
     count
@@ -1782,7 +1783,7 @@ function getCoveredLandmarkIds(coordinates: Coordinate[], radiusKm: number): Set
   const covered = new Set<string>();
   if (coordinates.length < 2) return covered;
 
-  for (const landmark of wuhanLandmarkPoiLabels) {
+  for (const landmark of routingLandmarks) {
     if (distanceFromPointToPolylineKm(landmark.coordinate, coordinates) <= radiusKm) {
       covered.add(landmark.id);
     }

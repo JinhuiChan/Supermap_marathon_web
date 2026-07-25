@@ -7,6 +7,11 @@ import {
   type RoadLevel
 } from "../domain/roadNetwork";
 import type { Coordinate } from "../domain/routeMetrics";
+import {
+  activeCityRoutingProfile,
+  isRequiredRiverBridgeForProfile,
+  type CityRoutingProfile
+} from "../config/cityRoutingProfiles";
 
 type GeoJsonFeature = {
   type?: string;
@@ -27,6 +32,10 @@ export interface GeoJsonBounds {
 export interface RoadGeoJsonFeatureCollection {
   type: "FeatureCollection";
   features: GeoJsonFeature[];
+}
+
+export interface RoadGraphBuildOptions {
+  routingProfile?: CityRoutingProfile;
 }
 
 export const WUHAN_MARATHON_AREA_BOUNDS: GeoJsonBounds = {
@@ -76,7 +85,8 @@ export function isCompetitionSuitableRoadLevel(roadLevel: RoadLevel): boolean {
   return roadLevel === "trunk" || roadLevel === "primary" || roadLevel === "secondary" || roadLevel === "tertiary";
 }
 
-export function buildRoadGraphFromGeoJson(geojson: unknown): RoadGraph {
+export function buildRoadGraphFromGeoJson(geojson: unknown, options: RoadGraphBuildOptions = {}): RoadGraph {
+  const routingProfile = options.routingProfile ?? activeCityRoutingProfile;
   const graph = createEmptyGraph();
   const features = getFeatures(geojson);
 
@@ -85,7 +95,7 @@ export function buildRoadGraphFromGeoJson(geojson: unknown): RoadGraph {
     const lines = extractLines(feature.geometry);
 
     lines.forEach((line, lineIndex) => {
-      addLineToGraph(graph, line, properties, featureIndex, lineIndex);
+      addLineToGraph(graph, line, properties, featureIndex, lineIndex, routingProfile);
     });
   });
 
@@ -226,7 +236,8 @@ function addLineToGraph(
   line: Coordinate[],
   properties: Record<string, unknown>,
   featureIndex: number,
-  lineIndex: number
+  lineIndex: number,
+  routingProfile: CityRoutingProfile
 ): void {
   for (const coordinate of line) {
     const nodeId = nodeIdForCoordinate(coordinate);
@@ -256,7 +267,7 @@ function addLineToGraph(
     const isTunnel = isOsmTagTrue(properties.tunnel);
     const isElevated = detectElevatedRoad(properties, isBridge);
     const roadName = resolveRoadName(properties);
-    const isRequiredRiverBridge = isNamedWuhanYangtzeBridge(roadName, isBridge);
+    const isRequiredRiverBridge = isRequiredRiverBridgeForProfile(roadName, isBridge, routingProfile);
     const roadWidthM = resolveRoadWidthM(properties, roadLevel);
     const surfaceSuitable = isSuitableRoadSurface(properties.surface);
     const terrainMeasured = slopeMean !== null;
@@ -343,10 +354,6 @@ function isSuitableRoadSurface(value: unknown): boolean {
 
 function resolveRoadName(properties: Record<string, unknown>): string {
   return String(properties.name ?? properties.road_name ?? properties.NAME ?? "").trim();
-}
-
-function isNamedWuhanYangtzeBridge(name: string, isBridge: boolean): boolean {
-  return isBridge && /武汉长江大桥/.test(name);
 }
 
 function resolveRoadWidthM(properties: Record<string, unknown>, roadLevel: RoadLevel): number {
