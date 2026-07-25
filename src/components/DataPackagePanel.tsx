@@ -1,4 +1,5 @@
 import { activeCityPackage, type CityPackage } from "../config/cityPackages";
+import { getCityPackageChecklist, summarizeCityPackageChecklist } from "../config/cityPackageChecklist";
 import type { WaypointRoutePlan } from "../data/profileRoutePlanner";
 
 interface DataPackageItem {
@@ -67,10 +68,24 @@ function csvCell(value: string): string {
 
 export function DataPackagePanel({ cityPackage = activeCityPackage }: { cityPackage?: CityPackage }) {
   const dataItems = buildDataItems(cityPackage);
+  const checklist = getCityPackageChecklist(cityPackage);
+  const checklistSummary = summarizeCityPackageChecklist(checklist);
+  const blockingItems = checklist.filter((item) => item.status === "blocking");
   return (
     <section className="side-section data-package">
       <h2>GIS 数据包</h2>
       <p className="muted">可导入 SuperMap iDesktopX，用于制作{cityPackage.displayName}二维地图和后续 iServer 服务。</p>
+      <div className="city-package-readiness">
+        <strong>城市包完整度 {checklistSummary.ready}/{checklistSummary.total}</strong>
+        <span>{checklistSummary.blocking === 0 ? "切换城市所需核心数据已就绪" : `${checklistSummary.blocking} 项待补齐`}</span>
+        {blockingItems.length > 0 && (
+          <ul>
+            {blockingItems.map((item) => (
+              <li key={item.id}>{item.label}：{item.evidence}</li>
+            ))}
+          </ul>
+        )}
+      </div>
       <div className="data-file-list">
         {dataItems.map((item) => (
           <a href={item.href} key={item.file} download={item.file}>

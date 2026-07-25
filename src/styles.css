@@ -496,6 +496,32 @@ textarea {
   gap: 8px;
 }
 
+.city-package-readiness {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #d9e7df;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #f4fbf7;
+}
+
+.city-package-readiness strong {
+  color: #175a43;
+  font-size: 14px;
+}
+
+.city-package-readiness span,
+.city-package-readiness li {
+  color: #526579;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.city-package-readiness ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
 .data-file-list a {
   display: grid;
   gap: 4px;
