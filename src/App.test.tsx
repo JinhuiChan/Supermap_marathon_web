@@ -8,6 +8,11 @@ describe("App", () => {
     const html = renderToStaticMarkup(<App />);
 
     expect(html).toContain("gis-mode-nav");
+    expect(html).toContain("--gis-sidebar-width:380px");
+    expect(html).toContain("--gis-waypoint-height:190px");
+    expect(html).toContain("--gis-candidate-height:240px");
+    expect(html).toContain('aria-label="调整侧边栏宽度"');
+    expect(html).toContain('aria-label="调整控制点面板高度"');
     expect(html).toContain("马拉松赛道空间选线平台");
     expect(html).not.toContain("武汉马拉松赛道空间选线平台");
     expect(html).toContain("智能选型");
@@ -58,6 +63,7 @@ describe("App", () => {
     expect(selectionDock).not.toContain("candidate-route-drawer");
     expect(html).not.toContain("candidate-route-drawer");
     expect(html).not.toContain("has-candidates");
+    expect(html).not.toContain('aria-label="调整候选方案面板高度"');
   });
 
   it("limits route comparison to the configured city package route plans", () => {

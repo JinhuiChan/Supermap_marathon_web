@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { CandidateRouteDrawer } from "./components/CandidateRouteDrawer";
+import type { CSSProperties } from "react";
 import { ComparisonPanel } from "./components/ComparisonPanel";
 import { DataPackagePanel } from "./components/DataPackagePanel";
 import { ExportPanel } from "./components/ExportPanel";
@@ -15,6 +16,7 @@ import { LayerControlPanel } from "./components/LayerControlPanel";
 import { RouteAnalysisPanel } from "./components/RouteAnalysisPanel";
 import { RouteDetails } from "./components/RouteDetails";
 import { RouteQualityPanel } from "./components/RouteQualityPanel";
+import { ResizeHandle } from "./components/ResizeHandle";
 import { RouteWaypointPanel } from "./components/RouteWaypointPanel";
 import { SuperMapStatusPanel } from "./components/SuperMapStatusPanel";
 import { activeCityPackage, type CityPackage } from "./config/cityPackages";
@@ -29,6 +31,17 @@ import {
   compareRoutes,
   type MarathonRoute
 } from "./domain/routeMetrics";
+import {
+  WORKSPACE_SIZE_DEFAULTS,
+  WORKSPACE_SIZE_LIMITS,
+  WORKSPACE_STORAGE_KEYS,
+  clampWorkspaceSize,
+  getCandidateHeightMax,
+  getSidebarWidthMax,
+  getWaypointHeightMax,
+  readStoredWorkspaceSize,
+  writeStoredWorkspaceSize
+} from "./layout/workspaceSizing";
 import { SuperMapMap, type MapLayerVisibility } from "./map/components/SuperMapMap";
 
 interface AppProps {
@@ -39,6 +52,16 @@ interface AppProps {
 export const routeCompareLimit = activeCityPackage.routePlans.length;
 
 const waitForUiFrame = () => new Promise<void>((resolve) => window.setTimeout(resolve, 25));
+const viewportWidth = () => typeof window === "undefined" ? 1280 : window.innerWidth;
+const viewportHeight = () => typeof window === "undefined" ? 720 : window.innerHeight;
+
+function getWorkspaceStorage(): Storage | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+}
 
 export function updateComparedRouteIds(current: string[], id: string, limit = routeCompareLimit): string[] {
   if (current.includes(id)) return current;
@@ -84,6 +107,27 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
   );
   const cityRouteCompareLimit = routePlans.length;
   const [workspaceMode, setWorkspaceMode] = useState<GisWorkspaceMode>("selection");
+  const [sidebarWidth, setSidebarWidth] = useState(() => readStoredWorkspaceSize(
+    getWorkspaceStorage(),
+    WORKSPACE_STORAGE_KEYS.sidebarWidth,
+    WORKSPACE_SIZE_DEFAULTS.sidebarWidth,
+    WORKSPACE_SIZE_LIMITS.sidebarWidth.min,
+    WORKSPACE_SIZE_LIMITS.sidebarWidth.max
+  ));
+  const [waypointHeight, setWaypointHeight] = useState(() => readStoredWorkspaceSize(
+    getWorkspaceStorage(),
+    WORKSPACE_STORAGE_KEYS.waypointHeight,
+    WORKSPACE_SIZE_DEFAULTS.waypointHeight,
+    WORKSPACE_SIZE_LIMITS.waypointHeight.min,
+    WORKSPACE_SIZE_LIMITS.waypointHeight.max
+  ));
+  const [candidateHeight, setCandidateHeight] = useState(() => readStoredWorkspaceSize(
+    getWorkspaceStorage(),
+    WORKSPACE_STORAGE_KEYS.candidateHeight,
+    WORKSPACE_SIZE_DEFAULTS.candidateHeight,
+    WORKSPACE_SIZE_LIMITS.candidateHeight.min,
+    WORKSPACE_SIZE_LIMITS.candidateHeight.max
+  ));
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
   const [routes, setRoutes] = useState<MarathonRoute[]>([]);
   const [roadGeoJson, setRoadGeoJson] = useState<unknown>(null);
@@ -113,6 +157,42 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
       .map((score) => routeById.get(score.id))
       .filter((route): route is MarathonRoute => Boolean(route));
   }, [routes]);
+
+  useEffect(() => {
+    writeStoredWorkspaceSize(getWorkspaceStorage(), WORKSPACE_STORAGE_KEYS.sidebarWidth, sidebarWidth);
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    writeStoredWorkspaceSize(getWorkspaceStorage(), WORKSPACE_STORAGE_KEYS.waypointHeight, waypointHeight);
+  }, [waypointHeight]);
+
+  useEffect(() => {
+    writeStoredWorkspaceSize(getWorkspaceStorage(), WORKSPACE_STORAGE_KEYS.candidateHeight, candidateHeight);
+  }, [candidateHeight]);
+
+  useEffect(() => {
+    const constrainLayoutToViewport = () => {
+      setSidebarWidth((current) => clampWorkspaceSize(
+        current,
+        WORKSPACE_SIZE_LIMITS.sidebarWidth.min,
+        getSidebarWidthMax(viewportWidth())
+      ));
+      setWaypointHeight((current) => clampWorkspaceSize(
+        current,
+        WORKSPACE_SIZE_LIMITS.waypointHeight.min,
+        getWaypointHeightMax(viewportHeight())
+      ));
+      setCandidateHeight((current) => clampWorkspaceSize(
+        current,
+        WORKSPACE_SIZE_LIMITS.candidateHeight.min,
+        getCandidateHeightMax(viewportHeight())
+      ));
+    };
+
+    window.addEventListener("resize", constrainLayoutToViewport);
+    constrainLayoutToViewport();
+    return () => window.removeEventListener("resize", constrainLayoutToViewport);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -231,6 +311,33 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
     ? `Full OSM road network is still loading or failed. Check public/${cityPackage.superMap.routingRoadNetworkGeoJsonUrls.fullOsm}`
     : "";
   const hasCandidateRoutes = workspaceMode === "selection" && routes.length > 0;
+  const workspaceStyle = {
+    "--gis-sidebar-width": `${sidebarWidth}px`,
+    "--gis-waypoint-height": `${waypointHeight}px`,
+    "--gis-candidate-height": `${candidateHeight}px`
+  } as CSSProperties;
+
+  const resizeSidebar = (delta: number) => setSidebarWidth((current) =>
+    clampWorkspaceSize(
+      current + delta,
+      WORKSPACE_SIZE_LIMITS.sidebarWidth.min,
+      getSidebarWidthMax(viewportWidth())
+    )
+  );
+  const resizeWaypointPanel = (delta: number) => setWaypointHeight((current) =>
+    clampWorkspaceSize(
+      current - delta,
+      WORKSPACE_SIZE_LIMITS.waypointHeight.min,
+      getWaypointHeightMax(viewportHeight())
+    )
+  );
+  const resizeCandidatePanel = (delta: number) => setCandidateHeight((current) =>
+    clampWorkspaceSize(
+      current - delta,
+      WORKSPACE_SIZE_LIMITS.candidateHeight.min,
+      getCandidateHeightMax(viewportHeight())
+    )
+  );
 
   return (
     <main className={`app-shell gis-tool-shell ${workspaceMode} ${hasCandidateRoutes ? "has-candidates" : ""}`}>
@@ -242,7 +349,7 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
         <GisModeNav mode={workspaceMode} onModeChange={setWorkspaceMode} />
       </header>
 
-      <section className="gis-map-stage">
+      <section className="gis-map-stage" style={workspaceStyle}>
         <SuperMapMap
           cityPackage={cityPackage}
           routePlans={routePlans}
@@ -268,21 +375,43 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
               onGenerateRoute={generateRoute}
               onGenerateManualRoute={generateManualRoute}
             />
+            <ResizeHandle
+              orientation="horizontal"
+              ariaLabel="调整控制点面板高度"
+              value={waypointHeight}
+              min={WORKSPACE_SIZE_LIMITS.waypointHeight.min}
+              max={getWaypointHeightMax(viewportHeight())}
+              className="waypoint-resize-handle"
+              onResize={resizeWaypointPanel}
+              onReset={() => setWaypointHeight(WORKSPACE_SIZE_DEFAULTS.waypointHeight)}
+            />
             <RouteWaypointPanel activeRouteId={activeRouteId} routePlans={routePlans} />
           </aside>
         )}
 
         {hasCandidateRoutes && (
-          <CandidateRouteDrawer
-            routes={rankedRoutes}
-            cityPackage={cityPackage}
-            activeRouteId={activeRouteId}
-            comparedRouteIds={comparedRouteIds}
-            generationStatus={generationStatus}
-            onSelectRoute={setActiveRouteId}
-            onToggleCompare={toggleCompare}
-            onAnalyzeRoute={analyzeRoute}
-          />
+          <>
+            <ResizeHandle
+              orientation="horizontal"
+              ariaLabel="调整候选方案面板高度"
+              value={candidateHeight}
+              min={WORKSPACE_SIZE_LIMITS.candidateHeight.min}
+              max={getCandidateHeightMax(viewportHeight())}
+              className="candidate-resize-handle"
+              onResize={resizeCandidatePanel}
+              onReset={() => setCandidateHeight(WORKSPACE_SIZE_DEFAULTS.candidateHeight)}
+            />
+            <CandidateRouteDrawer
+              routes={rankedRoutes}
+              cityPackage={cityPackage}
+              activeRouteId={activeRouteId}
+              comparedRouteIds={comparedRouteIds}
+              generationStatus={generationStatus}
+              onSelectRoute={setActiveRouteId}
+              onToggleCompare={toggleCompare}
+              onAnalyzeRoute={analyzeRoute}
+            />
+          </>
         )}
 
         {workspaceMode === "analysis" && (
@@ -305,6 +434,17 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
             )}
           </aside>
         )}
+
+        <ResizeHandle
+          orientation="vertical"
+          ariaLabel="调整侧边栏宽度"
+          value={sidebarWidth}
+          min={WORKSPACE_SIZE_LIMITS.sidebarWidth.min}
+          max={getSidebarWidthMax(viewportWidth())}
+          className="sidebar-resize-handle"
+          onResize={resizeSidebar}
+          onReset={() => setSidebarWidth(WORKSPACE_SIZE_DEFAULTS.sidebarWidth)}
+        />
 
         <details className="gis-utility-details" aria-label="GIS layers and services">
           <summary>GIS 详情</summary>
