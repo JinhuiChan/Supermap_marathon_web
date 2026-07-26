@@ -1831,6 +1831,7 @@ textarea {
   font-size: 10px;
 }
 
+.automatic-control-point-builder,
 .manual-control-point-builder {
   display: grid;
   gap: 10px;
@@ -1838,6 +1839,44 @@ textarea {
   border-radius: 8px;
   padding: 10px;
   background: #fbfcfd;
+}
+
+.automatic-control-point-builder {
+  border-left: 4px solid #7c3aed;
+}
+
+.automatic-control-point-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.automatic-control-point-summary span {
+  border: 1px solid #d7e2eb;
+  border-radius: 6px;
+  padding: 7px 8px;
+  background: #ffffff;
+  color: #203244;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.automatic-control-point-builder button.primary {
+  min-height: 32px;
+  border: 1px solid #7c3aed;
+  border-radius: 6px;
+  background: #7c3aed;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.automatic-control-point-builder button.primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .manual-builder-heading {

@@ -88,6 +88,8 @@ export function GisSelectionPanel({
     ? generateDisabledReason
     : isGenerating ? "正在搜索合规路线" : undefined;
   const manualRouteDisabled = !canGenerate || isGenerating || !onGenerateManualRoute;
+  const autoRecommendedPlan = routePlans.find((plan) => plan.controlPointMode === "auto-recommended");
+  const presetRoutePlans = routePlans.filter((plan) => plan.controlPointMode !== "auto-recommended");
 
   function updateManualRow(id: string, field: keyof Omit<ManualControlPointRow, "id">, value: string) {
     setManualRows((current) => updateManualControlPointRow(current, id, field, value));
@@ -170,7 +172,7 @@ export function GisSelectionPanel({
           <small>38MB / 52649 roads, experimental</small>
         </div>
         <div className="gis-waypoint-route-grid">
-          {routePlans.map((plan) => (
+          {presetRoutePlans.map((plan) => (
             <button
               type="button"
               key={plan.id}
@@ -188,6 +190,29 @@ export function GisSelectionPanel({
             </button>
           ))}
         </div>
+
+        {autoRecommendedPlan && (
+          <div className="automatic-control-point-builder">
+            <div className="manual-builder-heading">
+              <strong>{autoRecommendedPlan.name}</strong>
+              <span>{controlPointSourceLabelForPlan(autoRecommendedPlan)} · {autoRecommendedPlan.description}</span>
+            </div>
+            <p className="gis-tool-hint">{autoRecommendedPlan.features[0]}</p>
+            <div className="automatic-control-point-summary">
+              <span>{autoRecommendedPlan.waypoints.length} 个推荐控制点</span>
+              <span>{formatRouteDistance(autoRecommendedPlan.targetDistanceKm)} km</span>
+            </div>
+            <button
+              type="button"
+              className="primary"
+              disabled={!canGenerate || isGenerating}
+              title={routeButtonTitle}
+              onClick={() => onGenerateRoute(autoRecommendedPlan.id)}
+            >
+              生成自动推荐线
+            </button>
+          </div>
+        )}
 
         <div className="manual-control-point-builder">
           <div className="manual-builder-heading">
