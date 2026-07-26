@@ -39,10 +39,10 @@ describe("GisSelectionPanel", () => {
     expect(html).toContain("38MB");
   });
 
-  it("offers preset route options without the city scenic line reserved for live import", () => {
+  it("starts with an empty route-result surface and no preset route cards", () => {
     const html = renderPanel();
-    expect(html).toContain("东湖线");
-    expect(html).toContain("滨江线");
+    expect(html).not.toContain("东湖线");
+    expect(html).not.toContain("滨江线");
     expect(html).toContain("自动推荐线");
     expect(html).toContain("自动推荐控制点");
     expect(html).toContain("生成自动推荐路线");
@@ -51,14 +51,14 @@ describe("GisSelectionPanel", () => {
     expect(html).not.toContain("automatic-control-point-builder");
     expect(html.indexOf("manual-auto-recommend-action")).toBeLessThan(html.indexOf("手动输入控制点"));
     expect(html).not.toContain("城市景观线");
-    expect((html.match(/class="[^"]*gis-waypoint-route-button/g) ?? [])).toHaveLength(2);
+    expect((html.match(/class="[^"]*gis-waypoint-route-button/g) ?? [])).toHaveLength(0);
     expect(html).toContain("硬性合规规则");
   });
 
   it("distinguishes manually imported control-point routes from the auto-recommended route", () => {
     const html = renderPanel();
 
-    expect((html.match(/手动导入控制点/g) ?? [])).toHaveLength(2);
+    expect((html.match(/手动导入控制点/g) ?? [])).toHaveLength(0);
     expect((html.match(/自动推荐控制点/g) ?? [])).toHaveLength(1);
   });
 
@@ -79,7 +79,7 @@ describe("GisSelectionPanel", () => {
     expect(html).toContain("30.60287");
   });
 
-  it("renders route buttons from the provided city package route plans", () => {
+  it("keeps provided city package route plans out of the initial selection surface", () => {
     const customPlan = {
       ...activeCityPackage.routePlans[0],
       id: "test-city-fast",
@@ -90,15 +90,15 @@ describe("GisSelectionPanel", () => {
     };
     const html = renderPanel({ routePlans: [customPlan] });
 
-    expect(html).toContain("测试城市竞速线");
-    expect(html).toContain("测试城市道路走廊");
+    expect(html).not.toContain("测试城市竞速线");
+    expect(html).not.toContain("测试城市道路走廊");
     expect(html).not.toContain("婊ㄦ睙绾?");
-    expect((html.match(/class="[^"]*gis-waypoint-route-button/g) ?? [])).toHaveLength(1);
+    expect((html.match(/class="[^"]*gis-waypoint-route-button/g) ?? [])).toHaveLength(0);
   });
 
   it("puts the decision flow ahead of implementation parameters", () => {
     const html = renderPanel();
-    expect(html).toContain("1. 选择路线");
+    expect(html).toContain("1. 添加控制点");
     expect(html).toContain("2. 硬性合规规则");
     expect(html).toContain("3. 生成路线");
     expect(html).not.toContain("POI 参数预览");

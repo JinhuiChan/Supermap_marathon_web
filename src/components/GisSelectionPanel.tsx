@@ -84,12 +84,13 @@ export function GisSelectionPanel({
   const [manualImportText, setManualImportText] = useState("");
   const [manualImportMessage, setManualImportMessage] = useState("");
   const [manualImportOpen, setManualImportOpen] = useState(false);
-  const routeButtonTitle = !canGenerate && generateDisabledReason
-    ? generateDisabledReason
-    : isGenerating ? "正在搜索合规路线" : undefined;
   const manualRouteDisabled = !canGenerate || isGenerating || !onGenerateManualRoute;
   const autoRecommendedPlan = routePlans.find((plan) => plan.controlPointMode === "auto-recommended");
-  const presetRoutePlans = routePlans.filter((plan) => plan.controlPointMode !== "auto-recommended");
+  const autoRecommendButtonTitle = !canGenerate && generateDisabledReason
+    ? generateDisabledReason
+    : autoRecommendedPlan
+      ? `${autoRecommendedPlan.name} · ${controlPointSourceLabelForPlan(autoRecommendedPlan)} · ${autoRecommendedPlan.waypoints.length} 个推荐控制点 · ${formatRouteDistance(autoRecommendedPlan.targetDistanceKm)} km`
+      : undefined;
 
   function updateManualRow(id: string, field: keyof Omit<ManualControlPointRow, "id">, value: string) {
     setManualRows((current) => updateManualControlPointRow(current, id, field, value));
@@ -165,30 +166,11 @@ export function GisSelectionPanel({
       </div>
 
       <section className="gis-tool-group gis-step-group">
-        <h3>1. 选择路线</h3>
+        <h3>1. 添加控制点</h3>
         <div className="gis-routing-source-control" aria-label="Routing data source">
           <span>Routing data</span>
           <strong>Full OSM</strong>
           <small>38MB / 52649 roads, experimental</small>
-        </div>
-        <div className="gis-waypoint-route-grid">
-          {presetRoutePlans.map((plan) => (
-            <button
-              type="button"
-              key={plan.id}
-              className="gis-waypoint-route-button"
-              disabled={!canGenerate || isGenerating}
-              title={routeButtonTitle}
-              onClick={() => onGenerateRoute(plan.id)}
-              style={{ borderLeftColor: plan.color }}
-            >
-              <em className="gis-route-source-badge">{controlPointSourceLabelForPlan(plan)}</em>
-              <strong style={{ color: plan.color }}>{plan.name}</strong>
-              <span>{formatRouteDistance(plan.targetDistanceKm)} km · {plan.description}</span>
-              <small>{plan.waypoints.length} 个途经控制点 · {plan.audience}</small>
-              <small>{plan.features[0]}</small>
-            </button>
-          ))}
         </div>
 
         <div className="manual-control-point-builder">
@@ -197,7 +179,7 @@ export function GisSelectionPanel({
               type="button"
               className="manual-auto-recommend-action"
               disabled={!canGenerate || isGenerating}
-              title={`${autoRecommendedPlan.name} · ${controlPointSourceLabelForPlan(autoRecommendedPlan)} · ${autoRecommendedPlan.waypoints.length} 个推荐控制点 · ${formatRouteDistance(autoRecommendedPlan.targetDistanceKm)} km`}
+              title={autoRecommendButtonTitle}
               onClick={() => onGenerateRoute(autoRecommendedPlan.id)}
             >
               生成自动推荐路线
@@ -299,7 +281,7 @@ export function GisSelectionPanel({
 
       <section className="gis-tool-group gis-step-group gis-generate-step">
         <h3>3. 生成路线</h3>
-        <p className="gis-tool-hint">点击上方路线按钮即可生成。系统将途经点吸附到最近路网节点，分段生成子路径后拼接为完整路线，并通过距离容差和质量复核校验。</p>
+        <p className="gis-tool-hint">输入或导入控制点后生成手动路线，也可点击自动推荐路线生成第一版路线。系统会将途经点吸附到最近路网节点，分段拼接完整路线并进行质量复核。</p>
         {isGenerating && <p className="gis-tool-hint">正在搜索合规路线</p>}
         {!canGenerate && generateDisabledReason && <p className="gis-tool-hint">{generateDisabledReason}</p>}
       </section>

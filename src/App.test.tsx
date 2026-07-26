@@ -14,7 +14,8 @@ describe("App", () => {
     expect(html).toContain("赛道分析");
     expect(html).not.toContain("采用当前推荐");
     expect(html).toContain("硬性合规规则");
-    expect(html).toContain("东湖线");
+    expect(html).not.toContain("东湖线");
+    expect(html).not.toContain("滨江线");
     expect(html).not.toContain("城市景观线");
     expect(html).toContain("手动推荐线");
     expect(html).toContain("等待候选路线");
@@ -46,7 +47,7 @@ describe("App", () => {
     );
 
     expect(html).toContain("gis-selection-panel");
-    expect(html).toContain("选择路线");
+    expect(html).toContain("添加控制点");
     expect(html).toContain("重复道路 0%");
   });
 
@@ -124,7 +125,7 @@ describe("App", () => {
     const html = renderToStaticMarkup(<App cityPackage={testCityPackage} />);
 
     expect(html).toContain("测试城市马拉松选线平台");
-    expect(html).toContain("测试城市竞速线");
+    expect(html).not.toContain("测试城市竞速线");
     expect(html).not.toContain("滨江线");
   });
 });
