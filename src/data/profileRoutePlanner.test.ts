@@ -70,15 +70,13 @@ describe("profileRoutePlanner", () => {
   test("keeps visible route plans aligned with requested differentiated constraints", () => {
     expect(waypointRoutePlans.map((plan) => plan.id)).toEqual([
       "waypoint-east-lake",
-      "waypoint-riverside",
-      "waypoint-city-scenic"
+      "waypoint-riverside"
     ]);
     expect(waypointRoutePlans.every((plan) => plan.controlPointMode === "manual")).toBe(true);
     expect(waypointRoutePlans.every((plan) => plan.controlPointSourceLabel === "用户手动导入控制点")).toBe(true);
 
     const eastLake = waypointRoutePlans.find((plan) => plan.id === "waypoint-east-lake");
     const riverside = waypointRoutePlans.find((plan) => plan.id === "waypoint-riverside");
-    const cityScenic = waypointRoutePlans.find((plan) => plan.id === "waypoint-city-scenic");
 
     expect(eastLake).toMatchObject({
       targetDistanceKm: 42.195,
@@ -100,14 +98,7 @@ describe("profileRoutePlanner", () => {
       expect.stringContaining("双江景")
     ]));
 
-    expect(cityScenic).toMatchObject({
-      targetDistanceKm: 42.195,
-      positioning: expect.stringContaining("文旅"),
-      audience: expect.stringContaining("城市宣传")
-    });
-    expect(cityScenic?.features).toEqual(expect.arrayContaining([
-      expect.stringContaining("一城两江三镇")
-    ]));
+    expect(waypointRoutePlans.some((plan) => plan.id === "waypoint-city-scenic")).toBe(false);
   });
 
   test("uses a relaxed waypoint hit radius for local road-network control points", () => {

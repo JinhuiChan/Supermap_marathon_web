@@ -77,12 +77,13 @@ export function GisSelectionPanel({
   onGenerateRoute,
   onGenerateManualRoute
 }: GisSelectionPanelProps) {
-  const [manualRouteName, setManualRouteName] = useState("我的自定义路线");
+  const [manualRouteName, setManualRouteName] = useState("手动推荐线");
   const [manualRows, setManualRows] = useState<ManualControlPointRow[]>(manualControlPointExampleRows);
   const [manualRouteSerial, setManualRouteSerial] = useState(1);
   const [manualError, setManualError] = useState("");
   const [manualImportText, setManualImportText] = useState("");
   const [manualImportMessage, setManualImportMessage] = useState("");
+  const [manualImportOpen, setManualImportOpen] = useState(false);
   const routeButtonTitle = !canGenerate && generateDisabledReason
     ? generateDisabledReason
     : isGenerating ? "正在搜索合规路线" : undefined;
@@ -104,7 +105,7 @@ export function GisSelectionPanel({
   }
 
   function resetManualRowsToExample() {
-    setManualRouteName("我的自定义路线");
+    setManualRouteName("手动推荐线");
     setManualRows(manualControlPointExampleRows);
     setManualError("");
     setManualImportMessage("");
@@ -129,6 +130,7 @@ export function GisSelectionPanel({
     reader.onload = () => {
       const text = typeof reader.result === "string" ? reader.result : "";
       setManualImportText(text);
+      setManualImportOpen(true);
       applyManualImport(text);
     };
     reader.onerror = () => setManualImportMessage("读取本地文件失败");
@@ -200,16 +202,8 @@ export function GisSelectionPanel({
               onChange={(event) => setManualRouteName(event.currentTarget.value)}
             />
           </label>
-          <label className="manual-import-field">
-            <span>粘贴 JSON / Markdown 控制点</span>
-            <textarea
-              value={manualImportText}
-              placeholder='JSON 示例：[{"name":"起点","lon":114.30230,"lat":30.60287}]'
-              onChange={(event) => setManualImportText(event.currentTarget.value)}
-            />
-          </label>
           <div className="manual-import-actions">
-            <button type="button" onClick={() => applyManualImport(manualImportText)}>读取粘贴数据</button>
+            <button type="button" onClick={() => setManualImportOpen((current) => !current)}>输入数据</button>
             <label>
               读取本地 JSON/MD
               <input
@@ -219,6 +213,19 @@ export function GisSelectionPanel({
               />
             </label>
           </div>
+          {manualImportOpen && (
+            <div className="manual-import-editor">
+              <label className="manual-import-field">
+                <span>JSON / Markdown 控制点</span>
+                <textarea
+                  value={manualImportText}
+                  placeholder='JSON 示例：[{"name":"起点","lon":114.30230,"lat":30.60287}]'
+                  onChange={(event) => setManualImportText(event.currentTarget.value)}
+                />
+              </label>
+              <button type="button" onClick={() => applyManualImport(manualImportText)}>应用输入数据</button>
+            </div>
+          )}
           {manualImportMessage && <p className="manual-import-message">{manualImportMessage}</p>}
           <div className="manual-control-point-table" aria-label="手动输入控制点表">
             <div className="manual-control-point-header">

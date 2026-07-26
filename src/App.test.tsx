@@ -14,7 +14,8 @@ describe("App", () => {
     expect(html).not.toContain("采用当前推荐");
     expect(html).toContain("硬性合规规则");
     expect(html).toContain("东湖线");
-    expect(html).toContain("城市景观线");
+    expect(html).not.toContain("城市景观线");
+    expect(html).toContain("手动推荐线");
     expect(html).toContain("等待候选路线");
     expect(html).toContain("规划结果不替代 World Athletics / AIMS 认证测量");
     expect(html).not.toContain("选择起点");
@@ -59,8 +60,8 @@ describe("App", () => {
 
   it("limits route comparison to the configured city package route plans", () => {
     expect(routeCompareLimit).toBe(activeCityPackage.routePlans.length);
-    expect(updateComparedRouteIds(["east", "riverside", "city"], "extra")).toEqual(["east", "riverside", "city", "extra"]);
-    expect(updateComparedRouteIds(["east", "riverside", "city", "extra"], "overflow")).toEqual(["east", "riverside", "city", "extra"]);
+    expect(updateComparedRouteIds(["east", "riverside", "auto"], "extra")).toEqual(["east", "riverside", "auto"]);
+    expect(updateComparedRouteIds(["east", "riverside"], "auto")).toEqual(["east", "riverside", "auto"]);
     expect(updateComparedRouteIds(["east", "riverside"], "city")).toEqual(["east", "riverside", "city"]);
   });
 
@@ -78,6 +79,25 @@ describe("App", () => {
     expect(next.at(-1)).toBe(manualPlan);
     expect(updated).toHaveLength(next.length);
     expect(updated.at(-1)?.name).toBe("用户手动路线二次编辑");
+  });
+
+  it("keeps multiple user-entered manual route plans when their ids differ", () => {
+    const firstManualPlan = {
+      ...activeCityPackage.routePlans[0],
+      id: "manual-user-1",
+      name: "手动推荐线"
+    };
+    const secondManualPlan = {
+      ...activeCityPackage.routePlans[0],
+      id: "manual-user-2",
+      name: "现场补充线"
+    };
+
+    const withFirst = upsertManualRoutePlan(activeCityPackage.routePlans, firstManualPlan);
+    const withBoth = upsertManualRoutePlan(withFirst, secondManualPlan);
+
+    expect(withBoth).toHaveLength(activeCityPackage.routePlans.length + 2);
+    expect(withBoth.slice(-2).map((plan) => plan.name)).toEqual(["手动推荐线", "现场补充线"]);
   });
 
   it("can render from a provided city package instead of hard-coded Wuhan data", () => {

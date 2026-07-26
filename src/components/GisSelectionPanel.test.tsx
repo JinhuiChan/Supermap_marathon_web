@@ -39,19 +39,20 @@ describe("GisSelectionPanel", () => {
     expect(html).toContain("38MB");
   });
 
-  it("offers three route corridor options whose hard rules stay identical", () => {
+  it("offers preset route options without the city scenic line reserved for live import", () => {
     const html = renderPanel();
     expect(html).toContain("东湖线");
     expect(html).toContain("滨江线");
-    expect(html).toContain("城市景观线");
-    expect((html.match(/class="[^"]*gis-waypoint-route-button/g) ?? [])).toHaveLength(4);
+    expect(html).toContain("自动推荐线");
+    expect(html).not.toContain("城市景观线");
+    expect((html.match(/class="[^"]*gis-waypoint-route-button/g) ?? [])).toHaveLength(3);
     expect(html).toContain("硬性合规规则");
   });
 
   it("distinguishes manually imported control-point routes from the auto-recommended route", () => {
     const html = renderPanel();
 
-    expect((html.match(/手动导入控制点/g) ?? [])).toHaveLength(3);
+    expect((html.match(/手动导入控制点/g) ?? [])).toHaveLength(2);
     expect((html.match(/自动推荐控制点/g) ?? [])).toHaveLength(1);
   });
 
@@ -61,9 +62,10 @@ describe("GisSelectionPanel", () => {
     expect(html).toContain("手动输入控制点");
     expect(html).toContain("示例控制点");
     expect(html).toContain("用户手动输入控制点");
-    expect(html).toContain("我的自定义路线");
+    expect(html).toContain("手动推荐线");
     expect(html).toContain("生成手动路线");
-    expect(html).toContain("粘贴 JSON / Markdown 控制点");
+    expect(html).toContain("输入数据");
+    expect(html).not.toContain("粘贴 JSON / Markdown 控制点");
     expect(html).toContain("读取本地 JSON/MD");
     expect(html).toContain('type="file"');
     expect(html).toContain('.json,.md,.markdown,.txt');

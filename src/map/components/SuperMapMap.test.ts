@@ -63,7 +63,7 @@ describe("getVisibleMapRoutes", () => {
       })
     );
 
-    expect(html).toContain("3/4 已加入对比");
+    expect(html).toContain("3/3 已加入对比");
     expect(html).not.toContain("3/5 已加入对比");
   });
 

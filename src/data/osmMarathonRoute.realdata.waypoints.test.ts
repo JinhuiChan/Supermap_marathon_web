@@ -9,8 +9,7 @@ import { buildWaypointRoute, waypointHitRadiusKm, waypointRoutePlans } from "./p
 const realWuhanRoads = JSON.parse(realWuhanRoadsText);
 const minimumWaypointHitsByRouteId = new Map([
   ["waypoint-east-lake", 7],
-  ["waypoint-riverside", 5],
-  ["waypoint-city-scenic", 6]
+  ["waypoint-riverside", 5]
 ]);
 describe("osmMarathonRoute visible real-data waypoint routes", () => {
   const routesByPlan = new Map<string, MarathonRoute | null>();
@@ -53,13 +52,13 @@ describe("osmMarathonRoute visible real-data waypoint routes", () => {
     expect(routeSignatures.size).toBe(waypointRoutePlans.length);
   }, 60000);
 
-  test("keeps riverside and city scenic routes from collapsing onto the same corridor", () => {
+  test("keeps east lake and riverside preset routes from collapsing onto the same corridor", () => {
+    const eastLake = routesByPlan.get("waypoint-east-lake");
     const riverside = routesByPlan.get("waypoint-riverside");
-    const cityScenic = routesByPlan.get("waypoint-city-scenic");
 
+    expect(eastLake).not.toBeNull();
     expect(riverside).not.toBeNull();
-    expect(cityScenic).not.toBeNull();
-    expect(routeOverlapRatio(riverside!, cityScenic!, 0.1)).toBeLessThanOrEqual(0.7);
+    expect(routeOverlapRatio(eastLake!, riverside!, 0.1)).toBeLessThanOrEqual(0.7);
   }, 60000);
 
   test("keeps generated routes close to as many control points as current road quality allows", () => {

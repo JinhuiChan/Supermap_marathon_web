@@ -1927,6 +1927,27 @@ textarea {
   display: none;
 }
 
+.manual-import-editor {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #d7e2eb;
+  border-radius: 6px;
+  padding: 8px;
+  background: #f8fbfd;
+}
+
+.manual-import-editor button {
+  min-height: 30px;
+  border: 1px solid #17405a;
+  border-radius: 6px;
+  background: #17405a;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .manual-import-message {
   margin: 0;
   border: 1px solid #d7e8d9;

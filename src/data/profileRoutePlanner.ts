@@ -82,34 +82,6 @@ const manualWaypointRoutePlans: WaypointRoutePlan[] = [
       "串联汉口、汉阳、武昌三大江滩，城市滨水天际线尽收眼底",
       "难度适中，主要爬坡集中在跨江桥梁段，适合新手、观光游客"
     ]
-  },
-  {
-    id: "waypoint-city-scenic",
-    name: "城市景观线",
-    color: "#e85d04",
-    targetDistanceKm: 42.195,
-    description: "全域文旅 · 三镇地标全覆盖",
-    positioning: "文旅打卡专用全马路线，串联武汉历史、工业、自然、现代地标，兼顾老城街巷、大桥、东湖、青山工业滨江。",
-    audience: "游客、城市宣传展示、文旅打卡跑者",
-    waypoints: [
-      { label: "起点：三阳路沿江大道", coordinate: [114.30230, 30.60287] },
-      { label: "中山大道·老汉口里份街区", coordinate: [114.2840, 30.6048] },
-      { label: "汉正街·商贸老街", coordinate: [114.2725, 30.5943] },
-      { label: "晴川阁·知音文化地标", coordinate: [114.2682, 30.5650] },
-      { label: "黄鹤楼景区正门", coordinate: [114.2860, 30.5526] },
-      { label: "楚河汉街中心栈道", coordinate: [114.3368, 30.5601] },
-      { label: "凌波门·东湖网红打卡点", coordinate: [114.3586, 30.5682] },
-      { label: "东湖樱花园·磨山景区", coordinate: [114.3742, 30.5830] },
-      { label: "欢乐谷·生态湿地", coordinate: [114.3987, 30.5985] },
-      { label: "青山红房子·工业文创街区", coordinate: [114.4132, 30.6130] },
-      { label: "终点：青山江滩滨江广场", coordinate: [114.30933, 30.60991] }
-    ],
-    note: "一城两江三镇四桥五湖全覆盖，历史、自然、工业、现代景观分层呈现",
-    features: [
-      "一城两江三镇四桥五湖全部覆盖，历史、自然、工业、现代景观分层呈现",
-      "打卡点位密度最高，兼顾老城烟火、湖光山色、长江天际、工业滨江",
-      "起伏均衡，兼具观赏性与赛事完整性，适合城市宣传可视化展示"
-    ]
   }
 ];
 
@@ -135,8 +107,7 @@ export function controlPointSourceLabelForPlan(plan: WaypointRoutePlan): string 
 
 const waypointProfileMap: Record<WaypointRouteId, RouteSelectionProfile> = {
   "waypoint-east-lake": "scenic",
-  "waypoint-riverside": "support-first",
-  "waypoint-city-scenic": "mass-finish"
+  "waypoint-riverside": "support-first"
 };
 
 const waypointProfileSeedPoints: Partial<Record<WaypointRouteId, Coordinate[]>> = {
@@ -147,15 +118,11 @@ const waypointProfileSeedPoints: Partial<Record<WaypointRouteId, Coordinate[]>> 
   ],
   "waypoint-riverside": [
     [114.3038, 30.5470]
-  ],
-  "waypoint-city-scenic": [
-    [114.2860, 30.5526]
   ]
 };
 
 const waypointCandidateProfileIds: Partial<Record<WaypointRouteId, string[]>> = {
-  "waypoint-riverside": ["osm-balanced"],
-  "waypoint-city-scenic": ["osm-scenic"]
+  "waypoint-riverside": ["osm-balanced"]
 };
 
 interface ProfileRoutePlan {

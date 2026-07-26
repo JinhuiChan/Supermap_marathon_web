@@ -14,13 +14,12 @@ describe("cityPackages", () => {
   });
 
   it("keeps city-specific data and SuperMap services behind one package boundary", () => {
-    expect(wuhanCityPackage.routePlans).toHaveLength(4);
-    expect(wuhanCityPackage.routePlans.slice(0, 3).map((plan) => plan.id)).toEqual([
+    expect(wuhanCityPackage.routePlans).toHaveLength(3);
+    expect(wuhanCityPackage.routePlans.slice(0, 2).map((plan) => plan.id)).toEqual([
       "waypoint-east-lake",
-      "waypoint-riverside",
-      "waypoint-city-scenic"
+      "waypoint-riverside"
     ]);
-    expect(wuhanCityPackage.routePlans[3]).toMatchObject({
+    expect(wuhanCityPackage.routePlans[2]).toMatchObject({
       id: "waypoint-auto-recommended",
       controlPointMode: "auto-recommended"
     });
