@@ -1,16 +1,62 @@
 import { describe, expect, test } from "vitest";
 import {
   buildManualControlPointRoutePlan,
-  manualControlPointExampleRows
+  manualControlPointExampleRows,
+  parseManualControlPointText,
+  updateManualControlPointRow
 } from "./manualControlPointPlan";
 
 describe("manualControlPointPlan", () => {
   test("provides editable example control points for the manual input UI", () => {
     expect(manualControlPointExampleRows.length).toBeGreaterThanOrEqual(4);
     expect(manualControlPointExampleRows[0]).toMatchObject({
+      id: expect.any(String),
       label: expect.stringContaining("起点"),
       longitude: expect.any(String),
       latitude: expect.any(String)
+    });
+  });
+
+  test("keeps row identity stable when users edit a control-point name", () => {
+    const [updated] = updateManualControlPointRow(manualControlPointExampleRows, manualControlPointExampleRows[0].id, "label", "新起点");
+
+    expect(updated.id).toBe(manualControlPointExampleRows[0].id);
+    expect(updated.label).toBe("新起点");
+  });
+
+  test("parses local JSON control-point data into editable rows", () => {
+    const result = parseManualControlPointText(JSON.stringify({
+      routeName: "JSON 导入路线",
+      controlPoints: [
+        { name: "起点", lon: 114.3023, lat: 30.60287 },
+        { name: "终点", longitude: 114.30933, latitude: 30.60991 }
+      ]
+    }));
+
+    expect(result).toMatchObject({
+      ok: true,
+      routeName: "JSON 导入路线",
+      rows: [
+        expect.objectContaining({ label: "起点", longitude: "114.30230", latitude: "30.60287" }),
+        expect.objectContaining({ label: "终点", longitude: "114.30933", latitude: "30.60991" })
+      ]
+    });
+  });
+
+  test("parses Markdown table control-point data into editable rows", () => {
+    const result = parseManualControlPointText([
+      "| 名称 | 经度 | 纬度 |",
+      "| --- | --- | --- |",
+      "| 起点 | 114.30230 | 30.60287 |",
+      "| 终点 | 114.30933 | 30.60991 |"
+    ].join("\n"));
+
+    expect(result).toMatchObject({
+      ok: true,
+      rows: [
+        expect.objectContaining({ label: "起点", longitude: "114.30230", latitude: "30.60287" }),
+        expect.objectContaining({ label: "终点", longitude: "114.30933", latitude: "30.60991" })
+      ]
     });
   });
 

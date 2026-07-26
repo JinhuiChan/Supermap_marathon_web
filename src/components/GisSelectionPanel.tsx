@@ -2,7 +2,10 @@ import { useState } from "react";
 import { activeCityPackage, type CityPackage } from "../config/cityPackages";
 import {
   buildManualControlPointRoutePlan,
+  createManualControlPointRow,
   manualControlPointExampleRows,
+  parseManualControlPointText,
+  updateManualControlPointRow,
   type ManualControlPointRow
 } from "../data/manualControlPointPlan";
 import { controlPointSourceLabelForPlan, type WaypointRoutePlan } from "../data/profileRoutePlanner";
@@ -78,32 +81,58 @@ export function GisSelectionPanel({
   const [manualRows, setManualRows] = useState<ManualControlPointRow[]>(manualControlPointExampleRows);
   const [manualRouteSerial, setManualRouteSerial] = useState(1);
   const [manualError, setManualError] = useState("");
+  const [manualImportText, setManualImportText] = useState("");
+  const [manualImportMessage, setManualImportMessage] = useState("");
   const routeButtonTitle = !canGenerate && generateDisabledReason
     ? generateDisabledReason
     : isGenerating ? "正在搜索合规路线" : undefined;
   const manualRouteDisabled = !canGenerate || isGenerating || !onGenerateManualRoute;
 
-  function updateManualRow(index: number, field: keyof ManualControlPointRow, value: string) {
-    setManualRows((current) => current.map((row, rowIndex) =>
-      rowIndex === index ? { ...row, [field]: value } : row
-    ));
+  function updateManualRow(id: string, field: keyof Omit<ManualControlPointRow, "id">, value: string) {
+    setManualRows((current) => updateManualControlPointRow(current, id, field, value));
   }
 
   function addManualRow() {
     setManualRows((current) => [
       ...current,
-      { label: `控制点 ${current.length + 1}`, longitude: "", latitude: "" }
+      createManualControlPointRow(`控制点 ${current.length + 1}`)
     ]);
   }
 
-  function removeManualRow(index: number) {
-    setManualRows((current) => current.filter((_, rowIndex) => rowIndex !== index));
+  function removeManualRow(id: string) {
+    setManualRows((current) => current.filter((row) => row.id !== id));
   }
 
   function resetManualRowsToExample() {
     setManualRouteName("我的自定义路线");
     setManualRows(manualControlPointExampleRows);
     setManualError("");
+    setManualImportMessage("");
+  }
+
+  function applyManualImport(text: string) {
+    const result = parseManualControlPointText(text);
+    if (!result.ok) {
+      setManualImportMessage(result.error);
+      return;
+    }
+
+    setManualRows(result.rows);
+    if (result.routeName) setManualRouteName(result.routeName);
+    setManualImportMessage(`已读取 ${result.rows.length} 个控制点`);
+    setManualError("");
+  }
+
+  function readManualControlPointFile(file: File | undefined) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = typeof reader.result === "string" ? reader.result : "";
+      setManualImportText(text);
+      applyManualImport(text);
+    };
+    reader.onerror = () => setManualImportMessage("读取本地文件失败");
+    reader.readAsText(file, "utf-8");
   }
 
   function generateManualRoute() {
@@ -171,6 +200,26 @@ export function GisSelectionPanel({
               onChange={(event) => setManualRouteName(event.currentTarget.value)}
             />
           </label>
+          <label className="manual-import-field">
+            <span>粘贴 JSON / Markdown 控制点</span>
+            <textarea
+              value={manualImportText}
+              placeholder='JSON 示例：[{"name":"起点","lon":114.30230,"lat":30.60287}]'
+              onChange={(event) => setManualImportText(event.currentTarget.value)}
+            />
+          </label>
+          <div className="manual-import-actions">
+            <button type="button" onClick={() => applyManualImport(manualImportText)}>读取粘贴数据</button>
+            <label>
+              读取本地 JSON/MD
+              <input
+                type="file"
+                accept=".json,.md,.markdown,.txt"
+                onChange={(event) => readManualControlPointFile(event.currentTarget.files?.[0])}
+              />
+            </label>
+          </div>
+          {manualImportMessage && <p className="manual-import-message">{manualImportMessage}</p>}
           <div className="manual-control-point-table" aria-label="手动输入控制点表">
             <div className="manual-control-point-header">
               <span>名称</span>
@@ -179,28 +228,28 @@ export function GisSelectionPanel({
               <span>操作</span>
             </div>
             {manualRows.map((row, index) => (
-              <div className="manual-control-point-row" key={`${index}-${row.label}`}>
+              <div className="manual-control-point-row" key={row.id}>
                 <input
                   type="text"
                   aria-label={`第 ${index + 1} 个控制点名称`}
                   value={row.label}
-                  onChange={(event) => updateManualRow(index, "label", event.currentTarget.value)}
+                  onChange={(event) => updateManualRow(row.id, "label", event.currentTarget.value)}
                 />
                 <input
                   type="number"
                   step="0.00001"
                   aria-label={`第 ${index + 1} 个控制点经度`}
                   value={row.longitude}
-                  onChange={(event) => updateManualRow(index, "longitude", event.currentTarget.value)}
+                  onChange={(event) => updateManualRow(row.id, "longitude", event.currentTarget.value)}
                 />
                 <input
                   type="number"
                   step="0.00001"
                   aria-label={`第 ${index + 1} 个控制点纬度`}
                   value={row.latitude}
-                  onChange={(event) => updateManualRow(index, "latitude", event.currentTarget.value)}
+                  onChange={(event) => updateManualRow(row.id, "latitude", event.currentTarget.value)}
                 />
-                <button type="button" onClick={() => removeManualRow(index)} disabled={manualRows.length <= 2}>
+                <button type="button" onClick={() => removeManualRow(row.id)} disabled={manualRows.length <= 2}>
                   删除
                 </button>
               </div>

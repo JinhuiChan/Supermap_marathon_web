@@ -1863,7 +1863,13 @@ textarea {
   gap: 5px;
 }
 
+.manual-import-field {
+  display: grid;
+  gap: 5px;
+}
+
 .manual-route-name-field span,
+.manual-import-field span,
 .manual-control-point-header span {
   color: #607284;
   font-size: 11px;
@@ -1871,16 +1877,65 @@ textarea {
 }
 
 .manual-route-name-field input,
+.manual-import-field textarea,
 .manual-control-point-row input {
   min-width: 0;
-  height: 30px;
   border: 1px solid #d7e2eb;
   border-radius: 6px;
-  padding: 0 8px;
   background: #ffffff;
   color: #203244;
   font: inherit;
   font-size: 11px;
+}
+
+.manual-route-name-field input,
+.manual-control-point-row input {
+  height: 30px;
+  padding: 0 8px;
+}
+
+.manual-import-field textarea {
+  min-height: 64px;
+  resize: vertical;
+  padding: 7px 8px;
+  line-height: 1.45;
+}
+
+.manual-import-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.manual-import-actions button,
+.manual-import-actions label {
+  display: grid;
+  place-items: center;
+  min-height: 30px;
+  border: 1px solid #d7e2eb;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #173a52;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.manual-import-actions input {
+  display: none;
+}
+
+.manual-import-message {
+  margin: 0;
+  border: 1px solid #d7e8d9;
+  border-radius: 6px;
+  padding: 7px 8px;
+  background: #f5fbf6;
+  color: #236c45;
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .manual-control-point-table {
