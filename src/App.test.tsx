@@ -8,7 +8,8 @@ describe("App", () => {
     const html = renderToStaticMarkup(<App />);
 
     expect(html).toContain("gis-mode-nav");
-    expect(html).toContain("武汉马拉松赛道空间选线平台");
+    expect(html).toContain("马拉松赛道空间选线平台");
+    expect(html).not.toContain("武汉马拉松赛道空间选线平台");
     expect(html).toContain("智能选型");
     expect(html).toContain("赛道分析");
     expect(html).not.toContain("采用当前推荐");

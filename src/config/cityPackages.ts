@@ -87,7 +87,7 @@ export const wuhanCityPackage: CityPackage = {
   id: "wuhan",
   name: "武汉",
   displayName: "武汉马拉松",
-  marathonName: "武汉马拉松赛道空间选线平台",
+  marathonName: "马拉松赛道空间选线平台",
   mapCenter: [114.32, 30.58],
   mapZoom: 12,
   routePlans: wuhanRoutePlans,
