@@ -46,7 +46,9 @@ describe("GisSelectionPanel", () => {
     expect(html).toContain("自动推荐线");
     expect(html).toContain("自动推荐控制点");
     expect(html).toContain("生成自动推荐线");
+    expect(html).toContain("control-point-generator-grid");
     expect(html).toContain("automatic-control-point-builder");
+    expect(html.indexOf("manual-control-point-builder")).toBeLessThan(html.indexOf("automatic-control-point-builder"));
     expect(html).not.toContain("城市景观线");
     expect((html.match(/class="[^"]*gis-waypoint-route-button/g) ?? [])).toHaveLength(2);
     expect(html).toContain("硬性合规规则");

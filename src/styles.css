@@ -1831,6 +1831,13 @@ textarea {
   font-size: 10px;
 }
 
+.control-point-generator-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(145px, 0.85fr);
+  gap: 8px;
+  align-items: start;
+}
+
 .automatic-control-point-builder,
 .manual-control-point-builder {
   display: grid;
@@ -1877,6 +1884,18 @@ textarea {
 .automatic-control-point-builder button.primary:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.control-point-generator-grid .manual-control-point-header,
+.control-point-generator-grid .manual-control-point-row {
+  grid-template-columns: minmax(70px, 1.4fr) minmax(56px, 0.8fr) minmax(56px, 0.8fr) 36px;
+  gap: 4px;
+}
+
+@media (max-width: 520px) {
+  .control-point-generator-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .manual-builder-heading {

@@ -191,111 +191,113 @@ export function GisSelectionPanel({
           ))}
         </div>
 
-        {autoRecommendedPlan && (
-          <div className="automatic-control-point-builder">
+        <div className="control-point-generator-grid">
+          <div className="manual-control-point-builder">
             <div className="manual-builder-heading">
-              <strong>{autoRecommendedPlan.name}</strong>
-              <span>{controlPointSourceLabelForPlan(autoRecommendedPlan)} · {autoRecommendedPlan.description}</span>
+              <strong>手动输入控制点</strong>
+              <span>用户手动输入控制点 · 示例控制点已填入</span>
             </div>
-            <p className="gis-tool-hint">{autoRecommendedPlan.features[0]}</p>
-            <div className="automatic-control-point-summary">
-              <span>{autoRecommendedPlan.waypoints.length} 个推荐控制点</span>
-              <span>{formatRouteDistance(autoRecommendedPlan.targetDistanceKm)} km</span>
-            </div>
-            <button
-              type="button"
-              className="primary"
-              disabled={!canGenerate || isGenerating}
-              title={routeButtonTitle}
-              onClick={() => onGenerateRoute(autoRecommendedPlan.id)}
-            >
-              生成自动推荐线
-            </button>
-          </div>
-        )}
-
-        <div className="manual-control-point-builder">
-          <div className="manual-builder-heading">
-            <strong>手动输入控制点</strong>
-            <span>用户手动输入控制点 · 示例控制点已填入</span>
-          </div>
-          <label className="manual-route-name-field">
-            <span>路线名称</span>
-            <input
-              type="text"
-              value={manualRouteName}
-              onChange={(event) => setManualRouteName(event.currentTarget.value)}
-            />
-          </label>
-          <div className="manual-import-actions">
-            <button type="button" onClick={() => setManualImportOpen((current) => !current)}>输入数据</button>
-            <label>
-              读取本地 JSON/MD
+            <label className="manual-route-name-field">
+              <span>路线名称</span>
               <input
-                type="file"
-                accept=".json,.md,.markdown,.txt"
-                onChange={(event) => readManualControlPointFile(event.currentTarget.files?.[0])}
+                type="text"
+                value={manualRouteName}
+                onChange={(event) => setManualRouteName(event.currentTarget.value)}
               />
             </label>
-          </div>
-          {manualImportOpen && (
-            <div className="manual-import-editor">
-              <label className="manual-import-field">
-                <span>JSON / Markdown 控制点</span>
-                <textarea
-                  value={manualImportText}
-                  placeholder='JSON 示例：[{"name":"起点","lon":114.30230,"lat":30.60287}]'
-                  onChange={(event) => setManualImportText(event.currentTarget.value)}
+            <div className="manual-import-actions">
+              <button type="button" onClick={() => setManualImportOpen((current) => !current)}>输入数据</button>
+              <label>
+                读取本地 JSON/MD
+                <input
+                  type="file"
+                  accept=".json,.md,.markdown,.txt"
+                  onChange={(event) => readManualControlPointFile(event.currentTarget.files?.[0])}
                 />
               </label>
-              <button type="button" onClick={() => applyManualImport(manualImportText)}>应用输入数据</button>
+            </div>
+            {manualImportOpen && (
+              <div className="manual-import-editor">
+                <label className="manual-import-field">
+                  <span>JSON / Markdown 控制点</span>
+                  <textarea
+                    value={manualImportText}
+                    placeholder='JSON 示例：[{"name":"起点","lon":114.30230,"lat":30.60287}]'
+                    onChange={(event) => setManualImportText(event.currentTarget.value)}
+                  />
+                </label>
+                <button type="button" onClick={() => applyManualImport(manualImportText)}>应用输入数据</button>
+              </div>
+            )}
+            {manualImportMessage && <p className="manual-import-message">{manualImportMessage}</p>}
+            <div className="manual-control-point-table" aria-label="手动输入控制点表">
+              <div className="manual-control-point-header">
+                <span>名称</span>
+                <span>经度</span>
+                <span>纬度</span>
+                <span>操作</span>
+              </div>
+              {manualRows.map((row, index) => (
+                <div className="manual-control-point-row" key={row.id}>
+                  <input
+                    type="text"
+                    aria-label={`第 ${index + 1} 个控制点名称`}
+                    value={row.label}
+                    onChange={(event) => updateManualRow(row.id, "label", event.currentTarget.value)}
+                  />
+                  <input
+                    type="number"
+                    step="0.00001"
+                    aria-label={`第 ${index + 1} 个控制点经度`}
+                    value={row.longitude}
+                    onChange={(event) => updateManualRow(row.id, "longitude", event.currentTarget.value)}
+                  />
+                  <input
+                    type="number"
+                    step="0.00001"
+                    aria-label={`第 ${index + 1} 个控制点纬度`}
+                    value={row.latitude}
+                    onChange={(event) => updateManualRow(row.id, "latitude", event.currentTarget.value)}
+                  />
+                  <button type="button" onClick={() => removeManualRow(row.id)} disabled={manualRows.length <= 2}>
+                    删除
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="manual-control-point-actions">
+              <button type="button" onClick={addManualRow}>添加控制点</button>
+              <button type="button" onClick={resetManualRowsToExample}>恢复示例控制点</button>
+              <button type="button" className="primary" onClick={generateManualRoute} disabled={manualRouteDisabled}>
+                生成手动路线
+              </button>
+            </div>
+            <p className="gis-tool-hint">系统会按输入顺序吸附到最近路网节点，再分段生成完整路线。</p>
+            {manualError && <p className="manual-control-point-error">{manualError}</p>}
+          </div>
+
+          {autoRecommendedPlan && (
+            <div className="automatic-control-point-builder">
+              <div className="manual-builder-heading">
+                <strong>{autoRecommendedPlan.name}</strong>
+                <span>{controlPointSourceLabelForPlan(autoRecommendedPlan)} · {autoRecommendedPlan.description}</span>
+              </div>
+              <p className="gis-tool-hint">{autoRecommendedPlan.features[0]}</p>
+              <div className="automatic-control-point-summary">
+                <span>{autoRecommendedPlan.waypoints.length} 个推荐控制点</span>
+                <span>{formatRouteDistance(autoRecommendedPlan.targetDistanceKm)} km</span>
+              </div>
+              <button
+                type="button"
+                className="primary"
+                disabled={!canGenerate || isGenerating}
+                title={routeButtonTitle}
+                onClick={() => onGenerateRoute(autoRecommendedPlan.id)}
+              >
+                生成自动推荐线
+              </button>
             </div>
           )}
-          {manualImportMessage && <p className="manual-import-message">{manualImportMessage}</p>}
-          <div className="manual-control-point-table" aria-label="手动输入控制点表">
-            <div className="manual-control-point-header">
-              <span>名称</span>
-              <span>经度</span>
-              <span>纬度</span>
-              <span>操作</span>
-            </div>
-            {manualRows.map((row, index) => (
-              <div className="manual-control-point-row" key={row.id}>
-                <input
-                  type="text"
-                  aria-label={`第 ${index + 1} 个控制点名称`}
-                  value={row.label}
-                  onChange={(event) => updateManualRow(row.id, "label", event.currentTarget.value)}
-                />
-                <input
-                  type="number"
-                  step="0.00001"
-                  aria-label={`第 ${index + 1} 个控制点经度`}
-                  value={row.longitude}
-                  onChange={(event) => updateManualRow(row.id, "longitude", event.currentTarget.value)}
-                />
-                <input
-                  type="number"
-                  step="0.00001"
-                  aria-label={`第 ${index + 1} 个控制点纬度`}
-                  value={row.latitude}
-                  onChange={(event) => updateManualRow(row.id, "latitude", event.currentTarget.value)}
-                />
-                <button type="button" onClick={() => removeManualRow(row.id)} disabled={manualRows.length <= 2}>
-                  删除
-                </button>
-              </div>
-            ))}
-          </div>
-          <div className="manual-control-point-actions">
-            <button type="button" onClick={addManualRow}>添加控制点</button>
-            <button type="button" onClick={resetManualRowsToExample}>恢复示例控制点</button>
-            <button type="button" className="primary" onClick={generateManualRoute} disabled={manualRouteDisabled}>
-              生成手动路线
-            </button>
-          </div>
-          <p className="gis-tool-hint">系统会按输入顺序吸附到最近路网节点，再分段生成完整路线。</p>
-          {manualError && <p className="manual-control-point-error">{manualError}</p>}
         </div>
       </section>
 
