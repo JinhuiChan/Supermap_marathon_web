@@ -1,4 +1,4 @@
-import type { WaypointRoutePlan } from "../data/profileRoutePlanner";
+import { controlPointSourceLabelForPlan, type WaypointRoutePlan } from "../data/profileRoutePlanner";
 import type { Coordinate } from "../domain/routeMetrics";
 
 interface RouteWaypointPanelProps {
@@ -28,6 +28,10 @@ export function RouteWaypointPanel({ activeRouteId, routePlans }: RouteWaypointP
         <p className="route-waypoint-empty">点击生成或选择路线后查看起点、途经控制点和终点。</p>
       ) : (
         <>
+          <div className="route-control-point-source">
+            <span>控制点来源</span>
+            <strong>{controlPointSourceLabelForPlan(plan)}</strong>
+          </div>
           {plan.controlPointMode === "auto-recommended" && (
             <div className="route-recommendation-basis">
               <strong>自动推荐依据</strong>

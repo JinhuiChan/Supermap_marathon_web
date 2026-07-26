@@ -57,6 +57,7 @@ export function recommendAutoControlPointRoutePlan(input: ControlPointRecommenda
     color: "#7c3aed",
     targetDistanceKm: 42.195,
     controlPointMode: "auto-recommended",
+    controlPointSourceLabel: "系统自动推荐控制点",
     selectionProfile: input.selectionProfile ?? "balanced",
     seedPoints: selected.slice(0, 4).map((candidate) => cloneCoordinate(candidate.coordinate)),
     candidateProfileIds: ["osm-balanced", "osm-scenic", "osm-main-road", "osm-river-scenic"],

@@ -19,6 +19,8 @@ describe("RouteWaypointPanel", () => {
     expect(html).toContain("江汉关钟楼");
     expect(html).toContain("青山江滩");
     expect(html).toContain("114.30230, 30.60287");
+    expect(html).toContain("控制点来源");
+    expect(html).toContain("用户手动导入控制点");
   });
 
   it("renders an empty state before a route is selected", () => {
@@ -34,6 +36,8 @@ describe("RouteWaypointPanel", () => {
     );
 
     expect(html).toContain("自动推荐线");
+    expect(html).toContain("控制点来源");
+    expect(html).toContain("系统自动推荐控制点");
     expect(html).toContain("自动推荐依据");
     expect(html).toContain("城市包数据自动推荐");
   });

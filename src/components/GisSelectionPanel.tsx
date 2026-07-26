@@ -1,5 +1,5 @@
 import { activeCityPackage, type CityPackage } from "../config/cityPackages";
-import type { WaypointRoutePlan } from "../data/profileRoutePlanner";
+import { controlPointSourceLabelForPlan, type WaypointRoutePlan } from "../data/profileRoutePlanner";
 
 export interface GisPlanningSettings {
   targetDistanceKm: number;
@@ -96,6 +96,7 @@ export function GisSelectionPanel({
               onClick={() => onGenerateRoute(plan.id)}
               style={{ borderLeftColor: plan.color }}
             >
+              <em className="gis-route-source-badge">{controlPointSourceLabelForPlan(plan)}</em>
               <strong style={{ color: plan.color }}>{plan.name}</strong>
               <span>{formatRouteDistance(plan.targetDistanceKm)} km · {plan.description}</span>
               <small>{plan.waypoints.length} 个途经控制点 · {plan.audience}</small>

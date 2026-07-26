@@ -6,12 +6,15 @@ import { haversineKm } from "../domain/roadAttributes";
 
 export const waypointHitRadiusKm = 2;
 
+export type ControlPointMode = "manual" | "auto-recommended";
+
 export interface WaypointRoutePlan {
   id: string;
   name: string;
   color: string;
   targetDistanceKm: number;
-  controlPointMode?: "manual" | "auto-recommended";
+  controlPointMode?: ControlPointMode;
+  controlPointSourceLabel?: string;
   selectionProfile?: RouteSelectionProfile;
   seedPoints?: Coordinate[];
   candidateProfileIds?: string[];
@@ -24,7 +27,7 @@ export interface WaypointRoutePlan {
   features: string[];
 }
 
-export const waypointRoutePlans: WaypointRoutePlan[] = [
+const manualWaypointRoutePlans: WaypointRoutePlan[] = [
   {
     id: "waypoint-east-lake",
     name: "东湖线",
@@ -110,7 +113,25 @@ export const waypointRoutePlans: WaypointRoutePlan[] = [
   }
 ];
 
+export const waypointRoutePlans: WaypointRoutePlan[] = manualWaypointRoutePlans.map((plan) => ({
+  controlPointMode: "manual" as const,
+  controlPointSourceLabel: "用户手动导入控制点",
+  ...plan
+}));
+
 export type WaypointRouteId = typeof waypointRoutePlans[number]["id"];
+
+export function controlPointModeForPlan(plan: WaypointRoutePlan): ControlPointMode {
+  return plan.controlPointMode ?? "manual";
+}
+
+export function controlPointSourceLabelForPlan(plan: WaypointRoutePlan): string {
+  return plan.controlPointSourceLabel ?? (
+    controlPointModeForPlan(plan) === "auto-recommended"
+      ? "系统自动推荐控制点"
+      : "用户手动导入控制点"
+  );
+}
 
 const waypointProfileMap: Record<WaypointRouteId, RouteSelectionProfile> = {
   "waypoint-east-lake": "scenic",

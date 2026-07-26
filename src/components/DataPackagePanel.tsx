@@ -1,6 +1,10 @@
 import { activeCityPackage, type CityPackage } from "../config/cityPackages";
 import { getCityPackageChecklist, summarizeCityPackageChecklist } from "../config/cityPackageChecklist";
-import type { WaypointRoutePlan } from "../data/profileRoutePlanner";
+import {
+  controlPointModeForPlan,
+  controlPointSourceLabelForPlan,
+  type WaypointRoutePlan
+} from "../data/profileRoutePlanner";
 
 interface DataPackageItem {
   name: string;
@@ -34,6 +38,8 @@ export function buildWaypointCsv(routePlans: WaypointRoutePlan[] = activeCityPac
     [
       "route_id",
       "route_name",
+      "control_point_source",
+      "control_point_mode",
       "sequence",
       "label",
       "longitude",
@@ -47,6 +53,8 @@ export function buildWaypointCsv(routePlans: WaypointRoutePlan[] = activeCityPac
       plan.waypoints.map((waypoint, index) => [
         plan.id,
         plan.name,
+        controlPointSourceLabelForPlan(plan),
+        controlPointModeForPlan(plan),
         String(index + 1),
         waypoint.label,
         waypoint.coordinate[0].toFixed(5),

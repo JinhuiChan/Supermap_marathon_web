@@ -48,6 +48,13 @@ describe("GisSelectionPanel", () => {
     expect(html).toContain("硬性合规规则");
   });
 
+  it("distinguishes manually imported control-point routes from the auto-recommended route", () => {
+    const html = renderPanel();
+
+    expect((html.match(/手动导入控制点/g) ?? [])).toHaveLength(3);
+    expect((html.match(/自动推荐控制点/g) ?? [])).toHaveLength(1);
+  });
+
   it("renders route buttons from the provided city package route plans", () => {
     const customPlan = {
       ...activeCityPackage.routePlans[0],

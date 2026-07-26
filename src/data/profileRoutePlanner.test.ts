@@ -73,6 +73,8 @@ describe("profileRoutePlanner", () => {
       "waypoint-riverside",
       "waypoint-city-scenic"
     ]);
+    expect(waypointRoutePlans.every((plan) => plan.controlPointMode === "manual")).toBe(true);
+    expect(waypointRoutePlans.every((plan) => plan.controlPointSourceLabel === "用户手动导入控制点")).toBe(true);
 
     const eastLake = waypointRoutePlans.find((plan) => plan.id === "waypoint-east-lake");
     const riverside = waypointRoutePlans.find((plan) => plan.id === "waypoint-riverside");
