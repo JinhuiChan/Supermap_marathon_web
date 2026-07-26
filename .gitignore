@@ -156,3 +156,6 @@ __pycache__/
 
 # Test/temp data files
 test-temp/
+
+# Isolated Codex feature worktrees
+.worktrees/
