@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import App, { routeCompareLimit, updateComparedRouteIds } from "./App";
+import App, { routeCompareLimit, updateComparedRouteIds, upsertManualRoutePlan } from "./App";
 import { activeCityPackage, type CityPackage } from "./config/cityPackages";
 
 describe("App", () => {
@@ -62,6 +62,22 @@ describe("App", () => {
     expect(updateComparedRouteIds(["east", "riverside", "city"], "extra")).toEqual(["east", "riverside", "city", "extra"]);
     expect(updateComparedRouteIds(["east", "riverside", "city", "extra"], "overflow")).toEqual(["east", "riverside", "city", "extra"]);
     expect(updateComparedRouteIds(["east", "riverside"], "city")).toEqual(["east", "riverside", "city"]);
+  });
+
+  it("adds user-entered manual route plans without replacing preset routes", () => {
+    const manualPlan = {
+      ...activeCityPackage.routePlans[0],
+      id: "manual-user-1",
+      name: "用户手动路线",
+      controlPointSourceLabel: "用户手动输入控制点"
+    };
+    const next = upsertManualRoutePlan(activeCityPackage.routePlans, manualPlan);
+    const updated = upsertManualRoutePlan(next, { ...manualPlan, name: "用户手动路线二次编辑" });
+
+    expect(next.slice(0, activeCityPackage.routePlans.length)).toEqual(activeCityPackage.routePlans);
+    expect(next.at(-1)).toBe(manualPlan);
+    expect(updated).toHaveLength(next.length);
+    expect(updated.at(-1)?.name).toBe("用户手动路线二次编辑");
   });
 
   it("can render from a provided city package instead of hard-coded Wuhan data", () => {

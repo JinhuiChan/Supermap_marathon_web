@@ -50,6 +50,12 @@ function appendGeneratedComparedRouteId(current: string[], id: string, limit = r
   return [...current.filter((item) => item !== id).slice(-(limit - 1)), id];
 }
 
+export function upsertManualRoutePlan(current: WaypointRoutePlan[], plan: WaypointRoutePlan): WaypointRoutePlan[] {
+  const existingIndex = current.findIndex((item) => item.id === plan.id);
+  if (existingIndex === -1) return [...current, plan];
+  return current.map((item, index) => index === existingIndex ? plan : item);
+}
+
 function formatGenerationProgress(routeName: string, event: FullOsmRouteProgressEvent): string {
   switch (event.stage) {
     case "graph":
@@ -70,8 +76,12 @@ function formatGenerationProgress(routeName: string, event: FullOsmRouteProgress
 }
 
 export default function App({ cityPackage = activeCityPackage, initialLayerVisibility }: AppProps = {}) {
-  const routePlans = cityPackage.routePlans;
   const supportPoints = cityPackage.supportPoints;
+  const [manualRoutePlans, setManualRoutePlans] = useState<WaypointRoutePlan[]>([]);
+  const routePlans = useMemo(
+    () => [...cityPackage.routePlans, ...manualRoutePlans],
+    [cityPackage.routePlans, manualRoutePlans]
+  );
   const cityRouteCompareLimit = routePlans.length;
   const [workspaceMode, setWorkspaceMode] = useState<GisWorkspaceMode>("selection");
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
@@ -110,6 +120,7 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
 
     setRoadGeoJson(null);
     setRoutes([]);
+    setManualRoutePlans([]);
     setActiveRouteId("");
     setComparedRouteIds([]);
     setGenerationStatus("Loading full OSM road network for route generation");
@@ -142,7 +153,18 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
     const plan = routePlans.find((p) => p.id === routeId);
     if (!plan) return;
 
-    setActiveRouteId(routeId);
+    startRouteGeneration(plan);
+  };
+
+  const generateManualRoute = (plan: WaypointRoutePlan) => {
+    setManualRoutePlans((current) => upsertManualRoutePlan(current, plan));
+    startRouteGeneration(plan);
+  };
+
+  const startRouteGeneration = (plan: WaypointRoutePlan) => {
+    if (!roadGeoJson || isGenerating) return;
+
+    setActiveRouteId(plan.id);
     setGenerationStatus(`Generating ${plan.name} with ${plan.waypoints.length} control points`);
     setGenerationProgress(8);
     setIsGenerating(true);
@@ -244,6 +266,7 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
               generateDisabledReason={generateDisabledReason}
               isGenerating={isGenerating}
               onGenerateRoute={generateRoute}
+              onGenerateManualRoute={generateManualRoute}
             />
             <RouteWaypointPanel activeRouteId={activeRouteId} routePlans={routePlans} />
           </aside>

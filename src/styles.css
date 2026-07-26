@@ -1831,6 +1831,113 @@ textarea {
   font-size: 10px;
 }
 
+.manual-control-point-builder {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #dce7ee;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fbfcfd;
+}
+
+.manual-builder-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.manual-builder-heading strong {
+  color: #173a52;
+  font-size: 13px;
+}
+
+.manual-builder-heading span {
+  color: #607284;
+  font-size: 11px;
+  text-align: right;
+}
+
+.manual-route-name-field {
+  display: grid;
+  gap: 5px;
+}
+
+.manual-route-name-field span,
+.manual-control-point-header span {
+  color: #607284;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.manual-route-name-field input,
+.manual-control-point-row input {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid #d7e2eb;
+  border-radius: 6px;
+  padding: 0 8px;
+  background: #ffffff;
+  color: #203244;
+  font: inherit;
+  font-size: 11px;
+}
+
+.manual-control-point-table {
+  display: grid;
+  gap: 5px;
+}
+
+.manual-control-point-header,
+.manual-control-point-row {
+  display: grid;
+  grid-template-columns: minmax(92px, 1.4fr) minmax(72px, 0.9fr) minmax(72px, 0.9fr) 44px;
+  gap: 5px;
+  align-items: center;
+}
+
+.manual-control-point-row button,
+.manual-control-point-actions button {
+  min-height: 30px;
+  border: 1px solid #d7e2eb;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #173a52;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.manual-control-point-row button:disabled,
+.manual-control-point-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.manual-control-point-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.manual-control-point-actions button.primary {
+  border-color: #0f766e;
+  background: #0f766e;
+  color: #ffffff;
+}
+
+.manual-control-point-error {
+  margin: 0;
+  border: 1px solid #f0b8b8;
+  border-radius: 6px;
+  padding: 7px 8px;
+  background: #fff7f7;
+  color: #9f2f2f;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .gis-scenario-list {
   display: grid;
   gap: 8px;

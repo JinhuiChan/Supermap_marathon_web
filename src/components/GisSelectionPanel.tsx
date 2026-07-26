@@ -1,4 +1,10 @@
+import { useState } from "react";
 import { activeCityPackage, type CityPackage } from "../config/cityPackages";
+import {
+  buildManualControlPointRoutePlan,
+  manualControlPointExampleRows,
+  type ManualControlPointRow
+} from "../data/manualControlPointPlan";
 import { controlPointSourceLabelForPlan, type WaypointRoutePlan } from "../data/profileRoutePlanner";
 
 export interface GisPlanningSettings {
@@ -22,6 +28,7 @@ interface GisSelectionPanelProps {
   generateDisabledReason?: string;
   isGenerating?: boolean;
   onGenerateRoute: (routeId: string) => void;
+  onGenerateManualRoute?: (plan: WaypointRoutePlan) => void;
 }
 
 export const defaultGisPlanningSettings: GisPlanningSettings = {
@@ -64,11 +71,57 @@ export function GisSelectionPanel({
   canGenerate,
   generateDisabledReason,
   isGenerating = false,
-  onGenerateRoute
+  onGenerateRoute,
+  onGenerateManualRoute
 }: GisSelectionPanelProps) {
+  const [manualRouteName, setManualRouteName] = useState("我的自定义路线");
+  const [manualRows, setManualRows] = useState<ManualControlPointRow[]>(manualControlPointExampleRows);
+  const [manualRouteSerial, setManualRouteSerial] = useState(1);
+  const [manualError, setManualError] = useState("");
   const routeButtonTitle = !canGenerate && generateDisabledReason
     ? generateDisabledReason
     : isGenerating ? "正在搜索合规路线" : undefined;
+  const manualRouteDisabled = !canGenerate || isGenerating || !onGenerateManualRoute;
+
+  function updateManualRow(index: number, field: keyof ManualControlPointRow, value: string) {
+    setManualRows((current) => current.map((row, rowIndex) =>
+      rowIndex === index ? { ...row, [field]: value } : row
+    ));
+  }
+
+  function addManualRow() {
+    setManualRows((current) => [
+      ...current,
+      { label: `控制点 ${current.length + 1}`, longitude: "", latitude: "" }
+    ]);
+  }
+
+  function removeManualRow(index: number) {
+    setManualRows((current) => current.filter((_, rowIndex) => rowIndex !== index));
+  }
+
+  function resetManualRowsToExample() {
+    setManualRouteName("我的自定义路线");
+    setManualRows(manualControlPointExampleRows);
+    setManualError("");
+  }
+
+  function generateManualRoute() {
+    const result = buildManualControlPointRoutePlan({
+      id: `manual-user-${manualRouteSerial}`,
+      name: manualRouteName,
+      rows: manualRows
+    });
+
+    if (!result.ok) {
+      setManualError(result.error);
+      return;
+    }
+
+    setManualError("");
+    setManualRouteSerial((current) => current + 1);
+    onGenerateManualRoute?.(result.plan);
+  }
 
   return (
     <aside className="gis-selection-panel" aria-label={`${cityPackage.displayName}赛道选型`}>
@@ -103,6 +156,65 @@ export function GisSelectionPanel({
               <small>{plan.features[0]}</small>
             </button>
           ))}
+        </div>
+
+        <div className="manual-control-point-builder">
+          <div className="manual-builder-heading">
+            <strong>手动输入控制点</strong>
+            <span>用户手动输入控制点 · 示例控制点已填入</span>
+          </div>
+          <label className="manual-route-name-field">
+            <span>路线名称</span>
+            <input
+              type="text"
+              value={manualRouteName}
+              onChange={(event) => setManualRouteName(event.currentTarget.value)}
+            />
+          </label>
+          <div className="manual-control-point-table" aria-label="手动输入控制点表">
+            <div className="manual-control-point-header">
+              <span>名称</span>
+              <span>经度</span>
+              <span>纬度</span>
+              <span>操作</span>
+            </div>
+            {manualRows.map((row, index) => (
+              <div className="manual-control-point-row" key={`${index}-${row.label}`}>
+                <input
+                  type="text"
+                  aria-label={`第 ${index + 1} 个控制点名称`}
+                  value={row.label}
+                  onChange={(event) => updateManualRow(index, "label", event.currentTarget.value)}
+                />
+                <input
+                  type="number"
+                  step="0.00001"
+                  aria-label={`第 ${index + 1} 个控制点经度`}
+                  value={row.longitude}
+                  onChange={(event) => updateManualRow(index, "longitude", event.currentTarget.value)}
+                />
+                <input
+                  type="number"
+                  step="0.00001"
+                  aria-label={`第 ${index + 1} 个控制点纬度`}
+                  value={row.latitude}
+                  onChange={(event) => updateManualRow(index, "latitude", event.currentTarget.value)}
+                />
+                <button type="button" onClick={() => removeManualRow(index)} disabled={manualRows.length <= 2}>
+                  删除
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="manual-control-point-actions">
+            <button type="button" onClick={addManualRow}>添加控制点</button>
+            <button type="button" onClick={resetManualRowsToExample}>恢复示例控制点</button>
+            <button type="button" className="primary" onClick={generateManualRoute} disabled={manualRouteDisabled}>
+              生成手动路线
+            </button>
+          </div>
+          <p className="gis-tool-hint">系统会按输入顺序吸附到最近路网节点，再分段生成完整路线。</p>
+          {manualError && <p className="manual-control-point-error">{manualError}</p>}
         </div>
       </section>
 

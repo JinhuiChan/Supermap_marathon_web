@@ -55,6 +55,18 @@ describe("GisSelectionPanel", () => {
     expect((html.match(/自动推荐控制点/g) ?? [])).toHaveLength(1);
   });
 
+  it("renders a manual control-point input builder with editable examples", () => {
+    const html = renderPanel();
+
+    expect(html).toContain("手动输入控制点");
+    expect(html).toContain("示例控制点");
+    expect(html).toContain("用户手动输入控制点");
+    expect(html).toContain("我的自定义路线");
+    expect(html).toContain("生成手动路线");
+    expect(html).toContain("114.30230");
+    expect(html).toContain("30.60287");
+  });
+
   it("renders route buttons from the provided city package route plans", () => {
     const customPlan = {
       ...activeCityPackage.routePlans[0],
