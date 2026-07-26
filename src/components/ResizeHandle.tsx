@@ -29,6 +29,10 @@ export function resizeDeltaForKey(
   return null;
 }
 
+export function shouldResetFromClickDetail(detail: number): boolean {
+  return detail >= 2;
+}
+
 export function ResizeHandle({
   orientation,
   ariaLabel,
@@ -72,6 +76,9 @@ export function ResizeHandle({
       aria-valuemin={min}
       aria-valuemax={max}
       aria-valuenow={Math.round(value)}
+      onClick={(event) => {
+        if (shouldResetFromClickDetail(event.detail)) onReset();
+      }}
       onDoubleClick={onReset}
       onKeyDown={handleKeyDown}
       onPointerDown={(event) => {

@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { ResizeHandle, resizeDeltaForKey } from "./ResizeHandle";
+import { ResizeHandle, resizeDeltaForKey, shouldResetFromClickDetail } from "./ResizeHandle";
 
 describe("ResizeHandle", () => {
   it("renders an accessible separator with the current value", () => {
@@ -28,5 +28,11 @@ describe("ResizeHandle", () => {
     expect(resizeDeltaForKey("ArrowUp", "horizontal", false)).toBe(-10);
     expect(resizeDeltaForKey("ArrowDown", "horizontal", true)).toBe(24);
     expect(resizeDeltaForKey("ArrowDown", "vertical", false)).toBeNull();
+  });
+
+  it("treats the second click as a reset gesture across browser event variants", () => {
+    expect(shouldResetFromClickDetail(1)).toBe(false);
+    expect(shouldResetFromClickDetail(2)).toBe(true);
+    expect(shouldResetFromClickDetail(3)).toBe(true);
   });
 });
