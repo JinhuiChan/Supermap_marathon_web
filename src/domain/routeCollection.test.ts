@@ -56,4 +56,18 @@ describe("routeCollection", () => {
 
     expect(routes.map((route) => route.id)).toEqual(["profile-balanced", "profile-scenic"]);
   });
+
+  it("assigns a distinct display color when a generated route would visually repeat another route", () => {
+    const similarGreenRoute = {
+      ...baseRoute,
+      id: "manual-user-1",
+      name: "manual route",
+      color: "#0f766e"
+    };
+
+    const routes = upsertGeneratedRoute([{ ...baseRoute, color: "#00a86b" }], similarGreenRoute);
+
+    expect(routes[1].color).not.toBe("#0f766e");
+    expect(new Set(routes.map((route) => route.color))).toHaveLength(2);
+  });
 });
