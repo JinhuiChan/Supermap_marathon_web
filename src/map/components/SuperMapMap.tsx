@@ -424,8 +424,8 @@ function MapGenerationProgress({
       onPointerDown={beginDrag}
     >
       <div className="map-generation-progress-title">
-        <span>鎷栧姩鐢熸垚杩涘害</span>
-        <small>{status || "姝ｅ湪鎼滅储鍚堣璺嚎"}</small>
+        <span>拖动生成进度</span>
+        <small>{status || "正在搜索合规路线"}</small>
       </div>
       <div
         role="progressbar"

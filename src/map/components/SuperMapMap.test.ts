@@ -77,15 +77,15 @@ describe("getVisibleMapRoutes", () => {
         layerVisibility: { routes: true, roadNetwork: true },
         isGenerating: true,
         generationProgress: 41,
-        generationStatus: "婊ㄦ睙绾? connected 3/9 control-point legs",
+        generationStatus: "滨江线: connected 3/9 control-point legs",
         onSelectRoute: () => {}
       })
     );
 
     expect(html).toContain("map-generation-progress");
-    expect(html).toContain("鎷栧姩鐢熸垚杩涘害");
+    expect(html).toContain("拖动生成进度");
     expect(html).toContain('aria-valuenow="41"');
-    expect(html).toContain("婊ㄦ睙绾? connected 3/9 control-point legs");
+    expect(html).toContain("滨江线: connected 3/9 control-point legs");
   });
 
   it("clamps dragged generation progress inside the map panel", () => {
