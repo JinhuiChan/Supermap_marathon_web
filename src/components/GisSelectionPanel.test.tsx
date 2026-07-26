@@ -44,7 +44,7 @@ describe("GisSelectionPanel", () => {
     expect(html).toContain("东湖线");
     expect(html).toContain("滨江线");
     expect(html).toContain("城市景观线");
-    expect((html.match(/class="[^"]*gis-waypoint-route-button/g) ?? [])).toHaveLength(3);
+    expect((html.match(/class="[^"]*gis-waypoint-route-button/g) ?? [])).toHaveLength(4);
     expect(html).toContain("硬性合规规则");
   });
 

@@ -2170,6 +2170,35 @@ textarea {
   line-height: 1.55;
 }
 
+.route-recommendation-basis {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #d9e2ec;
+  border-left: 3px solid #7c3aed;
+  border-radius: 7px;
+  padding: 9px 10px;
+  background: #fbfaff;
+}
+
+.route-recommendation-basis strong {
+  color: #4c1d95;
+  font-size: 12px;
+}
+
+.route-recommendation-basis p,
+.route-recommendation-basis ul {
+  margin: 0;
+  color: #516273;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.route-recommendation-basis ul {
+  display: grid;
+  gap: 4px;
+  padding-left: 16px;
+}
+
 .route-waypoint-list {
   display: grid;
   gap: 8px;

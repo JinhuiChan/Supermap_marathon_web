@@ -57,9 +57,10 @@ describe("App", () => {
     expect(html).not.toContain("has-candidates");
   });
 
-  it("limits route comparison to the three configured route plans", () => {
+  it("limits route comparison to the configured city package route plans", () => {
     expect(routeCompareLimit).toBe(activeCityPackage.routePlans.length);
-    expect(updateComparedRouteIds(["east", "riverside", "city"], "extra")).toEqual(["east", "riverside", "city"]);
+    expect(updateComparedRouteIds(["east", "riverside", "city"], "extra")).toEqual(["east", "riverside", "city", "extra"]);
+    expect(updateComparedRouteIds(["east", "riverside", "city", "extra"], "overflow")).toEqual(["east", "riverside", "city", "extra"]);
     expect(updateComparedRouteIds(["east", "riverside"], "city")).toEqual(["east", "riverside", "city"]);
   });
 

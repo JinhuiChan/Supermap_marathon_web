@@ -68,6 +68,12 @@ describe("profileRoutePlanner", () => {
   });
 
   test("keeps visible route plans aligned with requested differentiated constraints", () => {
+    expect(waypointRoutePlans.map((plan) => plan.id)).toEqual([
+      "waypoint-east-lake",
+      "waypoint-riverside",
+      "waypoint-city-scenic"
+    ]);
+
     const eastLake = waypointRoutePlans.find((plan) => plan.id === "waypoint-east-lake");
     const riverside = waypointRoutePlans.find((plan) => plan.id === "waypoint-riverside");
     const cityScenic = waypointRoutePlans.find((plan) => plan.id === "waypoint-city-scenic");

@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, test } from "vitest";
 import realWuhanRoadsText from "../../public/data/local-wuhan-marathon-area-roads.geojson?raw";
+import { activeCityPackage } from "../config/cityPackages";
 import type { Coordinate, MarathonRoute } from "../domain/routeMetrics";
 import { evaluateRouteQuality } from "../domain/routeQuality";
 import { haversineKm } from "../domain/roadAttributes";
@@ -69,6 +70,18 @@ describe("osmMarathonRoute visible real-data waypoint routes", () => {
       const summary = summarizeWaypointHits(route!, plan.waypoints.map((waypoint) => waypoint.coordinate), waypointHitRadiusKm);
       expect(summary.hitCount, plan.id).toBeGreaterThanOrEqual(minimumWaypointHitsByRouteId.get(plan.id) ?? 4);
     }
+  }, 60000);
+
+  test("generates a quality-gated route for the auto-recommended control-point plan", () => {
+    const plan = activeCityPackage.routePlans.find((routePlan) => routePlan.id === "waypoint-auto-recommended");
+    expect(plan).toBeDefined();
+
+    const route = buildWaypointRoute(realWuhanRoads, plan!, { maxAttempts: 5 });
+
+    expect(route).not.toBeNull();
+    expect(route!.lengthKm, plan!.id).toBeCloseTo(plan!.targetDistanceKm, 3);
+    expect(evaluateRouteQuality(route!, { targetDistanceKm: plan!.targetDistanceKm }), plan!.id).toMatchObject({ passed: true, issues: [] });
+    expect(summarizeWaypointHits(route!, plan!.waypoints.map((waypoint) => waypoint.coordinate), waypointHitRadiusKm).hitCount).toBeGreaterThanOrEqual(5);
   }, 60000);
 
 });

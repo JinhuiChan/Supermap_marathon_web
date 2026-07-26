@@ -27,23 +27,36 @@ export function RouteWaypointPanel({ activeRouteId, routePlans }: RouteWaypointP
       {!plan ? (
         <p className="route-waypoint-empty">点击生成或选择路线后查看起点、途经控制点和终点。</p>
       ) : (
-        <ol className="route-waypoint-list">
-          {plan.waypoints.map((waypoint, index) => {
-            const isStart = index === 0;
-            const isEnd = index === plan.waypoints.length - 1;
-            const role = isStart ? "起点" : isEnd ? "终点" : "途经控制点";
+        <>
+          {plan.controlPointMode === "auto-recommended" && (
+            <div className="route-recommendation-basis">
+              <strong>自动推荐依据</strong>
+              <p>{plan.features[0]}</p>
+              {plan.recommendationBasis?.length ? (
+                <ul>
+                  {plan.recommendationBasis.map((item) => <li key={item}>{item}</li>)}
+                </ul>
+              ) : null}
+            </div>
+          )}
+          <ol className="route-waypoint-list">
+            {plan.waypoints.map((waypoint, index) => {
+              const isStart = index === 0;
+              const isEnd = index === plan.waypoints.length - 1;
+              const role = isStart ? "起点" : isEnd ? "终点" : "途经控制点";
 
-            return (
-              <li key={`${plan.id}-${waypoint.label}-${index}`}>
-                <b className={isStart ? "start" : isEnd ? "end" : "control"}>{role}</b>
-                <div>
-                  <strong>{displayLabel(waypoint.label)}</strong>
-                  <span>{formatCoordinate(waypoint.coordinate)}</span>
-                </div>
-              </li>
-            );
-          })}
-        </ol>
+              return (
+                <li key={`${plan.id}-${waypoint.label}-${index}`}>
+                  <b className={isStart ? "start" : isEnd ? "end" : "control"}>{role}</b>
+                  <div>
+                    <strong>{displayLabel(waypoint.label)}</strong>
+                    <span>{formatCoordinate(waypoint.coordinate)}</span>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </>
       )}
     </section>
   );

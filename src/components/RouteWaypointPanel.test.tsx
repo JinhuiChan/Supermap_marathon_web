@@ -28,6 +28,16 @@ describe("RouteWaypointPanel", () => {
     expect(html).not.toContain("<ol");
   });
 
+  it("shows the recommendation basis for the auto-recommended route", () => {
+    const html = renderToStaticMarkup(
+      <RouteWaypointPanel activeRouteId="waypoint-auto-recommended" routePlans={activeCityPackage.routePlans} />
+    );
+
+    expect(html).toContain("自动推荐线");
+    expect(html).toContain("自动推荐依据");
+    expect(html).toContain("城市包数据自动推荐");
+  });
+
   it("uses the provided city package route plans for waypoint lookup", () => {
     const customPlan = {
       ...activeCityPackage.routePlans[0],

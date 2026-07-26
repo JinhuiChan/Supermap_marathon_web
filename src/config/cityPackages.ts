@@ -1,4 +1,5 @@
 import type { MapPoiLabel } from "../map/layers/PoiLabelLayer";
+import { recommendAutoControlPointRoutePlan } from "../data/controlPointRecommender";
 import type { WaypointRoutePlan } from "../data/profileRoutePlanner";
 import { waypointRoutePlans } from "../data/profileRoutePlanner";
 import type { SupportPoint } from "../data/supportPoints";
@@ -71,6 +72,17 @@ export interface CityPackage {
 
 const iServerBaseUrl = "http://127.0.0.1:8090/iserver";
 
+export const wuhanRoutePlans: WaypointRoutePlan[] = [
+  ...waypointRoutePlans,
+  recommendAutoControlPointRoutePlan({
+    cityId: "wuhan",
+    manualRoutePlans: waypointRoutePlans,
+    landmarks: wuhanLandmarkPoiLabels,
+    supportPoints,
+    routingProfile: wuhanRoutingProfile
+  })
+];
+
 export const wuhanCityPackage: CityPackage = {
   id: "wuhan",
   name: "武汉",
@@ -78,7 +90,7 @@ export const wuhanCityPackage: CityPackage = {
   marathonName: "武汉马拉松赛道空间选线平台",
   mapCenter: [114.32, 30.58],
   mapZoom: 12,
-  routePlans: waypointRoutePlans,
+  routePlans: wuhanRoutePlans,
   supportPoints,
   landmarks: wuhanLandmarkPoiLabels,
   routingProfile: wuhanRoutingProfile,

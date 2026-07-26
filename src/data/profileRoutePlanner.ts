@@ -11,6 +11,11 @@ export interface WaypointRoutePlan {
   name: string;
   color: string;
   targetDistanceKm: number;
+  controlPointMode?: "manual" | "auto-recommended";
+  selectionProfile?: RouteSelectionProfile;
+  seedPoints?: Coordinate[];
+  candidateProfileIds?: string[];
+  recommendationBasis?: string[];
   waypoints: Array<{ label: string; coordinate: Coordinate }>;
   note: string;
   description: string;
@@ -382,15 +387,18 @@ export function buildWaypointRoute(
   plan: WaypointRoutePlan,
   options: { maxAttempts?: number } = {}
 ): MarathonRoute | null {
+  const manualRouteId = plan.id as WaypointRouteId;
+  const selectionProfile = plan.selectionProfile ?? waypointProfileMap[manualRouteId] ?? "balanced";
   const seedPoints = [
-    ...(waypointProfileSeedPoints[plan.id] ?? profileRoutePlans[waypointProfileMap[plan.id]].seedPoints)
+    ...(plan.seedPoints ?? waypointProfileSeedPoints[manualRouteId] ?? profileRoutePlans[selectionProfile].seedPoints)
   ];
-  const profileRoute = buildBestRouteForSelectionProfile(geojson, waypointProfileMap[plan.id], {
+  const candidateProfileIds = plan.candidateProfileIds ?? waypointCandidateProfileIds[manualRouteId];
+  const profileRoute = buildBestRouteForSelectionProfile(geojson, selectionProfile, {
     targetDistanceKm: plan.targetDistanceKm,
     seedPoints,
-    profileIds: waypointCandidateProfileIds[plan.id],
+    profileIds: candidateProfileIds,
     waypointGuidance: plan.waypoints.map((waypoint) => waypoint.coordinate)
-  }) ?? buildBestRouteForSelectionProfile(geojson, waypointProfileMap[plan.id], {
+  }) ?? buildBestRouteForSelectionProfile(geojson, selectionProfile, {
     targetDistanceKm: plan.targetDistanceKm,
     seedPoints
   });
