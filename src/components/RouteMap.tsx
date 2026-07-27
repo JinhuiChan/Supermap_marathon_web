@@ -1,5 +1,6 @@
 import { activeCityPackage, type CityPackage } from "../config/cityPackages";
 import type { WaypointRoutePlan } from "../data/profileRoutePlanner";
+import { countComparedCandidateRoutes } from "../domain/routeComparisonStatus";
 import type { MarathonRoute } from "../domain/routeMetrics";
 import { buildRouteDirectionMarkers } from "../map/layers/RouteLayer";
 
@@ -20,6 +21,7 @@ export function RouteMap({
   comparedRouteIds,
   onSelectRoute
 }: RouteMapProps) {
+  const comparedCandidateRouteCount = countComparedCandidateRoutes(routes, comparedRouteIds);
   const minLon = 114.25;
   const maxLon = 114.47;
   const minLat = 30.52;
@@ -34,7 +36,7 @@ export function RouteMap({
     <section className="map-panel" aria-label={`${cityPackage.displayName}赛道地图`}>
       <div className="map-toolbar">
         <span>{cityPackage.name} WebGIS 赛道工作台 · SuperMap iServer</span>
-        <strong>{comparedRouteIds.length}/{routePlans.length} 已加入对比</strong>
+        <strong>{comparedCandidateRouteCount}/{routes.length} 已加入对比</strong>
       </div>
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="路线示意图">
         <rect x="0" y="0" width="100" height="100" rx="0" className="map-bg" />

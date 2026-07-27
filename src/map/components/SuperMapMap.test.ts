@@ -51,7 +51,7 @@ describe("getVisibleMapRoutes", () => {
     expect(getVisibleMapRoutes(routes, "checked", ["checked"], false)).toEqual([]);
   });
 
-  it("renders the comparison count as an independent map status with the route-plan limit", () => {
+  it("renders the comparison count from the current candidate route library", () => {
     const html = renderToStaticMarkup(
       createElement(SuperMapMap, {
         routes: [],
@@ -63,8 +63,8 @@ describe("getVisibleMapRoutes", () => {
       })
     );
 
-    expect(html).toContain("3/3 已加入对比");
-    expect(html).not.toContain("3/5 已加入对比");
+    expect(html).toContain("0/0 已加入对比");
+    expect(html).not.toContain("3/3 已加入对比");
   });
 
   it("renders route generation progress on the map instead of the selection panel", () => {
@@ -99,19 +99,19 @@ describe("getVisibleMapRoutes", () => {
     });
   });
 
-  it("uses the provided route-plan count in the map comparison status", () => {
+  it("ignores compared ids that are not present in the current candidate route library", () => {
     const html = renderToStaticMarkup(
       createElement(SuperMapMap, {
-        routes: [],
-        activeRouteId: "",
-        comparedRouteIds: ["one", "two"],
+        routes: [makeRoute("one"), makeRoute("two")],
+        activeRouteId: "one",
+        comparedRouteIds: ["one", "missing"],
         routePlans: activeCityPackage.routePlans.slice(0, 2),
         layerVisibility: { routes: true, roadNetwork: true },
         onSelectRoute: () => {}
       })
     );
 
-    expect(html).toContain("2/2 已加入对比");
-    expect(html).not.toContain("2/3 已加入对比");
+    expect(html).toContain("1/2 已加入对比");
+    expect(html).not.toContain("2/2 已加入对比");
   });
 });

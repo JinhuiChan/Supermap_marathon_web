@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { activeCityPackage, type CityPackage } from "../../config/cityPackages";
 import type { WaypointRoutePlan } from "../../data/profileRoutePlanner";
+import { countComparedCandidateRoutes } from "../../domain/routeComparisonStatus";
 import type { Coordinate, MarathonRoute } from "../../domain/routeMetrics";
 import { fetchIserverPoiLabels } from "../../services/iserverPoi";
 import { RouteMap } from "../../components/RouteMap";
@@ -77,6 +78,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
     () => getVisibleMapRoutes(routes, activeRouteId, comparedRouteIds, layerVisibility.routes),
     [routes, activeRouteId, comparedRouteIds, layerVisibility.routes]
   );
+  const comparedCandidateRouteCount = countComparedCandidateRoutes(routes, comparedRouteIds);
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<MapEngine | null>(null);
   const viewportTimersRef = useRef<number[]>([]);
@@ -350,7 +352,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
         <span>
           {cityPackage.name} WebGIS 赛道工作台 · iDesktop 发布图 + 路线/POI 矢量图层
         </span>
-        <strong>{comparedRouteIds.length}/{routePlans.length} 已加入对比</strong>
+        <strong>{comparedCandidateRouteCount}/{routes.length} 已加入对比</strong>
       </div>
       <MapGenerationProgress isGenerating={isGenerating} progress={generationProgress} status={generationStatus} />
       <div className="road-network-status">{roadNetworkStatus}</div>
