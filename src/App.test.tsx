@@ -1,11 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import App, {
-  buildRouteDeleteConfirmation,
-  routeCompareLimit,
-  updateComparedRouteIds,
-  upsertManualRoutePlan
-} from "./App";
+import App, { routeCompareLimit, updateComparedRouteIds, upsertManualRoutePlan } from "./App";
 import { activeCityPackage, type CityPackage } from "./config/cityPackages";
 
 describe("App", () => {
@@ -76,12 +71,6 @@ describe("App", () => {
     expect(updateComparedRouteIds(["east", "riverside", "auto"], "extra")).toEqual(["east", "riverside", "auto"]);
     expect(updateComparedRouteIds(["east", "riverside"], "auto")).toEqual(["east", "riverside", "auto"]);
     expect(updateComparedRouteIds(["east", "riverside"], "city")).toEqual(["east", "riverside", "city"]);
-  });
-
-  it("explains that a deleted route can be regenerated", () => {
-    expect(buildRouteDeleteConfirmation("测试路线")).toBe(
-      "确定删除“测试路线”吗？删除后可使用原控制点重新生成。"
-    );
   });
 
   it("adds user-entered manual route plans without replacing preset routes", () => {

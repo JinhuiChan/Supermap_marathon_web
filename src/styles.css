@@ -2668,6 +2668,97 @@ textarea {
   outline-offset: 2px;
 }
 
+.route-delete-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(16, 35, 49, 0.42);
+  backdrop-filter: blur(3px);
+}
+
+.route-delete-dialog {
+  width: min(420px, 100%);
+  border: 1px solid rgba(190, 58, 58, 0.2);
+  border-radius: 12px;
+  padding: 20px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(16, 35, 49, 0.24);
+}
+
+.route-delete-eyebrow {
+  display: block;
+  color: #a93838;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.route-delete-dialog h2 {
+  margin: 7px 0 0;
+  color: #173a52;
+  font-size: 20px;
+}
+
+.route-delete-dialog p {
+  margin: 11px 0 0;
+  color: #607284;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.route-delete-dialog p strong {
+  display: block;
+  margin-bottom: 3px;
+  color: #203244;
+  font-size: 14px;
+}
+
+.route-delete-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.route-delete-dialog-actions button {
+  min-height: 36px;
+  border-radius: 7px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.route-delete-cancel {
+  border: 1px solid #d7e2eb;
+  background: #ffffff;
+  color: #42586b;
+}
+
+.route-delete-confirm {
+  border: 1px solid #a93838;
+  background: #a93838;
+  color: #ffffff;
+}
+
+.route-delete-cancel:hover {
+  background: #f5f8fa;
+}
+
+.route-delete-confirm:hover {
+  border-color: #8f2525;
+  background: #8f2525;
+}
+
+.route-delete-dialog-actions button:focus-visible {
+  outline: 3px solid rgba(190, 58, 58, 0.2);
+  outline-offset: 2px;
+}
+
 .gis-analysis-dock .side-section,
 .gis-utility-dock .side-section {
   box-shadow: none;

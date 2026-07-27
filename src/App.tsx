@@ -14,6 +14,7 @@ import {
 } from "./components/GisSelectionPanel";
 import { LayerControlPanel } from "./components/LayerControlPanel";
 import { RouteAnalysisPanel } from "./components/RouteAnalysisPanel";
+import { RouteDeleteDialog } from "./components/RouteDeleteDialog";
 import { RouteDetails } from "./components/RouteDetails";
 import { RouteQualityPanel } from "./components/RouteQualityPanel";
 import { ResizeHandle } from "./components/ResizeHandle";
@@ -82,10 +83,6 @@ export function upsertManualRoutePlan(current: WaypointRoutePlan[], plan: Waypoi
   return current.map((item, index) => index === existingIndex ? plan : item);
 }
 
-export function buildRouteDeleteConfirmation(routeName: string): string {
-  return `确定删除“${routeName}”吗？删除后可使用原控制点重新生成。`;
-}
-
 function formatGenerationProgress(routeName: string, event: FullOsmRouteProgressEvent): string {
   switch (event.stage) {
     case "graph":
@@ -137,6 +134,7 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
   ));
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
   const [routes, setRoutes] = useState<MarathonRoute[]>([]);
+  const [pendingDeleteRouteId, setPendingDeleteRouteId] = useState("");
   const [roadGeoJson, setRoadGeoJson] = useState<unknown>(null);
   const [generationStatus, setGenerationStatus] = useState(`正在加载${cityPackage.name}道路矢量网络`);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -164,6 +162,7 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
       .map((score) => routeById.get(score.id))
       .filter((route): route is MarathonRoute => Boolean(route));
   }, [routes]);
+  const pendingDeleteRoute = routes.find((route) => route.id === pendingDeleteRouteId) ?? null;
 
   useEffect(() => {
     writeStoredWorkspaceSize(getWorkspaceStorage(), WORKSPACE_STORAGE_KEYS.sidebarWidth, sidebarWidth);
@@ -208,6 +207,7 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
     setRoadGeoJson(null);
     setRoutes([]);
     setManualRoutePlans([]);
+    setPendingDeleteRouteId("");
     setActiveRouteId("");
     setComparedRouteIds([]);
     setGenerationStatus("Loading full OSM road network for route generation");
@@ -314,15 +314,23 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
     });
   };
 
-  const deleteRoute = (routeId: string) => {
-    const route = routes.find((item) => item.id === routeId);
-    if (!route || !window.confirm(buildRouteDeleteConfirmation(route.name))) return;
+  const confirmDeleteRoute = () => {
+    if (!pendingDeleteRoute) {
+      setPendingDeleteRouteId("");
+      return;
+    }
 
-    const next = removeGeneratedRoute(routes, activeRouteId, comparedRouteIds, routeId);
+    const next = removeGeneratedRoute(
+      routes,
+      activeRouteId,
+      comparedRouteIds,
+      pendingDeleteRoute.id
+    );
     setRoutes(next.routes);
     setActiveRouteId(next.activeRouteId);
     setComparedRouteIds(next.comparedRouteIds);
-    setGenerationStatus(`已删除 ${route.name}，可使用原控制点重新生成。`);
+    setGenerationStatus(`已删除 ${pendingDeleteRoute.name}，可使用原控制点重新生成。`);
+    setPendingDeleteRouteId("");
   };
 
   const generateDisabledReason = !roadGeoJson
@@ -428,7 +436,7 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
               onSelectRoute={setActiveRouteId}
               onToggleCompare={toggleCompare}
               onAnalyzeRoute={analyzeRoute}
-              onDeleteRoute={deleteRoute}
+              onDeleteRoute={setPendingDeleteRouteId}
             />
           </>
         )}
@@ -479,6 +487,13 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
           </aside>
         </details>
       </section>
+      {pendingDeleteRoute && (
+        <RouteDeleteDialog
+          routeName={pendingDeleteRoute.name}
+          onCancel={() => setPendingDeleteRouteId("")}
+          onConfirm={confirmDeleteRoute}
+        />
+      )}
     </main>
   );
 }

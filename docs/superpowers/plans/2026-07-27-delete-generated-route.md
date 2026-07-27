@@ -4,7 +4,7 @@
 
 **Goal:** Let users safely delete one generated candidate route while keeping its control points available for regeneration.
 
-**Architecture:** A pure domain helper computes the next route workspace state so active and compared IDs cannot become stale. The candidate drawer emits a route ID, while `App` owns confirmation and state updates. Styling stays scoped to the existing drawer action row.
+**Architecture:** A pure domain helper computes the next route workspace state so active and compared IDs cannot become stale. The candidate drawer emits a route ID, `App` owns pending-confirmation and deletion state, and a dedicated accessible dialog presents the destructive action. Styling stays scoped to the drawer action and dialog surfaces.
 
 **Tech Stack:** React 19, TypeScript, Vitest, Vite, CSS
 
@@ -172,18 +172,20 @@ git commit -m "Add candidate route delete action"
 **Files:**
 - Modify: `src/App.tsx`
 - Test: `src/App.test.tsx`
+- Create: `src/components/RouteDeleteDialog.tsx`
+- Test: `src/components/RouteDeleteDialog.test.tsx`
 
-- [ ] **Step 1: Add a failing static contract test**
+- [ ] **Step 1: Add a failing confirmation-dialog contract test**
 
-Export and test the confirmation text helper:
+Render the wished-for dialog and verify its accessible contract:
 
 ```ts
-import App, { buildRouteDeleteConfirmation, routeCompareLimit, updateComparedRouteIds, upsertManualRoutePlan } from "./App";
-
-it("explains that a deleted route can be regenerated", () => {
-  expect(buildRouteDeleteConfirmation("测试路线")).toBe(
-    "确定删除“测试路线”吗？删除后可使用原控制点重新生成。"
+it("explains the destructive action and how to recover", () => {
+  const html = renderToStaticMarkup(
+    <RouteDeleteDialog routeName="测试路线" onCancel={() => {}} onConfirm={() => {}} />
   );
+  expect(html).toContain('role="alertdialog"');
+  expect(html).toContain("删除后可使用原控制点重新生成。");
 });
 ```
 
@@ -195,41 +197,39 @@ Run:
 npm.cmd test -- src/App.test.tsx
 ```
 
-Expected: FAIL because `buildRouteDeleteConfirmation` is not exported.
+Expected: FAIL because `RouteDeleteDialog` does not exist.
 
-- [ ] **Step 3: Implement confirmation and state synchronization**
+- [ ] **Step 3: Implement the in-page confirmation and state synchronization**
 
-Import `removeGeneratedRoute`, add:
+Add `RouteDeleteDialog` with `role="alertdialog"`, `aria-modal="true"`, visible route name, “取消” and “确认删除” buttons. In `App`, track the pending route:
 
 ```ts
-export function buildRouteDeleteConfirmation(routeName: string): string {
-  return `确定删除“${routeName}”吗？删除后可使用原控制点重新生成。`;
-}
+const [pendingDeleteRouteId, setPendingDeleteRouteId] = useState("");
+const pendingDeleteRoute = routes.find((route) => route.id === pendingDeleteRouteId) ?? null;
 ```
 
-Inside `App`, add:
+Confirm with:
 
 ```ts
-const deleteRoute = (routeId: string) => {
-  const route = routes.find((item) => item.id === routeId);
-  if (!route || !window.confirm(buildRouteDeleteConfirmation(route.name))) return;
-
-  const next = removeGeneratedRoute(routes, activeRouteId, comparedRouteIds, routeId);
+const confirmDeleteRoute = () => {
+  if (!pendingDeleteRoute) return;
+  const next = removeGeneratedRoute(routes, activeRouteId, comparedRouteIds, pendingDeleteRoute.id);
   setRoutes(next.routes);
   setActiveRouteId(next.activeRouteId);
   setComparedRouteIds(next.comparedRouteIds);
-  setGenerationStatus(`已删除 ${route.name}，可使用原控制点重新生成。`);
+  setGenerationStatus(`已删除 ${pendingDeleteRoute.name}，可使用原控制点重新生成。`);
+  setPendingDeleteRouteId("");
 };
 ```
 
-Pass `onDeleteRoute={deleteRoute}` to `CandidateRouteDrawer`.
+Pass `onDeleteRoute={setPendingDeleteRouteId}` to `CandidateRouteDrawer`, and render the dialog while `pendingDeleteRoute` exists.
 
 - [ ] **Step 4: Run the application and component tests**
 
 Run:
 
 ```powershell
-npm.cmd test -- src/App.test.tsx src/components/CandidateRouteDrawer.test.tsx src/domain/routeCollection.test.ts
+npm.cmd test -- src/App.test.tsx src/components/RouteDeleteDialog.test.tsx src/components/CandidateRouteDrawer.test.tsx src/domain/routeCollection.test.ts
 ```
 
 Expected: all targeted tests pass.
@@ -237,7 +237,7 @@ Expected: all targeted tests pass.
 - [ ] **Step 5: Commit application integration**
 
 ```powershell
-git add src/App.tsx src/App.test.tsx
+git add src/App.tsx src/App.test.tsx src/components/RouteDeleteDialog.tsx src/components/RouteDeleteDialog.test.tsx
 git commit -m "Integrate generated route deletion"
 ```
 
