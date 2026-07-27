@@ -71,6 +71,20 @@ export interface RouteReportOptions {
   dataBasis?: string;
 }
 
+export const routeAnalysisScoreWeights = [
+  { label: "地形坡度", weight: 25, basis: "累计爬升、最大坡度、连续陡坡" },
+  { label: "通行组织", weight: 30, basis: "转弯、窄路、重复道路、拓扑风险" },
+  { label: "保障能力", weight: 25, basis: "补给、医疗、厕所、疏散与服务点覆盖" },
+  { label: "景观体验", weight: 20, basis: "地标、滨水/跨江、遮荫与城市展示" }
+] as const;
+
+export const superMapEvidenceChain = [
+  "SuperMap iDesktopX 制图发布道路网络与约束图层",
+  "SuperMap iServer 提供 WMS/REST 地图与空间数据服务",
+  "SuperMap iClient/Leaflet 在 Web 端叠加路线、POI 与风险定位",
+  "本地 GeoJSON 路网用于 Walk 路径生成、拓扑检测与报告归档"
+] as const;
+
 const DEFAULT_REPORT_BRAND = "\u6b66\u6c49\u9a6c\u62c9\u677e\u8d5b\u9053\u667a\u80fd\u9009\u7ebf\u7cfb\u7edf";
 const DEFAULT_REPORT_DATA_BASIS =
   "\u6570\u636e\u4f9d\u636e\uff1aSuperMap iServer \u53d1\u5e03\u7684\u9053\u8def\u7f51\u7edc WMS/REST \u670d\u52a1\u3001\u9053\u8def\u7f51\u7edc GeoJSON\u3001\u8def\u7ebf\u51e0\u4f55\u3001\u9053\u8def\u7b49\u7ea7\u3001\u5761\u5ea6/\u722c\u5347\u3001\u62d3\u6251\u68c0\u6d4b\u4e0e\u672c\u5730\u670d\u52a1\u70b9 GeoJSON\u3002";
@@ -484,8 +498,17 @@ export function buildSingleRouteHtmlReport(route: MarathonRoute, points: Support
   const body = `
     <section class="hero">
       <p>${escapeHtml(reportBrand)}</p>
-      <h1>单路线分析报告</h1>
+      <h1>赛事选线决策报告</h1>
       <strong>${escapeHtml(route.name)}</strong>
+    </section>
+    <section>
+      <h2>报告封面</h2>
+      ${renderMetricTable([
+        ["报告类型", "单路线分析报告"],
+        ["候选路线", route.name],
+        ["数据链路", "SuperMap iServer + iClient + 路网 GeoJSON + 路线指标分析"],
+        ["使用边界", "用于候选路线比选、现场复核与保障规划，不替代认证测量"]
+      ])}
     </section>
     ${renderMapSnapshot([route], points, "候选路线地图快照")}
     <section>
@@ -513,6 +536,17 @@ export function buildSingleRouteHtmlReport(route: MarathonRoute, points: Support
           </article>
         `).join("")}
       </div>
+    </section>
+    <section>
+      <h2>评分体系</h2>
+      ${renderMetricTable(routeAnalysisScoreWeights.map((item) => [
+        `${item.label} ${item.weight}%`,
+        item.basis
+      ]))}
+    </section>
+    <section>
+      <h2>SuperMap 数据链路</h2>
+      ${renderList([...superMapEvidenceChain])}
     </section>
     <section>
       <h2>风险复核项</h2>

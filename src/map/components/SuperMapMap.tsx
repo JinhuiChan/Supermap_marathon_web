@@ -2,6 +2,7 @@
 import { activeCityPackage, type CityPackage } from "../../config/cityPackages";
 import type { WaypointRoutePlan } from "../../data/profileRoutePlanner";
 import { countComparedCandidateRoutes } from "../../domain/routeComparisonStatus";
+import type { AnalysisMapFocus } from "../../domain/routeAnalysisMapFocus";
 import type { Coordinate, MarathonRoute } from "../../domain/routeMetrics";
 import { fetchIserverPoiLabels } from "../../services/iserverPoi";
 import { RouteMap } from "../../components/RouteMap";
@@ -30,6 +31,7 @@ interface SuperMapMapProps {
   isGenerating?: boolean;
   generationProgress?: number | null;
   generationStatus?: string;
+  analysisMapFocus?: AnalysisMapFocus | null;
   onSelectRoute: (id: string) => void;
 }
 
@@ -69,6 +71,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
     isGenerating = false,
     generationProgress = null,
     generationStatus = "",
+    analysisMapFocus = null,
     onSelectRoute
   } = props;
   const cityPackage = props.cityPackage ?? activeCityPackage;
@@ -265,6 +268,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
         engine.setRoadNetwork(roadNetworkFeatures);
         engine.highlightRoute(activeRouteId, comparedRouteIds);
         engine.setLayerVisibility(layerVisibility);
+        engine.setAnalysisMapFocus(analysisMapFocus);
         engineRef.current = engine;
 
         if (!cancelled) {
@@ -329,6 +333,12 @@ export function SuperMapMap(props: SuperMapMapProps) {
     engine.setVectorBasemapFeatures(vectorBasemapFeatures);
   }, [vectorBasemapFeatures, phase]);
 
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!engine || phase !== "ready") return;
+    engine.setAnalysisMapFocus(analysisMapFocus);
+  }, [analysisMapFocus, phase]);
+
   if (phase === "fallback") {
     return (
       <div className="map-panel" style={{ position: "relative" }}>
@@ -354,6 +364,13 @@ export function SuperMapMap(props: SuperMapMapProps) {
         </span>
         <strong>{comparedCandidateRouteCount}/{routes.length} 已加入对比</strong>
       </div>
+      {analysisMapFocus && (
+        <div className="map-analysis-focus">
+          <span>地图联动</span>
+          <strong>{analysisMapFocus.label}</strong>
+          <small>{analysisMapFocus.mileageLabel}</small>
+        </div>
+      )}
       <MapGenerationProgress isGenerating={isGenerating} progress={generationProgress} status={generationStatus} />
       <div className="road-network-status">{roadNetworkStatus}</div>
       {phase !== "ready" && <LoadingSpinner message={phaseMessage} />}

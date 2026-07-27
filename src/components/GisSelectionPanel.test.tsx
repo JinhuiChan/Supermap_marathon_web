@@ -65,6 +65,9 @@ describe("GisSelectionPanel", () => {
   it("renders a manual control-point input builder with editable examples", () => {
     const html = renderPanel();
 
+    expect(html).toContain("城市包导入");
+    expect(html).toContain("导入城市包 JSON");
+    expect(html).toContain("保存自动推荐 JSON");
     expect(html).toContain("手动输入控制点");
     expect(html).toContain("示例控制点");
     expect(html).toContain("用户手动输入控制点");

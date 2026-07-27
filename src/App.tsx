@@ -35,6 +35,7 @@ import {
   compareRoutes,
   type MarathonRoute
 } from "./domain/routeMetrics";
+import { buildAnalysisMapFocus, type AnalysisMapFocus } from "./domain/routeAnalysisMapFocus";
 import {
   WORKSPACE_SIZE_DEFAULTS,
   WORKSPACE_SIZE_LIMITS,
@@ -102,7 +103,9 @@ function formatGenerationProgress(routeName: string, event: FullOsmRouteProgress
   }
 }
 
-export default function App({ cityPackage = activeCityPackage, initialLayerVisibility }: AppProps = {}) {
+export default function App({ cityPackage: providedCityPackage = activeCityPackage, initialLayerVisibility }: AppProps = {}) {
+  const [importedCityPackage, setImportedCityPackage] = useState<CityPackage | null>(null);
+  const cityPackage = importedCityPackage ?? providedCityPackage;
   const supportPoints = cityPackage.supportPoints;
   const [manualRoutePlans, setManualRoutePlans] = useState<WaypointRoutePlan[]>([]);
   const routePlans = useMemo(
@@ -141,6 +144,7 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
   const [generationProgress, setGenerationProgress] = useState<number | null>(null);
   const [activeRouteId, setActiveRouteId] = useState("");
   const [comparedRouteIds, setComparedRouteIds] = useState<string[]>([]);
+  const [analysisMapFocus, setAnalysisMapFocus] = useState<AnalysisMapFocus | null>(null);
   const [mapLayerVisibility, setMapLayerVisibility] = useState<MapLayerVisibility>(
     initialLayerVisibility ?? {
       routes: true,
@@ -163,6 +167,14 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
       .filter((route): route is MarathonRoute => Boolean(route));
   }, [routes]);
   const pendingDeleteRoute = routes.find((route) => route.id === pendingDeleteRouteId) ?? null;
+
+  useEffect(() => {
+    if (!analysisMapFocus) return;
+    const focusStillVisible = routes.some((route) => route.id === analysisMapFocus.routeId);
+    if (!focusStillVisible || analysisMapFocus.routeId !== activeRoute?.id) {
+      setAnalysisMapFocus(null);
+    }
+  }, [analysisMapFocus, routes, activeRoute?.id]);
 
   useEffect(() => {
     writeStoredWorkspaceSize(getWorkspaceStorage(), WORKSPACE_STORAGE_KEYS.sidebarWidth, sidebarWidth);
@@ -210,6 +222,7 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
     setPendingDeleteRouteId("");
     setActiveRouteId("");
     setComparedRouteIds([]);
+    setAnalysisMapFocus(null);
     setGenerationStatus("Loading full OSM road network for route generation");
 
     fetch(routingUrl)
@@ -386,6 +399,7 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
           isGenerating={isGenerating}
           generationProgress={generationProgress}
           generationStatus={generationStatus}
+          analysisMapFocus={analysisMapFocus}
           onSelectRoute={setActiveRouteId}
         />
 
@@ -400,6 +414,7 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
               isGenerating={isGenerating}
               onGenerateRoute={generateRoute}
               onGenerateManualRoute={generateManualRoute}
+              onImportCityPackage={setImportedCityPackage}
             />
             <ResizeHandle
               orientation="horizontal"
@@ -450,7 +465,11 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
               <>
                 <RouteDetails route={activeRoute} />
                 <RouteQualityPanel route={activeRoute} />
-                <RouteAnalysisPanel route={activeRoute} supportPoints={supportPoints} />
+                <RouteAnalysisPanel
+                  route={activeRoute}
+                  supportPoints={supportPoints}
+                  onSelectRiskLocation={(note) => setAnalysisMapFocus(buildAnalysisMapFocus(activeRoute, note))}
+                />
                 <ComparisonPanel routes={comparedRoutes} selectionProfile="balanced" />
                 <ExportPanel
                   primaryRoute={activeRoute}

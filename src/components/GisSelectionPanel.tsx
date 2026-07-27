@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { activeCityPackage, type CityPackage } from "../config/cityPackages";
+import { parseCityPackageImportText } from "../config/cityPackageImport";
 import {
   buildManualControlPointRoutePlan,
   createManualControlPointRow,
@@ -10,6 +11,7 @@ import {
   type ManualControlPointRow
 } from "../data/manualControlPointPlan";
 import { controlPointSourceLabelForPlan, type WaypointRoutePlan } from "../data/profileRoutePlanner";
+import { buildRoutePlanJsonExport } from "../domain/routeJsonExport";
 
 export interface GisPlanningSettings {
   targetDistanceKm: number;
@@ -33,6 +35,7 @@ interface GisSelectionPanelProps {
   isGenerating?: boolean;
   onGenerateRoute: (routeId: string) => void;
   onGenerateManualRoute?: (plan: WaypointRoutePlan) => void;
+  onImportCityPackage?: (cityPackage: CityPackage) => void;
 }
 
 export const defaultGisPlanningSettings: GisPlanningSettings = {
@@ -76,7 +79,8 @@ export function GisSelectionPanel({
   generateDisabledReason,
   isGenerating = false,
   onGenerateRoute,
-  onGenerateManualRoute
+  onGenerateManualRoute,
+  onImportCityPackage
 }: GisSelectionPanelProps) {
   const [manualRouteName, setManualRouteName] = useState("手动推荐线");
   const [manualRows, setManualRows] = useState<ManualControlPointRow[]>(manualControlPointExampleRows);
@@ -85,6 +89,9 @@ export function GisSelectionPanel({
   const [manualImportText, setManualImportText] = useState("");
   const [manualImportMessage, setManualImportMessage] = useState("");
   const [manualImportOpen, setManualImportOpen] = useState(false);
+  const [cityImportText, setCityImportText] = useState("");
+  const [cityImportMessage, setCityImportMessage] = useState("");
+  const [cityImportOpen, setCityImportOpen] = useState(false);
   const manualRouteDisabled = !canGenerate || isGenerating || !onGenerateManualRoute;
   const autoRecommendedPlan = routePlans.find((plan) => plan.controlPointMode === "auto-recommended");
   const autoRecommendButtonTitle = !canGenerate && generateDisabledReason
@@ -163,6 +170,39 @@ export function GisSelectionPanel({
     onGenerateManualRoute?.(result.plan);
   }
 
+  function applyCityPackageImport(text: string) {
+    const result = parseCityPackageImportText(text, cityPackage);
+    if (!result.ok) {
+      setCityImportMessage(result.error);
+      return;
+    }
+
+    setCityImportMessage(result.summary);
+    onImportCityPackage?.(result.cityPackage);
+  }
+
+  function readCityPackageFile(file: File | undefined) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = typeof reader.result === "string" ? reader.result : "";
+      setCityImportText(text);
+      setCityImportOpen(true);
+      applyCityPackageImport(text);
+    };
+    reader.onerror = () => setCityImportMessage("读取城市包文件失败");
+    reader.readAsText(file, "utf-8");
+  }
+
+  function saveAutoRecommendedJson() {
+    if (!autoRecommendedPlan) return;
+    downloadText(
+      buildRoutePlanJsonExport(autoRecommendedPlan, cityPackage),
+      `${autoRecommendedPlan.name}-control-points.json`,
+      "application/json;charset=utf-8"
+    );
+  }
+
   return (
     <aside className="gis-selection-panel" aria-label={`${cityPackage.displayName}赛道选型`}>
       <div className="gis-panel-heading">
@@ -170,6 +210,36 @@ export function GisSelectionPanel({
         <h2>{cityPackage.displayName}赛道选型</h2>
         <p>统一起点与途经点作为廊道参考方向，路线由路网 Walk 算法沿合规道路生成。</p>
       </div>
+
+      <section className="gis-tool-group city-package-import">
+        <h3>城市包导入</h3>
+        <p className="gis-tool-hint">支持导入城市名称、地图中心、路网 GeoJSON、SuperMap iServer/WMS 地址等 JSON 配置，用于切换城市演示。</p>
+        <div className="manual-import-actions">
+          <button type="button" onClick={() => setCityImportOpen((current) => !current)}>导入城市包 JSON</button>
+          <label>
+            读取城市包文件
+            <input
+              type="file"
+              accept=".json"
+              onChange={(event) => readCityPackageFile(event.currentTarget.files?.[0])}
+            />
+          </label>
+        </div>
+        {cityImportOpen && (
+          <div className="manual-import-editor">
+            <label className="manual-import-field">
+              <span>城市包 JSON</span>
+              <textarea
+                value={cityImportText}
+                placeholder='{"name":"长沙","mapCenter":[112.94,28.23],"routingRoadNetworkGeoJsonUrl":"data/changsha/roads.geojson"}'
+                onChange={(event) => setCityImportText(event.currentTarget.value)}
+              />
+            </label>
+            <button type="button" onClick={() => applyCityPackageImport(cityImportText)}>应用城市包</button>
+          </div>
+        )}
+        {cityImportMessage && <p className="manual-import-message">{cityImportMessage}</p>}
+      </section>
 
       <section className="gis-tool-group gis-step-group">
         <h3>1. 添加控制点</h3>
@@ -181,15 +251,24 @@ export function GisSelectionPanel({
 
         <div className="manual-control-point-builder">
           {autoRecommendedPlan && (
-            <button
-              type="button"
-              className="manual-auto-recommend-action"
-              disabled={!canGenerate || isGenerating}
-              title={autoRecommendButtonTitle}
-              onClick={() => onGenerateRoute(autoRecommendedPlan.id)}
-            >
-              生成自动推荐路线
-            </button>
+            <div className="manual-auto-action-row">
+              <button
+                type="button"
+                className="manual-auto-recommend-action"
+                disabled={!canGenerate || isGenerating}
+                title={autoRecommendButtonTitle}
+                onClick={() => onGenerateRoute(autoRecommendedPlan.id)}
+              >
+                生成自动推荐路线
+              </button>
+              <button
+                type="button"
+                className="manual-auto-save-action"
+                onClick={saveAutoRecommendedJson}
+              >
+                保存自动推荐 JSON
+              </button>
+            </div>
           )}
           <div className="manual-builder-heading">
             <strong>手动输入控制点</strong>
@@ -293,4 +372,14 @@ export function GisSelectionPanel({
       </section>
     </aside>
   );
+}
+
+function downloadText(content: string, filename: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }

@@ -1,14 +1,20 @@
 import type { MarathonRoute } from "../domain/routeMetrics";
 import type { SupportPoint } from "../data/supportPoints";
-import { analyzeRoute } from "../domain/routeAnalysis";
+import {
+  analyzeRoute,
+  routeAnalysisScoreWeights,
+  superMapEvidenceChain,
+  type RouteRiskLocationNote
+} from "../domain/routeAnalysis";
 import { evaluateRouteQuality } from "../domain/routeQuality";
 
 interface RouteAnalysisPanelProps {
   route: MarathonRoute;
   supportPoints: SupportPoint[];
+  onSelectRiskLocation?: (note: RouteRiskLocationNote) => void;
 }
 
-export function RouteAnalysisPanel({ route, supportPoints }: RouteAnalysisPanelProps) {
+export function RouteAnalysisPanel({ route, supportPoints, onSelectRiskLocation }: RouteAnalysisPanelProps) {
   const analysis = analyzeRoute(route, supportPoints);
   const quality = evaluateRouteQuality(route, { targetDistanceKm: route.targetDistanceKm });
   const targetDistanceKm = route.targetDistanceKm ?? 42.195;
@@ -50,6 +56,24 @@ export function RouteAnalysisPanel({ route, supportPoints }: RouteAnalysisPanelP
         <span>当前方案</span>
         <strong>{analysis.routeName}</strong>
         <p>{analysis.recommendation}</p>
+      </div>
+      <div className="analysis-list score-weights">
+        <strong>评分体系</strong>
+        <div className="score-weight-grid">
+          {routeAnalysisScoreWeights.map((item) => (
+            <article key={item.label} className="score-weight-item">
+              <b>{item.label} {item.weight}%</b>
+              <span style={{ width: `${item.weight}%` }} />
+              <p>{item.basis}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+      <div className="analysis-list supermap-evidence-chain">
+        <strong>SuperMap 数据链路</strong>
+        {superMapEvidenceChain.map((item) => (
+          <p key={item}>{item}</p>
+        ))}
       </div>
       <div className="analysis-card-grid">
         {analysis.dimensionCards.map((card) => (
@@ -99,7 +123,10 @@ export function RouteAnalysisPanel({ route, supportPoints }: RouteAnalysisPanelP
         {analysis.riskLocationNotes.length > 0 ? (
           analysis.riskLocationNotes.map((item) => (
             <article key={item.id} className="risk-location-item">
-              <b>{item.issue}</b>
+              <div>
+                <b>{item.issue}</b>
+                <button type="button" onClick={() => onSelectRiskLocation?.(item)}>定位到地图</button>
+              </div>
               <p>{item.mileageHint}</p>
               <small>{item.mapHint} {item.action}</small>
             </article>

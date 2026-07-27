@@ -114,4 +114,28 @@ describe("getVisibleMapRoutes", () => {
     expect(html).toContain("1/2 已加入对比");
     expect(html).not.toContain("2/2 已加入对比");
   });
+
+  it("shows the active analysis risk focus in the map toolbar", () => {
+    const html = renderToStaticMarkup(
+      createElement(SuperMapMap, {
+        routes: [makeRoute("one")],
+        activeRouteId: "one",
+        comparedRouteIds: ["one"],
+        routePlans: activeCityPackage.routePlans,
+        layerVisibility: { routes: true, roadNetwork: true },
+        analysisMapFocus: {
+          routeId: "one",
+          issueId: "max-grade",
+          label: "最大坡度",
+          coordinate: [114.01, 30.01],
+          mileageLabel: "30-40km"
+        },
+        onSelectRoute: () => {}
+      })
+    );
+
+    expect(html).toContain("地图联动");
+    expect(html).toContain("最大坡度");
+    expect(html).toContain("30-40km");
+  });
 });

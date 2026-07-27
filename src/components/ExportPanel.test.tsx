@@ -37,6 +37,7 @@ describe("ExportPanel", () => {
 
     expect(html).toContain("单路线分析报告");
     expect(html).toContain("导出单路线 HTML 报告");
+    expect(html).toContain("保存当前路线 JSON");
     expect(html).toContain("多路线比选报告");
     expect(html).toContain("disabled");
   });

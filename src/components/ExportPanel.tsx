@@ -5,6 +5,7 @@ import {
   buildRouteComparisonHtmlReport,
   buildSingleRouteHtmlReport
 } from "../domain/routeAnalysis";
+import { buildRouteJsonExport } from "../domain/routeJsonExport";
 
 interface ExportPanelProps {
   primaryRoute?: MarathonRoute | null;
@@ -25,10 +26,20 @@ export function ExportPanel({ primaryRoute, routes, supportPoints, cityPackage =
   const comparisonReport = routes.length >= 2
     ? buildRouteComparisonHtmlReport(routes, supportPoints, reportOptions)
     : "";
+  const routeJson = singleReportRoute ? buildRouteJsonExport(singleReportRoute, cityPackage) : "";
 
   const downloadHtml = (content: string, filename: string) => {
     if (!content) return;
-    const blob = new Blob([content], { type: "text/html;charset=utf-8" });
+    downloadText(content, filename, "text/html;charset=utf-8");
+  };
+
+  const downloadJson = (content: string, filename: string) => {
+    if (!content) return;
+    downloadText(content, filename, "application/json;charset=utf-8");
+  };
+
+  const downloadText = (content: string, filename: string, type: string) => {
+    const blob = new Blob([content], { type });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -50,6 +61,13 @@ export function ExportPanel({ primaryRoute, routes, supportPoints, cityPackage =
           disabled={!singleReportRoute}
         >
           导出单路线 HTML 报告
+        </button>
+        <button
+          type="button"
+          onClick={() => downloadJson(routeJson, "marathon-current-route.json")}
+          disabled={!singleReportRoute}
+        >
+          保存当前路线 JSON
         </button>
       </div>
 

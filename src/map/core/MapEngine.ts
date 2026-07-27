@@ -1,5 +1,6 @@
 ﻿import type { BasemapMode } from "../../config/supermap";
 import type { SupportPoint } from "../../data/supportPoints";
+import type { AnalysisMapFocus } from "../../domain/routeAnalysisMapFocus";
 import type { Coordinate } from "../../domain/routeMetrics";
 import type { MarathonRoute } from "../../domain/routeMetrics";
 import {
@@ -47,6 +48,7 @@ export class MapEngine {
   private vectorBasemapLayers: unknown[] = [];
   private roadNetworkLayers: unknown[] = [];
   private planningPointLayers: unknown[] = [];
+  private analysisFocusLayer: unknown = null;
   private vectorBasemapFeatures: VectorBasemapFeature[] = [];
   private roadNetworkFeatures: RoadNetworkFeature[] = [];
   private basemapLayers: Partial<Record<BasemapMode, unknown>> = {};
@@ -216,6 +218,45 @@ export class MapEngine {
     this.renderPlanningPoints();
   }
 
+  setAnalysisMapFocus(focus: AnalysisMapFocus | null): void {
+    if (this.destroyed || !this.map) return;
+    this.clearAnalysisFocusLayer();
+    if (!focus) return;
+
+    const L = (window as unknown as Record<string, unknown>).L as Record<string, unknown> | undefined;
+    if (!L) return;
+    const divIcon = L.divIcon as ((opts: Record<string, unknown>) => unknown) | undefined;
+    const marker = L.marker as ((latlng: [number, number], opts?: Record<string, unknown>) => unknown) | undefined;
+    if (!divIcon || !marker) return;
+
+    const icon = divIcon({
+      className: "analysis-focus-marker",
+      html: "<span></span>",
+      iconSize: [34, 34],
+      iconAnchor: [17, 17]
+    });
+    const layer = marker([focus.coordinate[1], focus.coordinate[0]], {
+      icon,
+      pane: "planning-point-pane",
+      keyboard: false
+    });
+    const leafletMarker = layer as {
+      addTo?: (m: unknown) => unknown;
+      bindTooltip?: (label: string, opts?: Record<string, unknown>) => unknown;
+      bindPopup?: (label: string, opts?: Record<string, unknown>) => unknown;
+    };
+    leafletMarker.bindTooltip?.(`${focus.label} · ${focus.mileageLabel}`, {
+      direction: "top",
+      permanent: true,
+      className: "analysis-focus-label",
+      opacity: 0.98
+    });
+    leafletMarker.bindPopup?.(`<strong>${focus.label}</strong><br>${focus.mileageLabel}`, { maxWidth: 240 });
+    leafletMarker.addTo?.(this.map);
+    this.analysisFocusLayer = layer;
+    this.fitBounds([focus.coordinate]);
+  }
+
   private renderRoadNetwork(): void {
     if (this.destroyed || !this.map) return;
     this.clearRoadNetworkLayers();
@@ -340,6 +381,7 @@ export class MapEngine {
     this.clearVectorBasemapLayers();
     this.clearRoadNetworkLayers();
     this.clearPlanningPointLayers();
+    this.clearAnalysisFocusLayer();
     this.basemapLayers = {};
     this.activeBasemapLayer = null;
     this.container.innerHTML = "";
@@ -674,6 +716,13 @@ export class MapEngine {
       }
     }
     this.planningPointLayers = [];
+  }
+
+  private clearAnalysisFocusLayer(): void {
+    if (this.analysisFocusLayer && this.map) {
+      (this.map as { removeLayer?: (l: unknown) => void }).removeLayer?.(this.analysisFocusLayer);
+    }
+    this.analysisFocusLayer = null;
   }
 
   private clearRoadNetworkLayers(): void {

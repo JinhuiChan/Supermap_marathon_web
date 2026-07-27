@@ -68,6 +68,9 @@ describe("HTML route reports", () => {
     expect(html).toContain("route-map");
     expect(html).toContain("<svg");
     expect(html).toContain("单路线分析报告");
+    expect(html).toContain("赛事选线决策报告");
+    expect(html).toContain("评分体系");
+    expect(html).toContain("SuperMap 数据链路");
     expect(html).toContain("东湖线");
     expect(html).toContain("风险复核项");
     expect(html).toContain("分段分析");

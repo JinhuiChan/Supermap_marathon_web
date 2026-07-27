@@ -46,6 +46,9 @@ describe("RouteAnalysisPanel", () => {
 
     expect(html).toContain("路线状态");
     expect(html).toContain("候选方案");
+    expect(html).toContain("评分体系");
+    expect(html).toContain("地形坡度 25%");
+    expect(html).toContain("SuperMap 数据链路");
     expect(html).toContain("推荐分");
     expect(html).toContain("风险项");
     expect(html).toContain("是否建议进入比选");
@@ -94,6 +97,7 @@ describe("RouteAnalysisPanel", () => {
     expect(html).toContain("0-5km");
     expect(html).toContain("30km 后疲劳与医疗观察");
     expect(html).toContain("风险定位说明");
+    expect(html).toContain("定位到地图");
     expect(html).toContain("地图里程标注");
     expect(html).toContain("修改建议闭环");
     expect(html).toContain("优化局部拓扑");
