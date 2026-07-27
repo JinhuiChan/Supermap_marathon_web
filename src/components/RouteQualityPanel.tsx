@@ -1,5 +1,5 @@
 import type { MarathonRoute } from "../domain/routeMetrics";
-import { evaluateRouteQuality } from "../domain/routeQuality";
+import { evaluateRouteQuality, type RouteQualityIssue } from "../domain/routeQuality";
 
 export function RouteQualityPanel({ route }: { route: MarathonRoute | null }) {
   if (!route) {
@@ -42,13 +42,74 @@ export function RouteQualityPanel({ route }: { route: MarathonRoute | null }) {
         ))}
       </dl>
       {report.issues.length > 0 ? (
-        <ul className="quality-issues">
-          {report.issues.map((issue) => <li key={issue.code}>{issue.label}需现场复核/优化</li>)}
-        </ul>
+        <table className="quality-issue-table">
+          <thead>
+            <tr>
+              <th>复核项</th>
+              <th>当前值</th>
+              <th>阈值</th>
+              <th>风险等级</th>
+              <th>处理建议</th>
+            </tr>
+          </thead>
+          <tbody>
+            {report.issues.map((issue) => (
+              <tr key={issue.code}>
+                <td>{issue.label}</td>
+                <td>{formatIssueActual(issue)}</td>
+                <td>{formatIssueLimit(issue)}</td>
+                <td>{getIssueSeverity(issue)}</td>
+                <td>{getIssueAction(issue)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       ) : null}
       <CertificationNotice />
     </section>
   );
+}
+
+function formatIssueActual(issue: RouteQualityIssue) {
+  if (typeof issue.actual === "boolean") return issue.actual ? "是" : "否/缺失";
+  if (issue.code === "repeated-road" || issue.code === "terrain-coverage") return `${Math.round(issue.actual * 100)}%`;
+  if (issue.code === "distance" || issue.code === "continuous-steep") return `${issue.actual.toFixed(3)} km`;
+  if (issue.code === "net-drop" || issue.code === "total-climb" || issue.code === "continuity-gap") return `${issue.actual.toFixed(1)} m`;
+  if (issue.code === "max-grade") return `${issue.actual.toFixed(1)}%`;
+  if (issue.code === "sharp-turn-density") return `${issue.actual.toFixed(2)} 次/km`;
+  return `${issue.actual}`;
+}
+
+function formatIssueLimit(issue: RouteQualityIssue) {
+  if (typeof issue.limit === "boolean") return issue.limit ? "应为是" : "应为否";
+  if (issue.code === "terrain-coverage") return `≥ ${Math.round(issue.limit * 100)}%`;
+  if (issue.code === "repeated-road") return `≤ ${Math.round(issue.limit * 100)}%`;
+  if (issue.code === "distance") return `≤ ${issue.limit.toFixed(3)} km`;
+  if (issue.code === "continuous-steep") return `≤ ${issue.limit.toFixed(1)} km`;
+  if (issue.code === "net-drop" || issue.code === "total-climb" || issue.code === "continuity-gap") return `≤ ${issue.limit.toFixed(1)} m`;
+  if (issue.code === "max-grade") return `≤ ${issue.limit.toFixed(0)}%`;
+  if (issue.code === "sharp-turn-density") return `≤ ${issue.limit.toFixed(1)} 次/km`;
+  return `≤ ${issue.limit}`;
+}
+
+function getIssueSeverity(issue: RouteQualityIssue) {
+  if (issue.code === "max-grade" || issue.code === "hairpin-turn" || issue.code === "road-alignment") return "较高";
+  if (typeof issue.actual === "number" && typeof issue.limit === "number" && issue.limit > 0 && issue.actual > issue.limit * 1.2) return "较高";
+  return "中等";
+}
+
+function getIssueAction(issue: RouteQualityIssue) {
+  const actionByCode: Partial<Record<RouteQualityIssue["code"], string>> = {
+    distance: "微调补线或截短，复核最终里程",
+    "max-grade": "改走缓坡道路或设置坡段现场复核",
+    "repeated-road": "拆分重复路段，优先选择并行替代路",
+    "local-knot": "局部重算控制点连接，消除绕行绳结",
+    "node-revisit": "调整交叉口进出方向，减少复访冲突",
+    "parallel-backtrack": "替换平行折返路段，优化交通组织",
+    "hairpin-turn": "避开发卡掉头，必要时设人工折返点"
+  };
+  const action = actionByCode[issue.code] ?? "按现场踏勘结果调整路线";
+  return `${action}；需现场复核/优化`;
 }
 
 function CertificationNotice() {

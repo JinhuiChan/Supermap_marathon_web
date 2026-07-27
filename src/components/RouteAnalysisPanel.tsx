@@ -1,6 +1,7 @@
 import type { MarathonRoute } from "../domain/routeMetrics";
 import type { SupportPoint } from "../data/supportPoints";
 import { analyzeRoute } from "../domain/routeAnalysis";
+import { evaluateRouteQuality } from "../domain/routeQuality";
 
 interface RouteAnalysisPanelProps {
   route: MarathonRoute;
@@ -9,10 +10,42 @@ interface RouteAnalysisPanelProps {
 
 export function RouteAnalysisPanel({ route, supportPoints }: RouteAnalysisPanelProps) {
   const analysis = analyzeRoute(route, supportPoints);
+  const quality = evaluateRouteQuality(route, { targetDistanceKm: route.targetDistanceKm });
+  const targetDistanceKm = route.targetDistanceKm ?? 42.195;
+  const distanceDeltaM = Math.round((route.lengthKm - targetDistanceKm) * 1000);
+  const roadAlignedPercent = Math.round((route.metrics.roadAlignedRatio ?? 0) * 100);
 
   return (
     <section className="side-section route-analysis">
       <h2>赛道分析</h2>
+      <div className={`analysis-decision ${quality.passed ? "ready" : "review"}`}>
+        <div>
+          <span>路线状态</span>
+          <strong>候选方案</strong>
+          <p>{quality.passed ? "核心指标通过，可作为推荐方案进入比选。" : "存在风险复核项，需人工复核后再作为推荐方案。"}</p>
+        </div>
+        <dl>
+          <div>
+            <dt>推荐分</dt>
+            <dd>{analysis.recommendationScore}/100</dd>
+          </div>
+          <div>
+            <dt>里程偏差</dt>
+            <dd>{distanceDeltaM >= 0 ? "+" : ""}{distanceDeltaM} m</dd>
+          </div>
+          <div>
+            <dt>风险项</dt>
+            <dd>{quality.issues.length}</dd>
+          </div>
+          <div>
+            <dt>路网贴合</dt>
+            <dd>{roadAlignedPercent}%</dd>
+          </div>
+        </dl>
+        <p className="analysis-decision-note">
+          是否建议进入比选：{quality.passed ? "建议进入比选" : "建议复核后进入比选"}；正式赛道需现场复核与认证测量。
+        </p>
+      </div>
       <div className="analysis-summary">
         <span>当前方案</span>
         <strong>{analysis.routeName}</strong>

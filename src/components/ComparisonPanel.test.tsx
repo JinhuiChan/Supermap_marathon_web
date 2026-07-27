@@ -78,4 +78,12 @@ describe("ComparisonPanel", () => {
     expect(html).toContain("对比指数");
     expect(html).toContain("原始目标分");
   });
+
+  it("uses a presentation-ready empty state before there are two candidate routes", () => {
+    const html = renderToStaticMarkup(<ComparisonPanel routes={[routeBase]} />);
+
+    expect(html).toContain("当前仅有 1 条候选路线");
+    expect(html).toContain("生成或导入至少 2 条后可进行多路线比选");
+    expect(html).not.toContain("compare-table");
+  });
 });

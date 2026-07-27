@@ -49,4 +49,15 @@ describe("ExportPanel", () => {
     expect(html).toContain("导出多路线 HTML 报告");
     expect(html).not.toContain("导出对比报告");
   });
+
+  it("builds the single-route report from the current analysis route instead of the first compared route", () => {
+    const comparedRoute = { ...route, id: "compared", name: "对比路线" };
+    const activeRoute = { ...route, id: "active", name: "当前分析路线" };
+    const html = renderToStaticMarkup(
+      <ExportPanel primaryRoute={activeRoute} routes={[comparedRoute]} supportPoints={[]} />
+    );
+
+    expect(html).toContain("当前分析路线");
+    expect(html).not.toContain("对比路线");
+  });
 });

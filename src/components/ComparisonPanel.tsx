@@ -36,7 +36,7 @@ export function ComparisonPanel({ routes, selectionProfile = "balanced" }: Compa
     return (
       <section className="side-section">
         <h2>多路线对比</h2>
-        <p className="muted">请选择至少 2 条赛道加入对比。</p>
+        <p className="muted">当前仅有 {routes.length} 条候选路线，生成或导入至少 2 条后可进行多路线比选。</p>
       </section>
     );
   }

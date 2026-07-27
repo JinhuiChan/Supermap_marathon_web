@@ -41,6 +41,17 @@ const route: MarathonRoute = {
 };
 
 describe("RouteAnalysisPanel", () => {
+  it("starts with a decision summary that separates candidate generation from final recommendation", () => {
+    const html = renderToStaticMarkup(<RouteAnalysisPanel route={route} supportPoints={[]} />);
+
+    expect(html).toContain("路线状态");
+    expect(html).toContain("候选方案");
+    expect(html).toContain("推荐分");
+    expect(html).toContain("风险项");
+    expect(html).toContain("是否建议进入比选");
+    expect(html).toContain("正式赛道需现场复核与认证测量");
+  });
+
   it("shows evidence sources and marks estimated analysis cards", () => {
     const html = renderToStaticMarkup(<RouteAnalysisPanel route={route} supportPoints={[]} />);
 

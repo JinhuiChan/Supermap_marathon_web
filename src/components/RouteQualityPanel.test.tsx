@@ -88,4 +88,18 @@ describe("RouteQualityPanel", () => {
     expect(html).not.toContain("质量闸门未通过");
     expect(html).not.toContain("未达标");
   });
+
+  it("renders risk review issues with actual values, thresholds, severity and actions", () => {
+    const html = renderToStaticMarkup(<RouteQualityPanel route={riskyCandidateRoute} />);
+
+    expect(html).toContain("<table");
+    expect(html).toContain("复核项");
+    expect(html).toContain("当前值");
+    expect(html).toContain("阈值");
+    expect(html).toContain("风险等级");
+    expect(html).toContain("处理建议");
+    expect(html).toContain("8.2%");
+    expect(html).toContain("≤ 5%");
+    expect(html).toContain("较高");
+  });
 });

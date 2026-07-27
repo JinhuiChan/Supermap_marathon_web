@@ -1241,6 +1241,70 @@ textarea {
   background: #f1f7f5;
 }
 
+.analysis-decision {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #cfdde8;
+  border-left: 4px solid #23836f;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fbfd;
+}
+
+.analysis-decision.review {
+  border-left-color: #d97706;
+  background: #fffaf0;
+}
+
+.analysis-decision span,
+.analysis-decision dt {
+  color: #5f7184;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.analysis-decision strong {
+  display: block;
+  margin-top: 4px;
+  color: #173a52;
+  font-size: 18px;
+}
+
+.analysis-decision p {
+  margin: 5px 0 0;
+  color: #526579;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.analysis-decision dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+
+.analysis-decision dl div {
+  border: 1px solid #dfe8ee;
+  border-radius: 7px;
+  padding: 7px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.analysis-decision dd {
+  margin: 3px 0 0;
+  color: #173a52;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.analysis-decision .analysis-decision-note {
+  border-top: 1px solid #e1e8ec;
+  padding-top: 8px;
+  color: #42586b;
+  font-weight: 700;
+}
+
 .analysis-summary span {
   color: #527263;
   font-size: 12px;
@@ -2895,6 +2959,40 @@ textarea {
   padding-left: 18px;
   color: #a33b2d;
   font-size: 12px;
+}
+
+.quality-issue-table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  color: #45586b;
+  font-size: 11px;
+}
+
+.quality-issue-table thead,
+.quality-issue-table tbody,
+.quality-issue-table tr {
+  min-width: 520px;
+}
+
+.quality-issue-table th,
+.quality-issue-table td {
+  border: 1px solid #e4d4ce;
+  padding: 6px 7px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.quality-issue-table th {
+  background: #fff1eb;
+  color: #8a3328;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.quality-issue-table td {
+  background: rgba(255, 255, 255, 0.76);
 }
 
 .certification-notice {

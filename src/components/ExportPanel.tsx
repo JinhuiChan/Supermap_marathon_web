@@ -7,19 +7,20 @@ import {
 } from "../domain/routeAnalysis";
 
 interface ExportPanelProps {
+  primaryRoute?: MarathonRoute | null;
   routes: MarathonRoute[];
   supportPoints: SupportPoint[];
   cityPackage?: CityPackage;
 }
 
-export function ExportPanel({ routes, supportPoints, cityPackage = activeCityPackage }: ExportPanelProps) {
-  const primaryRoute = routes[0] ?? null;
+export function ExportPanel({ primaryRoute, routes, supportPoints, cityPackage = activeCityPackage }: ExportPanelProps) {
+  const singleReportRoute = primaryRoute ?? routes[0] ?? null;
   const reportOptions = {
     reportBrand: cityPackage.marathonName,
     dataBasis: `数据依据：${cityPackage.name} CityPackage、SuperMap iServer 服务、道路网络 GeoJSON、路线几何、道路等级、坡度/爬升、拓扑检测与本地服务点 GeoJSON。`
   };
-  const singleRouteReport = primaryRoute
-    ? buildSingleRouteHtmlReport(primaryRoute, supportPoints, reportOptions)
+  const singleRouteReport = singleReportRoute
+    ? buildSingleRouteHtmlReport(singleReportRoute, supportPoints, reportOptions)
     : "";
   const comparisonReport = routes.length >= 2
     ? buildRouteComparisonHtmlReport(routes, supportPoints, reportOptions)
@@ -46,7 +47,7 @@ export function ExportPanel({ routes, supportPoints, cityPackage = activeCityPac
         <button
           type="button"
           onClick={() => downloadHtml(singleRouteReport, "marathon-single-route-analysis.html")}
-          disabled={!primaryRoute}
+          disabled={!singleReportRoute}
         >
           导出单路线 HTML 报告
         </button>

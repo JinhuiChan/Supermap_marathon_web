@@ -449,14 +449,20 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
             {activeRoute ? (
               <>
                 <RouteDetails route={activeRoute} />
+                <RouteQualityPanel route={activeRoute} />
                 <RouteAnalysisPanel route={activeRoute} supportPoints={supportPoints} />
                 <ComparisonPanel routes={comparedRoutes} selectionProfile="balanced" />
-                <ExportPanel routes={comparedRoutes} supportPoints={supportPoints} cityPackage={cityPackage} />
+                <ExportPanel
+                  primaryRoute={activeRoute}
+                  routes={comparedRoutes}
+                  supportPoints={supportPoints}
+                  cityPackage={cityPackage}
+                />
               </>
             ) : (
               <section className="side-section empty-analysis">
-                <h2>No route generated</h2>
-                <p className="muted">Return to route selection and generate a Full OSM route before analysis.</p>
+                <h2>暂无候选路线</h2>
+                <p className="muted">返回智能选型，生成或导入路线后再进入赛道分析。</p>
               </section>
             )}
           </aside>
