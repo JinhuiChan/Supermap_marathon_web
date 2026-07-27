@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   buildManualControlPointRoutePlan,
+  isJsonControlPointFileName,
   manualControlPointExampleRows,
   parseManualControlPointText,
   updateManualControlPointRow
@@ -43,7 +44,7 @@ describe("manualControlPointPlan", () => {
     });
   });
 
-  test("parses Markdown table control-point data into editable rows", () => {
+  test("rejects Markdown control-point data", () => {
     const result = parseManualControlPointText([
       "| 名称 | 经度 | 纬度 |",
       "| --- | --- | --- |",
@@ -51,13 +52,16 @@ describe("manualControlPointPlan", () => {
       "| 终点 | 114.30933 | 30.60991 |"
     ].join("\n"));
 
-    expect(result).toMatchObject({
-      ok: true,
-      rows: [
-        expect.objectContaining({ label: "起点", longitude: "114.30230", latitude: "30.60287" }),
-        expect.objectContaining({ label: "终点", longitude: "114.30933", latitude: "30.60991" })
-      ]
+    expect(result).toEqual({
+      ok: false,
+      error: "控制点数据必须是有效的 JSON"
     });
+  });
+
+  test("accepts only JSON file names for local import", () => {
+    expect(isJsonControlPointFileName("route.JSON")).toBe(true);
+    expect(isJsonControlPointFileName("route.md")).toBe(false);
+    expect(isJsonControlPointFileName("route.txt")).toBe(false);
   });
 
   test("builds a route plan from user-entered control points without touching preset routes", () => {

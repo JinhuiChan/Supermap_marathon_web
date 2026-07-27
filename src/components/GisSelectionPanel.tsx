@@ -3,6 +3,7 @@ import { activeCityPackage, type CityPackage } from "../config/cityPackages";
 import {
   buildManualControlPointRoutePlan,
   createManualControlPointRow,
+  isJsonControlPointFileName,
   manualControlPointExampleRows,
   parseManualControlPointText,
   updateManualControlPointRow,
@@ -129,6 +130,11 @@ export function GisSelectionPanel({
 
   function readManualControlPointFile(file: File | undefined) {
     if (!file) return;
+    if (!isJsonControlPointFileName(file.name)) {
+      setManualImportMessage("请选择 JSON 文件");
+      setManualError("");
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       const text = typeof reader.result === "string" ? reader.result : "";
@@ -200,10 +206,10 @@ export function GisSelectionPanel({
           <div className="manual-import-actions">
             <button type="button" onClick={() => setManualImportOpen((current) => !current)}>输入数据</button>
             <label>
-              读取本地 JSON/MD
+              读取本地 JSON
               <input
                 type="file"
-                accept=".json,.md,.markdown,.txt"
+                accept=".json"
                 onChange={(event) => readManualControlPointFile(event.currentTarget.files?.[0])}
               />
             </label>
@@ -211,7 +217,7 @@ export function GisSelectionPanel({
           {manualImportOpen && (
             <div className="manual-import-editor">
               <label className="manual-import-field">
-                <span>JSON / Markdown 控制点</span>
+                <span>JSON 控制点</span>
                 <textarea
                   value={manualImportText}
                   placeholder='JSON 示例：[{"name":"起点","lon":114.30230,"lat":30.60287}]'

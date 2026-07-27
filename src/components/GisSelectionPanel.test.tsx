@@ -71,10 +71,13 @@ describe("GisSelectionPanel", () => {
     expect(html).toContain("手动推荐线");
     expect(html).toContain("生成手动路线");
     expect(html).toContain("输入数据");
-    expect(html).not.toContain("粘贴 JSON / Markdown 控制点");
-    expect(html).toContain("读取本地 JSON/MD");
+    expect(html).toContain("读取本地 JSON");
     expect(html).toContain('type="file"');
-    expect(html).toContain('.json,.md,.markdown,.txt');
+    expect(html).toContain('accept=".json"');
+    expect(html).not.toContain("JSON/MD");
+    expect(html).not.toContain("Markdown");
+    expect(html).not.toContain(".md");
+    expect(html).not.toContain(".txt");
     expect(html).toContain("114.30230");
     expect(html).toContain("30.60287");
   });

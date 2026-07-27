@@ -53,15 +53,18 @@ export function updateManualControlPointRow(
 
 export function parseManualControlPointText(text: string): ManualControlPointImportResult {
   const trimmed = text.trim();
-  if (!trimmed) return { ok: false, error: "请输入 JSON 或 Markdown 控制点数据" };
+  if (!trimmed) return { ok: false, error: "请输入 JSON 控制点数据" };
 
   const jsonResult = parseJsonControlPoints(trimmed);
   if (jsonResult.ok) return jsonResult;
 
-  const markdownResult = parseMarkdownControlPoints(trimmed);
-  if (markdownResult.ok) return markdownResult;
+  return jsonResult.error === "不是 JSON"
+    ? { ok: false, error: "控制点数据必须是有效的 JSON" }
+    : jsonResult;
+}
 
-  return { ok: false, error: "未识别控制点数据，请使用 JSON 数组或 Markdown 表格" };
+export function isJsonControlPointFileName(fileName: string): boolean {
+  return /\.json$/i.test(fileName.trim());
 }
 
 export function buildManualControlPointRoutePlan(input: BuildManualControlPointRoutePlanInput): ManualControlPointPlanResult {
@@ -142,18 +145,6 @@ function parseJsonControlPoints(text: string): ManualControlPointImportResult {
     : { ok: false, error: "JSON 中至少需要 2 个控制点" };
 }
 
-function parseMarkdownControlPoints(text: string): ManualControlPointImportResult {
-  const rows = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line && !/^[-|:\s]+$/.test(line))
-    .flatMap((line, index) => rowFromMarkdownLine(line, index));
-
-  return rows.length >= 2
-    ? { ok: true, rows }
-    : { ok: false, error: "Markdown 中至少需要 2 个控制点" };
-}
-
 function rowFromUnknown(value: unknown, id: string): ManualControlPointRow | null {
   if (!value || typeof value !== "object") return null;
   const record = value as Record<string, unknown>;
@@ -162,23 +153,6 @@ function rowFromUnknown(value: unknown, id: string): ManualControlPointRow | nul
   const lat = numberValue(record.latitude ?? record.lat ?? record.y);
   if (!label || lon === null || lat === null) return null;
   return createManualControlPointRow(label, formatCoordinateInput(lon), formatCoordinateInput(lat), id);
-}
-
-function rowFromMarkdownLine(line: string, index: number): ManualControlPointRow[] {
-  if (/^\|/.test(line)) {
-    const cells = line.split("|").map((cell) => cell.trim()).filter(Boolean);
-    if (cells.length < 3 || cells.some((cell) => /^-+$/.test(cell))) return [];
-    if (/^(名称|name|label)$/i.test(cells[0])) return [];
-    const lon = Number(cells[1]);
-    const lat = Number(cells[2]);
-    return Number.isFinite(lon) && Number.isFinite(lat)
-      ? [createManualControlPointRow(cells[0], formatCoordinateInput(lon), formatCoordinateInput(lat), `md-${index}`)]
-      : [];
-  }
-
-  const match = line.match(/^(?:[-*]\s*)?(.+?)[,，\s]+(-?\d+(?:\.\d+)?)[,，\s]+(-?\d+(?:\.\d+)?)$/);
-  if (!match) return [];
-  return [createManualControlPointRow(match[1].trim(), formatCoordinateInput(Number(match[2])), formatCoordinateInput(Number(match[3])), `md-${index}`)];
 }
 
 function parseCoordinate(longitude: string, latitude: string): Coordinate | null {
