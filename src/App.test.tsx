@@ -66,6 +66,14 @@ describe("App", () => {
     expect(html).not.toContain('aria-label="调整候选方案面板高度"');
   });
 
+  it("does not duplicate the mode switch inside the analysis dock", () => {
+    const html = renderToStaticMarkup(<App initialWorkspaceMode="analysis" />);
+
+    expect(html).toContain('aria-label="Route analysis panel"');
+    expect(html).not.toContain("back-to-selection");
+    expect(html).not.toContain("返回智能选型");
+  });
+
   it("limits route comparison to the configured city package route plans", () => {
     expect(routeCompareLimit).toBe(activeCityPackage.routePlans.length);
     expect(updateComparedRouteIds(["east", "riverside", "auto"], "extra")).toEqual(["east", "riverside", "auto"]);

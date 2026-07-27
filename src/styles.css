@@ -1732,7 +1732,6 @@ textarea {
 }
 
 .gis-mode-nav button,
-.back-to-selection,
 .gis-generate-button,
 .drawer-actions button {
   border: 0;
@@ -2934,8 +2933,7 @@ textarea {
   accent-color: #23836f;
 }
 
-.drawer-actions button,
-.back-to-selection {
+.drawer-actions button {
   min-height: 32px;
   padding: 0 10px;
   background: #173a52;

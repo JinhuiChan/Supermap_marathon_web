@@ -52,6 +52,7 @@ import { SuperMapMap, type MapLayerVisibility } from "./map/components/SuperMapM
 interface AppProps {
   cityPackage?: CityPackage;
   initialLayerVisibility?: MapLayerVisibility;
+  initialWorkspaceMode?: GisWorkspaceMode;
 }
 
 export const routeCompareLimit = activeCityPackage.routePlans.length;
@@ -103,7 +104,11 @@ function formatGenerationProgress(routeName: string, event: FullOsmRouteProgress
   }
 }
 
-export default function App({ cityPackage: providedCityPackage = activeCityPackage, initialLayerVisibility }: AppProps = {}) {
+export default function App({
+  cityPackage: providedCityPackage = activeCityPackage,
+  initialLayerVisibility,
+  initialWorkspaceMode = "selection"
+}: AppProps = {}) {
   const [importedCityPackage, setImportedCityPackage] = useState<CityPackage | null>(null);
   const cityPackage = importedCityPackage ?? providedCityPackage;
   const supportPoints = cityPackage.supportPoints;
@@ -113,7 +118,7 @@ export default function App({ cityPackage: providedCityPackage = activeCityPacka
     [cityPackage.routePlans, manualRoutePlans]
   );
   const cityRouteCompareLimit = routePlans.length;
-  const [workspaceMode, setWorkspaceMode] = useState<GisWorkspaceMode>("selection");
+  const [workspaceMode, setWorkspaceMode] = useState<GisWorkspaceMode>(initialWorkspaceMode);
   const [sidebarWidth, setSidebarWidth] = useState(() => readStoredWorkspaceSize(
     getWorkspaceStorage(),
     WORKSPACE_STORAGE_KEYS.sidebarWidth,
@@ -453,9 +458,6 @@ export default function App({ cityPackage: providedCityPackage = activeCityPacka
 
         {workspaceMode === "analysis" && (
           <aside className="gis-analysis-dock" aria-label="Route analysis panel">
-            <button type="button" className="back-to-selection" onClick={() => setWorkspaceMode("selection")}>
-              返回智能选型
-            </button>
             {activeRoute ? (
               <>
                 <RouteDetails route={activeRoute} />
@@ -475,7 +477,7 @@ export default function App({ cityPackage: providedCityPackage = activeCityPacka
             ) : (
               <section className="side-section empty-analysis">
                 <h2>暂无候选路线</h2>
-                <p className="muted">返回智能选型，生成或导入路线后再进入赛道分析。</p>
+                <p className="muted">请通过顶部模式切换回智能选型，生成或导入路线后再进入赛道分析。</p>
               </section>
             )}
           </aside>
