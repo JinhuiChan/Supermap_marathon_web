@@ -10,6 +10,7 @@ interface CandidateRouteDrawerProps {
   onSelectRoute: (id: string) => void;
   onToggleCompare: (id: string) => void;
   onAnalyzeRoute: (id: string) => void;
+  onDeleteRoute: (id: string) => void;
 }
 
 export function CandidateRouteDrawer({
@@ -20,7 +21,8 @@ export function CandidateRouteDrawer({
   generationStatus,
   onSelectRoute,
   onToggleCompare,
-  onAnalyzeRoute
+  onAnalyzeRoute,
+  onDeleteRoute
 }: CandidateRouteDrawerProps) {
   return (
     <aside className="candidate-route-drawer" aria-label="候选方案抽屉">
@@ -76,6 +78,14 @@ export function CandidateRouteDrawer({
                   加入对比
                 </label>
                 <button type="button" onClick={() => onAnalyzeRoute(route.id)}>进入分析</button>
+                <button
+                  type="button"
+                  className="delete-route-button"
+                  aria-label={`删除路线 ${route.name}`}
+                  onClick={() => onDeleteRoute(route.id)}
+                >
+                  删除
+                </button>
               </div>
             </article>
           );

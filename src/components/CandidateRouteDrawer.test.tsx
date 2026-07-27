@@ -45,6 +45,7 @@ describe("CandidateRouteDrawer", () => {
         onSelectRoute={() => {}}
         onToggleCompare={() => {}}
         onAnalyzeRoute={() => {}}
+        onDeleteRoute={() => {}}
       />
     );
 
@@ -61,5 +62,8 @@ describe("CandidateRouteDrawer", () => {
     expect(html).not.toContain("推荐</span>");
     expect(html).not.toContain("保障</span>");
     expect(html).not.toContain("局部折返");
+    expect(html).toContain('aria-label="删除路线 组织保障路线"');
+    expect(html).toContain('class="delete-route-button"');
+    expect(html).toContain(">删除</button>");
   });
 });
