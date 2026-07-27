@@ -2625,7 +2625,7 @@ textarea {
 
 .drawer-actions {
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
 }
 
 .drawer-actions label {
@@ -2647,6 +2647,25 @@ textarea {
   background: #173a52;
   color: #ffffff;
   font-size: 12px;
+}
+
+.drawer-actions .delete-route-button {
+  margin-left: auto;
+  border-color: rgba(190, 58, 58, 0.24);
+  background: #ffffff;
+  color: #a93838;
+}
+
+.drawer-actions .delete-route-button:hover,
+.drawer-actions .delete-route-button:focus-visible {
+  border-color: rgba(190, 58, 58, 0.48);
+  background: #fff4f2;
+  color: #8f2525;
+}
+
+.drawer-actions .delete-route-button:focus-visible {
+  outline: 3px solid rgba(190, 58, 58, 0.16);
+  outline-offset: 2px;
 }
 
 .gis-analysis-dock .side-section,
