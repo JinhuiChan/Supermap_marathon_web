@@ -40,8 +40,8 @@ describe("App", () => {
     expect(html).not.toContain("三维");
     expect(html).toContain("ASTGTMV003_N30E114");
     expect(html).toContain("wuhan-marathon-routes.geojson");
-    expect(html).toContain("Routing data");
-    expect(html).toContain("Full OSM");
+    expect(html).toContain("路网数据");
+    expect(html).toContain("全量道路网络");
     expect(html).not.toContain("Area roads");
     expect(html).not.toMatch(/姝|閲|杩|闃|鍙|璧|绾|鍔|鐐/);
   });
@@ -72,6 +72,17 @@ describe("App", () => {
     expect(html).toContain('aria-label="Route analysis panel"');
     expect(html).not.toContain("back-to-selection");
     expect(html).not.toContain("返回智能选型");
+  });
+
+  it("uses release-ready wording without developer-facing runtime labels", () => {
+    const html = renderToStaticMarkup(<App />);
+
+    expect(html).not.toContain("Full OSM");
+    expect(html).not.toContain("experimental");
+    expect(html).not.toContain("Leaflet");
+    expect(html).not.toContain("用于切换城市演示");
+    expect(html).not.toContain("错误的官方");
+    expect(html).not.toContain("已删除");
   });
 
   it("limits route comparison to the configured city package route plans", () => {

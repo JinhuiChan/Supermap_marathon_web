@@ -30,13 +30,14 @@ describe("GisSelectionPanel", () => {
     expect(html).toContain('title="道路网络数据仍在加载"');
   });
 
-  it("uses full OSM as the only routing network source", () => {
+  it("uses the full road network as the routing source", () => {
     const html = renderPanel();
 
-    expect(html).toContain("Routing data");
+    expect(html).toContain("路网数据");
     expect(html).not.toContain("Area roads");
-    expect(html).toContain("Full OSM");
-    expect(html).toContain("38MB");
+    expect(html).toContain("全量道路网络");
+    expect(html).toContain("52649 条道路");
+    expect(html).not.toContain("experimental");
   });
 
   it("visually places city package import before the selection heading", () => {

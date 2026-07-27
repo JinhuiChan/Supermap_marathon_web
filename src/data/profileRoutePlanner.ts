@@ -244,7 +244,7 @@ export function buildBestRouteForSelectionProfile(
     lineage: {
       source: "osm-generated",
       roadAligned: true,
-      note: `${plan.note} 候选线由原 OSM 道路生成算法产生，并用公开比赛路线的关键廊道特征进行相似度校核；坐标仍来自道路矢量边，不采用错误的官方道路级矢量路线。`
+      note: `${plan.note} 候选线由道路网络生成算法产生，并按公开赛道廊道特征进行相似度校核；坐标来自道路矢量边。`
     }
   };
 }

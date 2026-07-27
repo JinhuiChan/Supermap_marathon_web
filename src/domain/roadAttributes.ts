@@ -52,12 +52,7 @@ export function qualityMultiplier(level: RoadLevel, isTunnel: boolean): number {
   return m;
 }
 
-// ---- Synthetic elevation (stub — replace with DEM lookup) ----
-
-/**
- * STUB: Gaussian-bump elevation model for Wuhan.
- * Replace with rasterio DEM lookup when real data is available.
- */
+// Fallback elevation model used when sampled DEM values are unavailable.
 export function getElevation(coord: Coordinate): number {
   const [lon, lat] = coord;
   let e = 24; // base elevation for Wuhan

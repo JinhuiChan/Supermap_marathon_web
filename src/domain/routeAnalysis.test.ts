@@ -53,15 +53,16 @@ describe("routeAnalysis", () => {
     ]);
     expect(analysis.dimensionCards.map((card) => card.label)).not.toContain("办赛条件");
     expect(analysis.dimensionCards.find((card) => card.id === "support")?.reliability).toBe("derived");
-    expect(analysis.dimensionCards.find((card) => card.id === "support")?.evidence).toContain("不是官方保障点部署");
+    expect(analysis.dimensionCards.find((card) => card.id === "support")?.evidence).toContain("保障点位需结合赛事组织与现场条件确认");
   });
 
-  it("builds a competition report without the deleted official vector route as baseline", () => {
+  it("builds a competition report with release-ready route baseline wording", () => {
     const report = buildDecisionReport([generatedRoute], supportPoints);
 
     expect(report).toContain("SuperMap iServer");
-    expect(report).toContain("不采用已删除的 2026 官方道路级矢量路线");
+    expect(report).toContain("以道路矢量、拓扑检测与服务点数据作为评价依据");
     expect(report).not.toContain("2026 Wuhan Marathon official route reference");
+    expect(report).not.toContain("不采用已删除");
     expect(report).not.toContain("办赛条件");
     expect(report).toContain("推荐");
   });
@@ -122,7 +123,7 @@ describe("routeAnalysis", () => {
     expect(analysis.recommendation).not.toContain("补齐数据缺口");
     expect(support?.reliability).toBe("derived");
     expect(support?.source).toContain("基于线路长度");
-    expect(support?.evidence).toContain("不是官方保障点部署");
+    expect(support?.evidence).toContain("保障点位需结合赛事组织与现场条件确认");
     expect([...analysis.highlights, ...analysis.risks, analysis.recommendation].join(" ")).not.toMatch(/利于|可控|适配|优先方案|大众跑者完赛/);
   });
 
@@ -156,7 +157,8 @@ describe("routeAnalysis", () => {
     expect(analysis.supportPlan.find((item) => item.type === "补给")?.recommendation).toContain("建议 9 个");
     expect(analysis.supportPlan.find((item) => item.type === "医疗")?.recommendation).toContain("起点、半程点、30km 后");
     expect(analysis.supportPlan.find((item) => item.type === "引导")?.basis).toContain("自交 2 处");
-    expect(analysis.supportPlan.map((item) => item.recommendation).join(" ")).toContain("不是官方保障方案");
+    expect(analysis.supportPlan.map((item) => item.recommendation).join(" ")).toContain("具体位置需结合赛事组织与现场条件确认");
+    expect(analysis.supportPlan.map((item) => item.recommendation).join(" ")).not.toContain("不是官方保障方案");
   });
 
   it("adds segment analysis and optimization actions without map-oriented risk hints", () => {

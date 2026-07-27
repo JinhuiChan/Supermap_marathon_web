@@ -87,7 +87,7 @@ export class MapEngine {
 
     const L = (window as unknown as Record<string, unknown>).L as Record<string, unknown> | undefined;
     if (!L) {
-      this.showFallback("Leaflet 地图库未加载");
+      this.showFallback("地图组件未加载");
       return;
     }
 

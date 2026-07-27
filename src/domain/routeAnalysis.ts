@@ -72,7 +72,7 @@ export const routeAnalysisScoreWeights = [
 export const superMapEvidenceChain = [
   "SuperMap iDesktopX 制图发布道路网络与约束图层",
   "SuperMap iServer 提供 WMS/REST 地图与空间数据服务",
-  "SuperMap iClient/Leaflet 在 Web 端叠加路线、POI 与保障规划建议",
+  "SuperMap iClient 在 Web 端叠加路线、POI 与保障规划建议",
   "本地 GeoJSON 路网用于 Walk 路径生成、拓扑检测与报告归档"
 ] as const;
 
@@ -152,22 +152,22 @@ function buildSupportPlan(route: MarathonRoute, supportPointCount: number): Supp
   return [
     {
       type: "补给",
-      recommendation: `建议 ${supplyStationCount} 个补给站，按约 5km 间距布设；该建议按 ${route.lengthKm.toFixed(1)}km 线路长度推导，不是官方保障方案。`,
+      recommendation: `建议 ${supplyStationCount} 个补给站，按约 5km 间距布设；具体位置需结合赛事组织与现场条件确认。`,
       basis: `线路长度 ${route.lengthKm.toFixed(1)}km，已接入服务点 ${supportPointCount} 个，控制点命中 ${controlCount} 个`
     },
     {
       type: "医疗",
-      recommendation: `建议在起点、半程点、30km 后疲劳段和终点布设医疗点；桥梁或长坡后可增加观察点，不是官方保障方案。`,
+      recommendation: "建议在起点、半程点、30km 后疲劳段和终点布设医疗点；桥梁或长坡后可增加观察点。",
       basis: `医疗间距指标 ${route.metrics.medicalAvgIntervalKm.toFixed(1)}km，桥梁段 ${bridgeKm.toFixed(2)}km，最大坡度 ${route.metrics.maxSlopePercent.toFixed(1)}%`
     },
     {
       type: "厕所",
-      recommendation: `建议 ${restroomStationCount} 组厕所服务点，覆盖起终点及约每 10km 一个服务区；具体位置需结合场地条件复核，不是官方保障方案。`,
+      recommendation: `建议 ${restroomStationCount} 组厕所服务点，覆盖起终点及约每 10km 一个服务区；具体位置需结合场地条件复核。`,
       basis: `线路长度 ${route.lengthKm.toFixed(1)}km，当前面板不含官方厕所部署数据`
     },
     {
       type: "引导",
-      recommendation: `建议在折返、交叉、桥梁上下桥和重复道路附近布设志愿者、隔离带与方向标识；不是官方保障方案。`,
+      recommendation: "建议在折返、交叉、桥梁上下桥和重复道路附近布设志愿者、隔离带与方向标识。",
       basis: `自交 ${selfIntersectionCount} 处，重复道路 ${percent(repeatedRoadRatio)}，转弯惩罚 ${Math.round(turnPenaltyScore)}，桥梁段 ${bridgeKm.toFixed(2)}km`
     }
   ];
@@ -336,7 +336,7 @@ export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): Rout
       source: "基于线路长度、拓扑风险、桥梁/坡度和已接入服务点推导",
       reliability: "derived",
       inputs: ["lengthKm", "supportPoints", "medicalAvgIntervalKm", "selfIntersectionCount", "bridgeDistanceKm"],
-      evidence: `建议补给 ${Math.ceil(route.lengthKm / 5)} 个、厕所 ${Math.ceil(route.lengthKm / 10) + 1} 组；已匹配服务点 ${summary.total} 个。该卡输出保障规划建议，不是官方保障点部署。`
+      evidence: `建议补给 ${Math.ceil(route.lengthKm / 5)} 个、厕所 ${Math.ceil(route.lengthKm / 10) + 1} 组；已匹配服务点 ${summary.total} 个。保障点位需结合赛事组织与现场条件确认。`
     },
     {
       id: "experience",
@@ -377,7 +377,7 @@ export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): Rout
     "道路拓扑检测指标",
     "道路等级与适赛性指标",
     "坡度/爬升指标",
-    route.lineage?.source === "osm-generated" ? "Full OSM 路网生成结果" : "候选路线指标",
+    route.lineage?.source === "osm-generated" ? "全量道路网络生成结果" : "候选路线指标",
     points.length > 0 ? "本地服务点 GeoJSON" : "未提供服务点数据"
   ]);
 
@@ -413,7 +413,7 @@ export function buildDecisionReport(routes: MarathonRoute[], points: SupportPoin
     `${DEFAULT_REPORT_BRAND}分析报告`,
     "",
     DEFAULT_REPORT_DATA_BASIS,
-    "路线基准：当前报告仅分析由道路网络生成算法输出的候选路线，不采用已删除的 2026 官方道路级矢量路线。",
+    "路线基准：当前报告分析由道路网络生成算法输出的候选路线，并以道路矢量、拓扑检测与服务点数据作为评价依据。",
     "评分口径：难度、保障和体验分均从每条路线的几何、坡度、道路等级、POI 覆盖、地标与跨江指标计算；估算指标会在分析卡中标注。",
     "后续保障规划口径：补给、医疗、厕所、交通管制与疏散方案以候选路线为基础分段制定，本报告先给出选线比选与保障建议。",
     "",

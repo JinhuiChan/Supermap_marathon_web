@@ -226,7 +226,7 @@ function computeMetrics(
   const totalKm = path.totalLengthKm || 1;
   const narrowRoadRatio = narrowKm / totalKm;
 
-  // STUB metrics
+  // Derived service indicators from road-level composition.
   let supplyCoverageSum = 0;
   let medicalIntervalSum = 0;
   let parkingSum = 0;

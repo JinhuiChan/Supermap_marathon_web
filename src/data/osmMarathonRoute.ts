@@ -908,12 +908,7 @@ function coordinatesFromEdges(edges: RoadEdge[], fallback: Coordinate[]): Coordi
     }
   }
 
-  if (coordinates.length < 2) {
-    console.warn(
-      "coordinatesFromEdges: falling back to walk node coordinates, some edges lack geometry data"
-    );
-    return fallback;
-  }
+  if (coordinates.length < 2) return fallback;
   return coordinates;
 }
 

@@ -93,7 +93,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
   const [vectorBasemapFeatures, setVectorBasemapFeatures] = useState<VectorBasemapFeature[]>([]);
   const [roadNetworkStatus, setRoadNetworkStatus] = useState(`${cityPackage.name}道路走廊：加载中`);
   const [phase, setPhase] = useState<MapPhase>("loading");
-  const [phaseMessage, setPhaseMessage] = useState("加载 Leaflet 地图库...");
+  const [phaseMessage, setPhaseMessage] = useState("加载地图组件...");
 
   const onSelectRef = useRef(onSelectRoute);
   onSelectRef.current = onSelectRoute;
@@ -233,7 +233,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
 
     const initMap = async () => {
       setPhase("loading");
-      setPhaseMessage("加载 Leaflet 地图库...");
+      setPhaseMessage("加载地图组件...");
 
       try {
         await loadScript(superMapConfig.leafletJsUrl);
@@ -243,7 +243,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
       } catch {
         if (!cancelled) {
           setPhase("fallback");
-          setPhaseMessage("Leaflet 加载失败，使用示意图");
+          setPhaseMessage("地图组件加载失败，使用二维示意图");
         }
         return;
       }
@@ -464,7 +464,7 @@ function MapGenerationProgress({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={progressValue}
-        aria-valuetext={`Full OSM route generation ${progressValue}%`}
+        aria-valuetext={`路线生成进度 ${progressValue}%`}
       >
         <i style={{ width: `${progressValue}%` }} />
       </div>

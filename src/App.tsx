@@ -88,17 +88,17 @@ export function upsertManualRoutePlan(current: WaypointRoutePlan[], plan: Waypoi
 function formatGenerationProgress(routeName: string, event: FullOsmRouteProgressEvent): string {
   switch (event.stage) {
     case "graph":
-      return "Full OSM road graph is ready";
+      return "全量道路网络拓扑已就绪";
     case "snap":
-      return `Snapped ${event.current}/${event.total} control points for ${routeName}`;
+      return `${routeName}：已吸附 ${event.current}/${event.total} 个控制点`;
     case "controls":
-      return `${routeName}: connected ${event.current}/${event.total} control-point legs`;
+      return `${routeName}：已连通 ${event.current}/${event.total} 段控制点路径`;
     case "filler":
-      return `${routeName}: extending route to target distance`;
+      return `${routeName}：正在补足目标里程`;
     case "metrics":
-      return `${routeName}: computing route quality and waypoint hits`;
+      return `${routeName}：正在计算路线质量与控制点命中`;
     case "complete":
-      return `${routeName}: route generation complete`;
+      return `${routeName}：路线生成完成`;
     default:
       return event.message;
   }
@@ -223,7 +223,7 @@ export default function App({
     setPendingDeleteRouteId("");
     setActiveRouteId("");
     setComparedRouteIds([]);
-    setGenerationStatus("Loading full OSM road network for route generation");
+    setGenerationStatus("正在加载全量道路网络用于路线生成");
 
     fetch(routingUrl)
       .then((response) => {
@@ -233,12 +233,12 @@ export default function App({
       .then((geojson) => {
         if (cancelled) return;
         setRoadGeoJson(geojson);
-        setGenerationStatus("Full OSM road network loaded. Ready to generate routes.");
+        setGenerationStatus("全量道路网络已加载，可生成路线。");
       })
       .catch(() => {
         if (!cancelled) {
           setRoutes([]);
-          setGenerationStatus("Full OSM road network data was not found.");
+          setGenerationStatus("未找到全量道路网络数据。");
         }
       });
 
@@ -265,7 +265,7 @@ export default function App({
     if (!roadGeoJson || isGenerating) return;
 
     setActiveRouteId(plan.id);
-    setGenerationStatus(`Generating ${plan.name} with ${plan.waypoints.length} control points`);
+    setGenerationStatus(`正在按 ${plan.waypoints.length} 个控制点生成 ${plan.name}`);
     setGenerationProgress(8);
     setIsGenerating(true);
 
@@ -287,7 +287,7 @@ export default function App({
         }
       });
       if (!route) {
-        setGenerationStatus(`${plan.name} generation failed: road network is not connected between control points.`);
+        setGenerationStatus(`${plan.name} 生成失败：控制点之间的道路网络未连通。`);
         setGenerationProgress(null);
         return;
       }
@@ -296,11 +296,11 @@ export default function App({
       const hitCount = hitDistances.filter((item) => item.hit).length;
       setRoutes((current) => upsertGeneratedRoute(current, route));
       setGenerationProgress(100);
-      setGenerationStatus(`Full OSM generated ${route.name}: ${route.lengthKm.toFixed(1)} km, hit ${hitCount}/${plan.waypoints.length} control points`);
+      setGenerationStatus(`已生成 ${route.name}：${route.lengthKm.toFixed(1)} km，命中 ${hitCount}/${plan.waypoints.length} 个控制点`);
       setActiveRouteId(route.id);
       setComparedRouteIds((current) => appendGeneratedComparedRouteId(current, route.id, cityRouteCompareLimit));
     } catch {
-      setGenerationStatus("Route generation failed. Check full OSM road network connectivity.");
+      setGenerationStatus("路线生成失败，请检查道路网络连通性。");
       setGenerationProgress(null);
     } finally {
       setIsGenerating(false);
@@ -342,12 +342,12 @@ export default function App({
     setRoutes(next.routes);
     setActiveRouteId(next.activeRouteId);
     setComparedRouteIds(next.comparedRouteIds);
-    setGenerationStatus(`已删除 ${pendingDeleteRoute.name}，可使用原控制点重新生成。`);
+    setGenerationStatus(`已移除 ${pendingDeleteRoute.name}，可使用原控制点重新生成。`);
     setPendingDeleteRouteId("");
   };
 
   const generateDisabledReason = !roadGeoJson
-    ? `Full OSM road network is still loading or failed. Check public/${cityPackage.superMap.routingRoadNetworkGeoJsonUrls.fullOsm}`
+    ? `全量道路网络仍在加载或暂不可用，请确认 public/${cityPackage.superMap.routingRoadNetworkGeoJsonUrls.fullOsm} 可访问。`
     : "";
   const hasCandidateRoutes = workspaceMode === "selection" && routes.length > 0;
   const workspaceStyle = {

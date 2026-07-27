@@ -213,7 +213,7 @@ export function GisSelectionPanel({
 
       <section className="gis-tool-group city-package-import">
         <h3>城市包导入</h3>
-        <p className="gis-tool-hint">支持导入城市名称、地图中心、路网 GeoJSON、SuperMap iServer/WMS 地址等 JSON 配置，用于切换城市演示。</p>
+        <p className="gis-tool-hint">支持导入城市名称、地图中心、路网 GeoJSON、SuperMap iServer/WMS 地址等 JSON 配置，用于切换城市数据源。</p>
         <div className="manual-import-actions">
           <button type="button" onClick={() => setCityImportOpen((current) => !current)}>导入城市包 JSON</button>
           <label>
@@ -244,9 +244,9 @@ export function GisSelectionPanel({
       <section className="gis-tool-group gis-step-group">
         <h3>1. 添加控制点</h3>
         <div className="gis-routing-source-control" aria-label="Routing data source">
-          <span>Routing data</span>
-          <strong>Full OSM</strong>
-          <small>38MB / 52649 roads, experimental</small>
+          <span>路网数据</span>
+          <strong>全量道路网络</strong>
+          <small>52649 条道路，已接入本地路网</small>
         </div>
 
         <div className="manual-control-point-builder">

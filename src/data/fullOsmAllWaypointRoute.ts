@@ -92,7 +92,7 @@ export async function buildFullOsmAllWaypointRouteAsync(
   await reportProgress(options, {
     stage: "graph",
     percent: 12,
-    message: "Full OSM road graph is ready"
+    message: "全量道路网络拓扑已就绪"
   });
 
   const assembly = await buildAllWaypointAssemblyAsync(graph, plan, options);
@@ -141,7 +141,7 @@ function buildMarathonRoute(
     lineage: {
       source: "osm-generated",
       roadAligned: true,
-      note: `Full OSM experimental all-control route; hit ${hitCount}/${plan.waypoints.length} control points within ${(options.waypointHitRadiusKm ?? defaultWaypointHitRadiusKm).toFixed(1)} km.`
+      note: `全量道路网络控制点生成结果；在 ${(options.waypointHitRadiusKm ?? defaultWaypointHitRadiusKm).toFixed(1)} km 半径内命中 ${hitCount}/${plan.waypoints.length} 个控制点。`
     }
   };
 }
@@ -277,7 +277,7 @@ async function buildAllWaypointAssemblyAsync(
   await reportProgress(options, {
     stage: "snap",
     percent: 22,
-    message: `Snapped ${snapped.length} control points to the Full OSM graph`,
+    message: `已将 ${snapped.length} 个控制点吸附到全量道路网络`,
     current: snapped.length,
     total: snapped.length
   });

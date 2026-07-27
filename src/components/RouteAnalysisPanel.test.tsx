@@ -36,7 +36,7 @@ const route: MarathonRoute = {
   lineage: {
     source: "osm-generated",
     roadAligned: true,
-    note: "Full OSM generated route"
+    note: "全量道路网络生成结果"
   }
 };
 
@@ -64,7 +64,7 @@ describe("RouteAnalysisPanel", () => {
     expect(html).not.toContain("数据缺口");
     expect(html).toContain("estimated");
     expect(html).toContain("模型估算");
-    expect(html).toContain("不是官方保障点部署");
+    expect(html).toContain("保障点位需结合赛事组织与现场条件确认");
     expect(html).toContain("应以候选路线里程");
     expect(html).toContain("不作为当前选线算法的前置输入");
     expect(html).not.toMatch(/利于|可控|适配|优先方案|大众跑者完赛/);
@@ -78,7 +78,8 @@ describe("RouteAnalysisPanel", () => {
     expect(html).toContain("医疗");
     expect(html).toContain("厕所");
     expect(html).toContain("引导");
-    expect(html).toContain("不是官方保障方案");
+    expect(html).toContain("具体位置需结合赛事组织与现场条件确认");
+    expect(html).not.toContain("不是官方保障方案");
   });
 
   it("renders segment analysis and optimization actions without risk location notes", () => {

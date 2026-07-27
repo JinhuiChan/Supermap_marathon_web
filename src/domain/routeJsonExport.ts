@@ -16,7 +16,7 @@ export function buildRouteJsonExport(route: MarathonRoute, cityPackage: CityPack
       "SuperMap iServer",
       "SuperMap iServer WMS",
       "SuperMap iClient for JavaScript",
-      "Full OSM road-network GeoJSON",
+      "full road-network GeoJSON",
       "route metrics and topology analysis"
     ],
     geometry: {
