@@ -4,10 +4,10 @@ import { activeCityPackage } from "../config/cityPackages";
 import { LayerControlPanel } from "./LayerControlPanel";
 
 describe("LayerControlPanel", () => {
-  it("keeps the basemap fixed to the iDesktop-published map and omits support-point toggles", () => {
+  it("keeps the basemap fixed and offers a support planning layer toggle", () => {
     const html = renderToStaticMarkup(
       <LayerControlPanel
-        visibility={{ routes: true, roadNetwork: true }}
+        visibility={{ routes: true, roadNetwork: true, supportPlanning: true }}
         cityPackage={activeCityPackage}
         onChange={() => {}}
       />
@@ -19,12 +19,14 @@ describe("LayerControlPanel", () => {
     expect(html).not.toContain("OpenStreetMap");
     expect(html).not.toContain("本地矢量街道图");
     expect(html).not.toContain("赛事服务点");
+    expect(html).toContain("保障规划点");
+    expect(html).toContain("显示补给、医疗、厕所和引导建议点");
   });
 
   it("labels the road network layer from the provided city package", () => {
     const html = renderToStaticMarkup(
       <LayerControlPanel
-        visibility={{ routes: true, roadNetwork: true }}
+        visibility={{ routes: true, roadNetwork: true, supportPlanning: true }}
         cityPackage={{ ...activeCityPackage, name: "测试城市" }}
         onChange={() => {}}
       />

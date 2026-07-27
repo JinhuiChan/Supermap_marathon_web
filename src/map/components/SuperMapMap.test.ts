@@ -122,7 +122,7 @@ describe("getVisibleMapRoutes", () => {
         activeRouteId: "one",
         comparedRouteIds: ["one"],
         routePlans: activeCityPackage.routePlans,
-        layerVisibility: { routes: true, roadNetwork: true },
+        layerVisibility: { routes: true, roadNetwork: true, supportPlanning: true },
         supportPlanningPoints: [
           { id: "one-supply-5", routeId: "one", type: "补给", label: "补给 5km", coordinate: [114, 30], mileageKm: 5, mileageLabel: "5.0km" },
           { id: "one-medical-half", routeId: "one", type: "医疗", label: "半程医疗观察点", coordinate: [114.01, 30.01], mileageKm: 21.1, mileageLabel: "21.1km" }
@@ -136,5 +136,24 @@ describe("getVisibleMapRoutes", () => {
     expect(html).toContain("补给 / 医疗");
     expect(html).toContain("规划建议点，不同于普通 POI");
     expect(html).toContain("support-plan-legend");
+  });
+
+  it("hides support planning map points when the layer is disabled", () => {
+    const html = renderToStaticMarkup(
+      createElement(SuperMapMap, {
+        routes: [makeRoute("one")],
+        activeRouteId: "one",
+        comparedRouteIds: ["one"],
+        routePlans: activeCityPackage.routePlans,
+        layerVisibility: { routes: true, roadNetwork: true, supportPlanning: false },
+        supportPlanningPoints: [
+          { id: "one-supply-5", routeId: "one", type: "补给", label: "补给 5km", coordinate: [114, 30], mileageKm: 5, mileageLabel: "5.0km" }
+        ],
+        onSelectRoute: () => {}
+      })
+    );
+
+    expect(html).not.toContain("保障规划图层");
+    expect(html).not.toContain("support-plan-legend");
   });
 });

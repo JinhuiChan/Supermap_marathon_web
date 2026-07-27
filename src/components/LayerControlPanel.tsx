@@ -14,9 +14,10 @@ export function LayerControlPanel({
 }: LayerControlPanelProps) {
   const superMapConfig = cityPackage.superMap;
   const updateLayer = (key: keyof MapLayerVisibility) => {
+    const currentValue = key === "supportPlanning" ? visibility.supportPlanning !== false : visibility[key];
     onChange({
       ...visibility,
-      [key]: !visibility[key]
+      [key]: !currentValue
     });
   };
 
@@ -40,6 +41,17 @@ export function LayerControlPanel({
         <span>
           <strong>{cityPackage.name}道路网络</strong>
           <small>显示用于算法生成和校核的真实 OSM 道路网络</small>
+        </span>
+      </label>
+      <label className="layer-toggle">
+        <input
+          type="checkbox"
+          checked={visibility.supportPlanning !== false}
+          onChange={() => updateLayer("supportPlanning")}
+        />
+        <span>
+          <strong>保障规划点</strong>
+          <small>显示补给、医疗、厕所和引导建议点</small>
         </span>
       </label>
     </section>

@@ -38,6 +38,7 @@ interface SuperMapMapProps {
 export interface MapLayerVisibility {
   routes: boolean;
   roadNetwork: boolean;
+  supportPlanning?: boolean;
 }
 
 type MapPhase = "loading" | "initializing" | "ready" | "fallback";
@@ -81,6 +82,8 @@ export function SuperMapMap(props: SuperMapMapProps) {
     () => getVisibleMapRoutes(routes, activeRouteId, comparedRouteIds, layerVisibility.routes),
     [routes, activeRouteId, comparedRouteIds, layerVisibility.routes]
   );
+  const supportPlanningVisible = layerVisibility.supportPlanning !== false;
+  const visibleSupportPlanningPoints = supportPlanningVisible ? supportPlanningPoints : [];
   const comparedCandidateRouteCount = countComparedCandidateRoutes(routes, comparedRouteIds);
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<MapEngine | null>(null);
@@ -268,7 +271,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
         engine.setRoadNetwork(roadNetworkFeatures);
         engine.highlightRoute(activeRouteId, comparedRouteIds);
         engine.setLayerVisibility(layerVisibility);
-        engine.setSupportPlanningPoints(supportPlanningPoints);
+        engine.setSupportPlanningPoints(visibleSupportPlanningPoints);
         engineRef.current = engine;
 
         if (!cancelled) {
@@ -336,10 +339,10 @@ export function SuperMapMap(props: SuperMapMapProps) {
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine || phase !== "ready") return;
-    engine.setSupportPlanningPoints(supportPlanningPoints);
-  }, [supportPlanningPoints, phase]);
+    engine.setSupportPlanningPoints(visibleSupportPlanningPoints);
+  }, [visibleSupportPlanningPoints, phase]);
 
-  const supportPlanningTypes = [...new Set(supportPlanningPoints.map((point) => point.type))];
+  const supportPlanningTypes = [...new Set(visibleSupportPlanningPoints.map((point) => point.type))];
 
   if (phase === "fallback") {
     return (
@@ -366,10 +369,10 @@ export function SuperMapMap(props: SuperMapMapProps) {
         </span>
         <strong>{comparedCandidateRouteCount}/{routes.length} 已加入对比</strong>
       </div>
-      {supportPlanningPoints.length > 0 && (
+      {visibleSupportPlanningPoints.length > 0 && (
         <div className="map-support-planning">
           <span>保障规划图层</span>
-          <strong>{supportPlanningPoints.length} 个建议点</strong>
+          <strong>{visibleSupportPlanningPoints.length} 个建议点</strong>
           <small>{supportPlanningTypes.join(" / ")}</small>
           <p>规划建议点，不同于普通 POI</p>
           <div className="support-plan-legend" aria-label="保障规划图例">

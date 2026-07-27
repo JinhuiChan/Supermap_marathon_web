@@ -147,7 +147,8 @@ export default function App({ cityPackage: providedCityPackage = activeCityPacka
   const [mapLayerVisibility, setMapLayerVisibility] = useState<MapLayerVisibility>(
     initialLayerVisibility ?? {
       routes: true,
-      roadNetwork: true
+      roadNetwork: true,
+      supportPlanning: true
     }
   );
 
