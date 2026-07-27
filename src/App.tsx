@@ -26,7 +26,10 @@ import {
   type FullOsmRouteProgressEvent
 } from "./data/fullOsmAllWaypointRoute";
 import type { WaypointRoutePlan } from "./data/profileRoutePlanner";
-import { upsertGeneratedRoute } from "./domain/routeCollection";
+import {
+  removeGeneratedRoute,
+  upsertGeneratedRoute
+} from "./domain/routeCollection";
 import {
   compareRoutes,
   type MarathonRoute
@@ -77,6 +80,10 @@ export function upsertManualRoutePlan(current: WaypointRoutePlan[], plan: Waypoi
   const existingIndex = current.findIndex((item) => item.id === plan.id);
   if (existingIndex === -1) return [...current, plan];
   return current.map((item, index) => index === existingIndex ? plan : item);
+}
+
+export function buildRouteDeleteConfirmation(routeName: string): string {
+  return `确定删除“${routeName}”吗？删除后可使用原控制点重新生成。`;
 }
 
 function formatGenerationProgress(routeName: string, event: FullOsmRouteProgressEvent): string {
@@ -307,6 +314,17 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
     });
   };
 
+  const deleteRoute = (routeId: string) => {
+    const route = routes.find((item) => item.id === routeId);
+    if (!route || !window.confirm(buildRouteDeleteConfirmation(route.name))) return;
+
+    const next = removeGeneratedRoute(routes, activeRouteId, comparedRouteIds, routeId);
+    setRoutes(next.routes);
+    setActiveRouteId(next.activeRouteId);
+    setComparedRouteIds(next.comparedRouteIds);
+    setGenerationStatus(`已删除 ${route.name}，可使用原控制点重新生成。`);
+  };
+
   const generateDisabledReason = !roadGeoJson
     ? `Full OSM road network is still loading or failed. Check public/${cityPackage.superMap.routingRoadNetworkGeoJsonUrls.fullOsm}`
     : "";
@@ -410,6 +428,7 @@ export default function App({ cityPackage = activeCityPackage, initialLayerVisib
               onSelectRoute={setActiveRouteId}
               onToggleCompare={toggleCompare}
               onAnalyzeRoute={analyzeRoute}
+              onDeleteRoute={deleteRoute}
             />
           </>
         )}
