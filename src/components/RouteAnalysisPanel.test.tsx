@@ -77,4 +77,25 @@ describe("RouteAnalysisPanel", () => {
     expect(html).toContain("引导");
     expect(html).toContain("不是官方保障方案");
   });
+
+  it("renders segment analysis, risk location notes, and optimization actions", () => {
+    const riskyRoute = {
+      ...route,
+      metrics: {
+        ...route.metrics,
+        maxSlopePercent: 7.2,
+        localKnotCount: 4,
+        hairpinTurnCount: 1
+      }
+    };
+    const html = renderToStaticMarkup(<RouteAnalysisPanel route={riskyRoute} supportPoints={[]} />);
+
+    expect(html).toContain("分段分析");
+    expect(html).toContain("0-5km");
+    expect(html).toContain("30km 后疲劳与医疗观察");
+    expect(html).toContain("风险定位说明");
+    expect(html).toContain("地图里程标注");
+    expect(html).toContain("修改建议闭环");
+    expect(html).toContain("优化局部拓扑");
+  });
 });

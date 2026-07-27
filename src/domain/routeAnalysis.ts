@@ -1,6 +1,6 @@
 import type { MarathonRoute } from "./routeMetrics";
 import { compareRoutes, scoreRoute } from "./routeMetrics";
-import { evaluateRouteQuality } from "./routeQuality";
+import { evaluateRouteQuality, type RouteQualityIssue, type RouteQualityIssueCode } from "./routeQuality";
 import type { SupportPoint } from "../data/supportPoints";
 import { getSupportPointSummary, getSupportPointsForRoute } from "../data/supportPoints";
 
@@ -24,6 +24,31 @@ export interface SupportPlanningRecommendation {
   basis: string;
 }
 
+export interface RouteSegmentAnalysis {
+  id: string;
+  rangeLabel: string;
+  focus: string;
+  riskLevel: "低" | "中" | "高";
+  finding: string;
+  recommendation: string;
+}
+
+export interface RouteRiskLocationNote {
+  id: string;
+  issue: string;
+  mileageHint: string;
+  mapHint: string;
+  action: string;
+}
+
+export interface RouteOptimizationAction {
+  id: string;
+  priority: "高" | "中" | "低";
+  title: string;
+  trigger: string;
+  recommendation: string;
+}
+
 export interface RouteAnalysis {
   routeId: string;
   routeName: string;
@@ -36,6 +61,9 @@ export interface RouteAnalysis {
   dataSources: string[];
   implementationNotes: string[];
   supportPlan: SupportPlanningRecommendation[];
+  segmentAnalysis: RouteSegmentAnalysis[];
+  riskLocationNotes: RouteRiskLocationNote[];
+  optimizationActions: RouteOptimizationAction[];
 }
 
 export interface RouteReportOptions {
@@ -140,6 +168,154 @@ function buildSupportPlan(route: MarathonRoute, supportPointCount: number): Supp
   ];
 }
 
+function buildSegmentAnalysis(route: MarathonRoute): RouteSegmentAnalysis[] {
+  const m = route.metrics;
+  const topologyRisk = (m.localKnotCount ?? 0) + (m.revisitedNodeCount ?? 0) + (m.parallelBacktrackCount ?? 0) + (m.hairpinTurnCount ?? 0);
+  const slopeRisk = m.maxSlopePercent > 5 || m.totalClimbM > 160;
+  const supportRisk = m.medicalAvgIntervalKm > 5 || m.supplyCoverageRatio < 0.7;
+  const turnRisk = getTurnPenaltyScore(route) > 55 || m.sharpTurnRatio > 0.16;
+
+  return [
+    {
+      id: "start",
+      rangeLabel: "0-5km",
+      focus: "起跑集结与疏散压力",
+      riskLevel: m.narrowRoadRatio > 0.12 ? "中" : "低",
+      finding: `起跑段需重点复核道路宽度，窄路占比 ${percent(m.narrowRoadRatio)}。`,
+      recommendation: "保留起点缓冲区，结合现场围栏、人流入口和医疗观察点复核。"
+    },
+    {
+      id: "early-passage",
+      rangeLabel: "5-10km",
+      focus: "道路宽度与转弯密度",
+      riskLevel: turnRisk ? "高" : "中",
+      finding: `转弯惩罚 ${Math.round(getTurnPenaltyScore(route))}，急弯占比 ${percent(m.sharpTurnRatio)}。`,
+      recommendation: "优先检查急弯、掉头和窄路路口，必要时调整控制点或改走平顺道路。"
+    },
+    {
+      id: "half",
+      rangeLabel: "10-21.1km",
+      focus: "补给覆盖与半程组织",
+      riskLevel: supportRisk ? "中" : "低",
+      finding: `补给覆盖 ${percent(m.supplyCoverageRatio)}，医疗间距 ${m.medicalAvgIntervalKm.toFixed(1)}km。`,
+      recommendation: "半程前后设置补给、医疗和退赛转运预案，保障点需沿路线里程复核。"
+    },
+    {
+      id: "middle",
+      rangeLabel: "21.1-30km",
+      focus: "景观连续性与交通组织",
+      riskLevel: topologyRisk > 3 ? "高" : "中",
+      finding: `局部绳结 ${m.localKnotCount ?? 0} 处，交叉口复访 ${m.revisitedNodeCount ?? 0} 处。`,
+      recommendation: "复核重复经过路口和折返方向，避免观赛、人车分流和运动员流线冲突。"
+    },
+    {
+      id: "fatigue",
+      rangeLabel: "30-40km",
+      focus: "30km 后疲劳与医疗观察",
+      riskLevel: slopeRisk || supportRisk ? "高" : "中",
+      finding: `最大坡度 ${m.maxSlopePercent.toFixed(1)}%，累计爬升 ${m.totalClimbM.toFixed(0)}m。`,
+      recommendation: "30km 后加密医疗观察、降温补给和志愿者引导，坡段需现场确认。"
+    },
+    {
+      id: "finish",
+      rangeLabel: `${Math.min(40, route.lengthKm).toFixed(0)}-${route.lengthKm.toFixed(3)}km`,
+      focus: "终点冲刺与人流分流",
+      riskLevel: (m.repeatedRoadRatio ?? 0) > 0 || (m.hairpinTurnCount ?? 0) > 0 ? "中" : "低",
+      finding: `重复道路 ${percent(m.repeatedRoadRatio ?? 0)}，发卡掉头 ${m.hairpinTurnCount ?? 0} 处。`,
+      recommendation: "终点前避免急转和折返，提前规划完赛缓冲、领取物资和离场动线。"
+    }
+  ];
+}
+
+function buildRiskLocationNotes(route: MarathonRoute): RouteRiskLocationNote[] {
+  const quality = evaluateRouteQuality(route, { targetDistanceKm: route.targetDistanceKm });
+  return quality.issues.map((issue) => ({
+    id: issue.code,
+    issue: issue.label,
+    mileageHint: getIssueMileageHint(issue.code),
+    mapHint: `${issue.label}应结合地图里程标注和路线折线节点定位，复核最近控制点、路口或坡段。`,
+    action: getRiskAction(issue)
+  }));
+}
+
+function buildOptimizationActions(route: MarathonRoute): RouteOptimizationAction[] {
+  const m = route.metrics;
+  const actions: RouteOptimizationAction[] = [];
+  const topologyRisk = (m.localKnotCount ?? 0) + (m.revisitedNodeCount ?? 0) + (m.parallelBacktrackCount ?? 0) + (m.hairpinTurnCount ?? 0);
+
+  if (m.maxSlopePercent > 5 || m.totalClimbM > 160) {
+    actions.push({
+      id: "reduce-slope",
+      priority: "高",
+      title: "降低坡度风险",
+      trigger: `最大坡度 ${m.maxSlopePercent.toFixed(1)}%，累计爬升 ${m.totalClimbM.toFixed(0)}m`,
+      recommendation: "优先替换长坡或陡坡路段，必要时调整前后控制点并重新生成候选线。"
+    });
+  }
+
+  if (topologyRisk > 0 || (m.repeatedRoadRatio ?? 0) > 0) {
+    actions.push({
+      id: "fix-topology",
+      priority: "高",
+      title: "优化局部拓扑",
+      trigger: `重复道路 ${percent(m.repeatedRoadRatio ?? 0)}，局部绳结 ${m.localKnotCount ?? 0} 处，发卡掉头 ${m.hairpinTurnCount ?? 0} 处`,
+      recommendation: "检查相邻控制点连接顺序，删除造成绕行的控制点或改走并行替代道路。"
+    });
+  }
+
+  if (m.medicalAvgIntervalKm > 5 || m.supplyCoverageRatio < 0.75) {
+    actions.push({
+      id: "strengthen-support",
+      priority: "中",
+      title: "加密保障配置",
+      trigger: `补给覆盖 ${percent(m.supplyCoverageRatio)}，医疗间距 ${m.medicalAvgIntervalKm.toFixed(1)}km`,
+      recommendation: "按 5km 补给、起终点和 30km 后医疗观察的口径补充保障点。"
+    });
+  }
+
+  if (actions.length === 0) {
+    actions.push({
+      id: "field-review",
+      priority: "低",
+      title: "进入现场复核",
+      trigger: "核心指标未发现高风险项",
+      recommendation: "保留当前候选线，进入道路宽度、施工围挡、交通管制和 AIMS 测量前复核。"
+    });
+  }
+
+  return actions;
+}
+
+function getIssueMileageHint(code: RouteQualityIssueCode): string {
+  const hints: Partial<Record<RouteQualityIssueCode, string>> = {
+    distance: "全线里程",
+    "max-grade": "坡度异常路段，优先核查 30-40km 疲劳段",
+    "total-climb": "全线爬升累计，重点核查桥梁和坡段",
+    "repeated-road": "重复经过道路附近",
+    "backtrack": "折返或掉头附近",
+    "self-intersection": "自交交汇点",
+    "local-knot": "局部绕行密集区",
+    "node-revisit": "复访交叉口",
+    "parallel-backtrack": "平行折返道路",
+    "hairpin-turn": "发卡掉头点",
+    "sharp-turn-density": "急弯密集路段",
+    "continuity-gap": "路线连续误差节点",
+    "road-alignment": "脱离路网的折线段"
+  };
+  return hints[code] ?? "对应指标异常路段";
+}
+
+function getRiskAction(issue: RouteQualityIssue): string {
+  const actions: Partial<Record<RouteQualityIssueCode, string>> = {
+    "max-grade": "替换缓坡道路或降低该段竞赛速度风险",
+    "repeated-road": "改走并行道路，减少双向流线叠加",
+    "local-knot": "重算相邻控制点连接，消除短距离绕行",
+    "node-revisit": "调整进出路口顺序，减少复访冲突",
+    "hairpin-turn": "改造为更宽折返点或替换路段"
+  };
+  return actions[issue.code] ?? "结合现场踏勘决定保留、替换或人工管控。";
+}
+
 function isGeneratedFromFullOsm(route: MarathonRoute) {
   return route.lineage?.source === "osm-generated";
 }
@@ -163,6 +339,9 @@ export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): Rout
   const selfIntersectionCount = route.metrics.selfIntersectionCount ?? 0;
   const turnPenaltyScore = getTurnPenaltyScore(route);
   const supportPlan = buildSupportPlan(route, summary.total);
+  const segmentAnalysis = buildSegmentAnalysis(route);
+  const riskLocationNotes = buildRiskLocationNotes(route);
+  const optimizationActions = buildOptimizationActions(route);
   const experienceReliability: AnalysisReliability = isGeneratedFromFullOsm(route) ? "estimated" : "derived";
 
   const dimensionCards: AnalysisDimensionCard[] = [
@@ -257,6 +436,9 @@ export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): Rout
     dataSources,
     implementationNotes,
     supportPlan,
+    segmentAnalysis,
+    riskLocationNotes,
+    optimizationActions,
     recommendation: `当前推荐分 ${routeScore.recommendationScore}/100；该分数基于路线几何、道路属性、拓扑和本地服务点数据，用于候选路线比选。补给、医疗、交通管制等保障方案应在选定候选路线后分段细化，并通过现场复核确认实施条件。`
   };
 }
@@ -335,6 +517,20 @@ export function buildSingleRouteHtmlReport(route: MarathonRoute, points: Support
     <section>
       <h2>风险复核项</h2>
       ${renderList(riskItems)}
+    </section>
+    <section>
+      <h2>分段分析</h2>
+      ${renderSegmentAnalysisTable(analysis.segmentAnalysis)}
+    </section>
+    <section>
+      <h2>风险定位说明</h2>
+      ${analysis.riskLocationNotes.length > 0
+        ? renderRiskLocationTable(analysis.riskLocationNotes)
+        : "<p>暂无硬性风险项；仍需结合地图里程标注完成现场复核。</p>"}
+    </section>
+    <section>
+      <h2>修改建议闭环</h2>
+      ${renderOptimizationActionTable(analysis.optimizationActions)}
     </section>
     <section>
       <h2>保障规划建议</h2>
@@ -579,6 +775,67 @@ function renderMetricTable(rows: Array<[string, string]>): string {
           <tr>
             <th>${escapeHtml(label)}</th>
             <td>${escapeHtml(value)}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function renderSegmentAnalysisTable(rows: RouteSegmentAnalysis[]): string {
+  return `
+    <table>
+      <thead>
+        <tr><th>里程段</th><th>分析重点</th><th>风险</th><th>发现</th><th>建议</th></tr>
+      </thead>
+      <tbody>
+        ${rows.map((item) => `
+          <tr>
+            <td>${escapeHtml(item.rangeLabel)}</td>
+            <td>${escapeHtml(item.focus)}</td>
+            <td>${escapeHtml(item.riskLevel)}</td>
+            <td>${escapeHtml(item.finding)}</td>
+            <td>${escapeHtml(item.recommendation)}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function renderRiskLocationTable(rows: RouteRiskLocationNote[]): string {
+  return `
+    <table>
+      <thead>
+        <tr><th>风险项</th><th>里程提示</th><th>地图定位说明</th><th>处理方向</th></tr>
+      </thead>
+      <tbody>
+        ${rows.map((item) => `
+          <tr>
+            <td>${escapeHtml(item.issue)}</td>
+            <td>${escapeHtml(item.mileageHint)}</td>
+            <td>${escapeHtml(item.mapHint)}</td>
+            <td>${escapeHtml(item.action)}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function renderOptimizationActionTable(rows: RouteOptimizationAction[]): string {
+  return `
+    <table>
+      <thead>
+        <tr><th>优先级</th><th>建议动作</th><th>触发依据</th><th>执行建议</th></tr>
+      </thead>
+      <tbody>
+        ${rows.map((item) => `
+          <tr>
+            <td>${escapeHtml(item.priority)}</td>
+            <td>${escapeHtml(item.title)}</td>
+            <td>${escapeHtml(item.trigger)}</td>
+            <td>${escapeHtml(item.recommendation)}</td>
           </tr>
         `).join("")}
       </tbody>

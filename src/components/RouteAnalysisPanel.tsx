@@ -78,6 +78,49 @@ export function RouteAnalysisPanel({ route, supportPoints }: RouteAnalysisPanelP
           <p key={item}>{item}</p>
         ))}
       </div>
+      <div className="analysis-list segment-analysis">
+        <strong>分段分析</strong>
+        <div className="segment-analysis-grid">
+          {analysis.segmentAnalysis.map((segment) => (
+            <article key={segment.id} className={`segment-analysis-item risk-${segment.riskLevel}`}>
+              <div>
+                <b>{segment.rangeLabel}</b>
+                <span>{segment.riskLevel}风险</span>
+              </div>
+              <strong>{segment.focus}</strong>
+              <p>{segment.finding}</p>
+              <small>{segment.recommendation}</small>
+            </article>
+          ))}
+        </div>
+      </div>
+      <div className="analysis-list risk-location">
+        <strong>风险定位说明</strong>
+        {analysis.riskLocationNotes.length > 0 ? (
+          analysis.riskLocationNotes.map((item) => (
+            <article key={item.id} className="risk-location-item">
+              <b>{item.issue}</b>
+              <p>{item.mileageHint}</p>
+              <small>{item.mapHint} {item.action}</small>
+            </article>
+          ))
+        ) : (
+          <p>暂无硬性风险项；仍需结合地图里程标注完成现场复核。</p>
+        )}
+      </div>
+      <div className="analysis-list optimization-actions">
+        <strong>修改建议闭环</strong>
+        {analysis.optimizationActions.map((item) => (
+          <article key={item.id} className={`optimization-action priority-${item.priority}`}>
+            <div>
+              <b>{item.title}</b>
+              <span>{item.priority}优先级</span>
+            </div>
+            <p>{item.trigger}</p>
+            <small>{item.recommendation}</small>
+          </article>
+        ))}
+      </div>
       <div className="analysis-list support-plan">
         <strong>保障规划建议</strong>
         {analysis.supportPlan.map((item) => (

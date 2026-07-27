@@ -158,4 +158,26 @@ describe("routeAnalysis", () => {
     expect(analysis.supportPlan.find((item) => item.type === "引导")?.basis).toContain("自交 2 处");
     expect(analysis.supportPlan.map((item) => item.recommendation).join(" ")).toContain("不是官方保障方案");
   });
+
+  it("adds segment analysis, map-oriented risk hints, and optimization actions", () => {
+    const analysis = analyzeRoute({
+      ...generatedRoute,
+      metrics: {
+        ...generatedRoute.metrics,
+        maxSlopePercent: 7.4,
+        repeatedRoadRatio: 0.03,
+        localKnotCount: 5,
+        revisitedNodeCount: 2,
+        hairpinTurnCount: 1
+      }
+    }, []);
+
+    expect(analysis.segmentAnalysis).toHaveLength(6);
+    expect(analysis.segmentAnalysis[0].rangeLabel).toBe("0-5km");
+    expect(analysis.segmentAnalysis.map((segment) => segment.focus)).toContain("30km 后疲劳与医疗观察");
+    expect(analysis.riskLocationNotes.map((item) => item.issue)).toContain("最大坡度");
+    expect(analysis.riskLocationNotes.map((item) => item.mapHint).join(" ")).toContain("地图里程标注");
+    expect(analysis.optimizationActions.map((item) => item.title)).toContain("优化局部拓扑");
+    expect(analysis.optimizationActions.map((item) => item.priority)).toContain("高");
+  });
 });
