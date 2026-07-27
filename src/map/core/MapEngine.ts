@@ -1,8 +1,8 @@
 ﻿import type { BasemapMode } from "../../config/supermap";
 import type { SupportPoint } from "../../data/supportPoints";
-import type { AnalysisMapFocus } from "../../domain/routeAnalysisMapFocus";
 import type { Coordinate } from "../../domain/routeMetrics";
 import type { MarathonRoute } from "../../domain/routeMetrics";
+import type { SupportPlanningMapPoint, SupportPlanningMapPointType } from "../../domain/routeSupportPlanningMap";
 import {
   formatPoiLabel,
   formatPoiPopup,
@@ -48,7 +48,7 @@ export class MapEngine {
   private vectorBasemapLayers: unknown[] = [];
   private roadNetworkLayers: unknown[] = [];
   private planningPointLayers: unknown[] = [];
-  private analysisFocusLayer: unknown = null;
+  private supportPlanningPointLayers: unknown[] = [];
   private vectorBasemapFeatures: VectorBasemapFeature[] = [];
   private roadNetworkFeatures: RoadNetworkFeature[] = [];
   private basemapLayers: Partial<Record<BasemapMode, unknown>> = {};
@@ -218,10 +218,10 @@ export class MapEngine {
     this.renderPlanningPoints();
   }
 
-  setAnalysisMapFocus(focus: AnalysisMapFocus | null): void {
+  setSupportPlanningPoints(points: SupportPlanningMapPoint[]): void {
     if (this.destroyed || !this.map) return;
-    this.clearAnalysisFocusLayer();
-    if (!focus) return;
+    this.clearSupportPlanningPointLayers();
+    if (points.length === 0) return;
 
     const L = (window as unknown as Record<string, unknown>).L as Record<string, unknown> | undefined;
     if (!L) return;
@@ -229,32 +229,36 @@ export class MapEngine {
     const marker = L.marker as ((latlng: [number, number], opts?: Record<string, unknown>) => unknown) | undefined;
     if (!divIcon || !marker) return;
 
-    const icon = divIcon({
-      className: "analysis-focus-marker",
-      html: "<span></span>",
-      iconSize: [34, 34],
-      iconAnchor: [17, 17]
-    });
-    const layer = marker([focus.coordinate[1], focus.coordinate[0]], {
-      icon,
-      pane: "planning-point-pane",
-      keyboard: false
-    });
-    const leafletMarker = layer as {
-      addTo?: (m: unknown) => unknown;
-      bindTooltip?: (label: string, opts?: Record<string, unknown>) => unknown;
-      bindPopup?: (label: string, opts?: Record<string, unknown>) => unknown;
-    };
-    leafletMarker.bindTooltip?.(`${focus.label} · ${focus.mileageLabel}`, {
-      direction: "top",
-      permanent: true,
-      className: "analysis-focus-label",
-      opacity: 0.98
-    });
-    leafletMarker.bindPopup?.(`<strong>${focus.label}</strong><br>${focus.mileageLabel}`, { maxWidth: 240 });
-    leafletMarker.addTo?.(this.map);
-    this.analysisFocusLayer = layer;
-    this.fitBounds([focus.coordinate]);
+    for (const point of points) {
+      const icon = divIcon({
+        className: `support-plan-marker ${supportPlanningClass(point.type)}`,
+        html: `<span>${supportPlanningShortLabel(point.type)}</span>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+      });
+      const layer = marker([point.coordinate[1], point.coordinate[0]], {
+        icon,
+        pane: "planning-point-pane",
+        keyboard: false
+      });
+      const leafletMarker = layer as {
+        addTo?: (m: unknown) => unknown;
+        bindTooltip?: (label: string, opts?: Record<string, unknown>) => unknown;
+        bindPopup?: (label: string, opts?: Record<string, unknown>) => unknown;
+      };
+      leafletMarker.bindTooltip?.(`${point.label} · ${point.mileageLabel}`, {
+        direction: "top",
+        permanent: point.type === "医疗",
+        className: "support-plan-label",
+        opacity: 0.94
+      });
+      leafletMarker.bindPopup?.(
+        `<strong>${escapeHtml(point.label)}</strong><br>类型：${escapeHtml(point.type)}<br>建议里程：${escapeHtml(point.mileageLabel)}`,
+        { maxWidth: 240 }
+      );
+      leafletMarker.addTo?.(this.map);
+      this.supportPlanningPointLayers.push(layer);
+    }
   }
 
   private renderRoadNetwork(): void {
@@ -381,7 +385,7 @@ export class MapEngine {
     this.clearVectorBasemapLayers();
     this.clearRoadNetworkLayers();
     this.clearPlanningPointLayers();
-    this.clearAnalysisFocusLayer();
+    this.clearSupportPlanningPointLayers();
     this.basemapLayers = {};
     this.activeBasemapLayer = null;
     this.container.innerHTML = "";
@@ -718,11 +722,13 @@ export class MapEngine {
     this.planningPointLayers = [];
   }
 
-  private clearAnalysisFocusLayer(): void {
-    if (this.analysisFocusLayer && this.map) {
-      (this.map as { removeLayer?: (l: unknown) => void }).removeLayer?.(this.analysisFocusLayer);
+  private clearSupportPlanningPointLayers(): void {
+    for (const layer of this.supportPlanningPointLayers) {
+      if (this.map) {
+        (this.map as { removeLayer?: (l: unknown) => void }).removeLayer?.(layer);
+      }
     }
-    this.analysisFocusLayer = null;
+    this.supportPlanningPointLayers = [];
   }
 
   private clearRoadNetworkLayers(): void {
@@ -766,4 +772,33 @@ export class MapEngine {
     pane.style.zIndex = String(zIndex);
     pane.style.pointerEvents = pointerEvents;
   }
+}
+
+function supportPlanningClass(type: SupportPlanningMapPointType): string {
+  const classes: Record<SupportPlanningMapPointType, string> = {
+    补给: "supply",
+    医疗: "medical",
+    厕所: "restroom",
+    引导: "guide"
+  };
+  return classes[type];
+}
+
+function supportPlanningShortLabel(type: SupportPlanningMapPointType): string {
+  const labels: Record<SupportPlanningMapPointType, string> = {
+    补给: "补",
+    医疗: "医",
+    厕所: "厕",
+    引导: "导"
+  };
+  return labels[type];
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }

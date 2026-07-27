@@ -115,7 +115,7 @@ describe("getVisibleMapRoutes", () => {
     expect(html).not.toContain("2/2 已加入对比");
   });
 
-  it("shows the active analysis risk focus in the map toolbar", () => {
+  it("shows support planning map points in the map toolbar", () => {
     const html = renderToStaticMarkup(
       createElement(SuperMapMap, {
         routes: [makeRoute("one")],
@@ -123,19 +123,16 @@ describe("getVisibleMapRoutes", () => {
         comparedRouteIds: ["one"],
         routePlans: activeCityPackage.routePlans,
         layerVisibility: { routes: true, roadNetwork: true },
-        analysisMapFocus: {
-          routeId: "one",
-          issueId: "max-grade",
-          label: "最大坡度",
-          coordinate: [114.01, 30.01],
-          mileageLabel: "30-40km"
-        },
+        supportPlanningPoints: [
+          { id: "one-supply-5", routeId: "one", type: "补给", label: "补给 5km", coordinate: [114, 30], mileageKm: 5, mileageLabel: "5.0km" },
+          { id: "one-medical-half", routeId: "one", type: "医疗", label: "半程医疗观察点", coordinate: [114.01, 30.01], mileageKm: 21.1, mileageLabel: "21.1km" }
+        ],
         onSelectRoute: () => {}
       })
     );
 
-    expect(html).toContain("地图联动");
-    expect(html).toContain("最大坡度");
-    expect(html).toContain("30-40km");
+    expect(html).toContain("保障规划图层");
+    expect(html).toContain("2 个建议点");
+    expect(html).toContain("补给 / 医疗");
   });
 });

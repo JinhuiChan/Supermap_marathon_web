@@ -74,7 +74,7 @@ describe("HTML route reports", () => {
     expect(html).toContain("东湖线");
     expect(html).toContain("风险复核项");
     expect(html).toContain("分段分析");
-    expect(html).toContain("风险定位说明");
+    expect(html).not.toContain("风险定位说明");
     expect(html).toContain("修改建议闭环");
     expect(html).toContain("保障规划建议");
     expect(html).toContain("数据来源");

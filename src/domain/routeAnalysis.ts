@@ -1,6 +1,6 @@
 import type { MarathonRoute } from "./routeMetrics";
 import { compareRoutes, scoreRoute } from "./routeMetrics";
-import { evaluateRouteQuality, type RouteQualityIssue, type RouteQualityIssueCode } from "./routeQuality";
+import { evaluateRouteQuality } from "./routeQuality";
 import type { SupportPoint } from "../data/supportPoints";
 import { getSupportPointSummary, getSupportPointsForRoute } from "../data/supportPoints";
 
@@ -33,14 +33,6 @@ export interface RouteSegmentAnalysis {
   recommendation: string;
 }
 
-export interface RouteRiskLocationNote {
-  id: string;
-  issue: string;
-  mileageHint: string;
-  mapHint: string;
-  action: string;
-}
-
 export interface RouteOptimizationAction {
   id: string;
   priority: "高" | "中" | "低";
@@ -62,7 +54,6 @@ export interface RouteAnalysis {
   implementationNotes: string[];
   supportPlan: SupportPlanningRecommendation[];
   segmentAnalysis: RouteSegmentAnalysis[];
-  riskLocationNotes: RouteRiskLocationNote[];
   optimizationActions: RouteOptimizationAction[];
 }
 
@@ -81,7 +72,7 @@ export const routeAnalysisScoreWeights = [
 export const superMapEvidenceChain = [
   "SuperMap iDesktopX 制图发布道路网络与约束图层",
   "SuperMap iServer 提供 WMS/REST 地图与空间数据服务",
-  "SuperMap iClient/Leaflet 在 Web 端叠加路线、POI 与风险定位",
+  "SuperMap iClient/Leaflet 在 Web 端叠加路线、POI 与保障规划建议",
   "本地 GeoJSON 路网用于 Walk 路径生成、拓扑检测与报告归档"
 ] as const;
 
@@ -241,17 +232,6 @@ function buildSegmentAnalysis(route: MarathonRoute): RouteSegmentAnalysis[] {
   ];
 }
 
-function buildRiskLocationNotes(route: MarathonRoute): RouteRiskLocationNote[] {
-  const quality = evaluateRouteQuality(route, { targetDistanceKm: route.targetDistanceKm });
-  return quality.issues.map((issue) => ({
-    id: issue.code,
-    issue: issue.label,
-    mileageHint: getIssueMileageHint(issue.code),
-    mapHint: `${issue.label}应结合地图里程标注和路线折线节点定位，复核最近控制点、路口或坡段。`,
-    action: getRiskAction(issue)
-  }));
-}
-
 function buildOptimizationActions(route: MarathonRoute): RouteOptimizationAction[] {
   const m = route.metrics;
   const actions: RouteOptimizationAction[] = [];
@@ -300,36 +280,6 @@ function buildOptimizationActions(route: MarathonRoute): RouteOptimizationAction
   return actions;
 }
 
-function getIssueMileageHint(code: RouteQualityIssueCode): string {
-  const hints: Partial<Record<RouteQualityIssueCode, string>> = {
-    distance: "全线里程",
-    "max-grade": "坡度异常路段，优先核查 30-40km 疲劳段",
-    "total-climb": "全线爬升累计，重点核查桥梁和坡段",
-    "repeated-road": "重复经过道路附近",
-    "backtrack": "折返或掉头附近",
-    "self-intersection": "自交交汇点",
-    "local-knot": "局部绕行密集区",
-    "node-revisit": "复访交叉口",
-    "parallel-backtrack": "平行折返道路",
-    "hairpin-turn": "发卡掉头点",
-    "sharp-turn-density": "急弯密集路段",
-    "continuity-gap": "路线连续误差节点",
-    "road-alignment": "脱离路网的折线段"
-  };
-  return hints[code] ?? "对应指标异常路段";
-}
-
-function getRiskAction(issue: RouteQualityIssue): string {
-  const actions: Partial<Record<RouteQualityIssueCode, string>> = {
-    "max-grade": "替换缓坡道路或降低该段竞赛速度风险",
-    "repeated-road": "改走并行道路，减少双向流线叠加",
-    "local-knot": "重算相邻控制点连接，消除短距离绕行",
-    "node-revisit": "调整进出路口顺序，减少复访冲突",
-    "hairpin-turn": "改造为更宽折返点或替换路段"
-  };
-  return actions[issue.code] ?? "结合现场踏勘决定保留、替换或人工管控。";
-}
-
 function isGeneratedFromFullOsm(route: MarathonRoute) {
   return route.lineage?.source === "osm-generated";
 }
@@ -354,7 +304,6 @@ export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): Rout
   const turnPenaltyScore = getTurnPenaltyScore(route);
   const supportPlan = buildSupportPlan(route, summary.total);
   const segmentAnalysis = buildSegmentAnalysis(route);
-  const riskLocationNotes = buildRiskLocationNotes(route);
   const optimizationActions = buildOptimizationActions(route);
   const experienceReliability: AnalysisReliability = isGeneratedFromFullOsm(route) ? "estimated" : "derived";
 
@@ -451,7 +400,6 @@ export function analyzeRoute(route: MarathonRoute, points: SupportPoint[]): Rout
     implementationNotes,
     supportPlan,
     segmentAnalysis,
-    riskLocationNotes,
     optimizationActions,
     recommendation: `当前推荐分 ${routeScore.recommendationScore}/100；该分数基于路线几何、道路属性、拓扑和本地服务点数据，用于候选路线比选。补给、医疗、交通管制等保障方案应在选定候选路线后分段细化，并通过现场复核确认实施条件。`
   };
@@ -555,12 +503,6 @@ export function buildSingleRouteHtmlReport(route: MarathonRoute, points: Support
     <section>
       <h2>分段分析</h2>
       ${renderSegmentAnalysisTable(analysis.segmentAnalysis)}
-    </section>
-    <section>
-      <h2>风险定位说明</h2>
-      ${analysis.riskLocationNotes.length > 0
-        ? renderRiskLocationTable(analysis.riskLocationNotes)
-        : "<p>暂无硬性风险项；仍需结合地图里程标注完成现场复核。</p>"}
     </section>
     <section>
       <h2>修改建议闭环</h2>
@@ -830,26 +772,6 @@ function renderSegmentAnalysisTable(rows: RouteSegmentAnalysis[]): string {
             <td>${escapeHtml(item.riskLevel)}</td>
             <td>${escapeHtml(item.finding)}</td>
             <td>${escapeHtml(item.recommendation)}</td>
-          </tr>
-        `).join("")}
-      </tbody>
-    </table>
-  `;
-}
-
-function renderRiskLocationTable(rows: RouteRiskLocationNote[]): string {
-  return `
-    <table>
-      <thead>
-        <tr><th>风险项</th><th>里程提示</th><th>地图定位说明</th><th>处理方向</th></tr>
-      </thead>
-      <tbody>
-        ${rows.map((item) => `
-          <tr>
-            <td>${escapeHtml(item.issue)}</td>
-            <td>${escapeHtml(item.mileageHint)}</td>
-            <td>${escapeHtml(item.mapHint)}</td>
-            <td>${escapeHtml(item.action)}</td>
           </tr>
         `).join("")}
       </tbody>

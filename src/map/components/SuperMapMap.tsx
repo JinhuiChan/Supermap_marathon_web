@@ -2,8 +2,8 @@
 import { activeCityPackage, type CityPackage } from "../../config/cityPackages";
 import type { WaypointRoutePlan } from "../../data/profileRoutePlanner";
 import { countComparedCandidateRoutes } from "../../domain/routeComparisonStatus";
-import type { AnalysisMapFocus } from "../../domain/routeAnalysisMapFocus";
 import type { Coordinate, MarathonRoute } from "../../domain/routeMetrics";
+import type { SupportPlanningMapPoint } from "../../domain/routeSupportPlanningMap";
 import { fetchIserverPoiLabels } from "../../services/iserverPoi";
 import { RouteMap } from "../../components/RouteMap";
 import { loadScript, loadStylesheet } from "../core/loadScript";
@@ -31,7 +31,7 @@ interface SuperMapMapProps {
   isGenerating?: boolean;
   generationProgress?: number | null;
   generationStatus?: string;
-  analysisMapFocus?: AnalysisMapFocus | null;
+  supportPlanningPoints?: SupportPlanningMapPoint[];
   onSelectRoute: (id: string) => void;
 }
 
@@ -71,7 +71,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
     isGenerating = false,
     generationProgress = null,
     generationStatus = "",
-    analysisMapFocus = null,
+    supportPlanningPoints = [],
     onSelectRoute
   } = props;
   const cityPackage = props.cityPackage ?? activeCityPackage;
@@ -268,7 +268,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
         engine.setRoadNetwork(roadNetworkFeatures);
         engine.highlightRoute(activeRouteId, comparedRouteIds);
         engine.setLayerVisibility(layerVisibility);
-        engine.setAnalysisMapFocus(analysisMapFocus);
+        engine.setSupportPlanningPoints(supportPlanningPoints);
         engineRef.current = engine;
 
         if (!cancelled) {
@@ -336,8 +336,10 @@ export function SuperMapMap(props: SuperMapMapProps) {
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine || phase !== "ready") return;
-    engine.setAnalysisMapFocus(analysisMapFocus);
-  }, [analysisMapFocus, phase]);
+    engine.setSupportPlanningPoints(supportPlanningPoints);
+  }, [supportPlanningPoints, phase]);
+
+  const supportPlanningTypes = [...new Set(supportPlanningPoints.map((point) => point.type))];
 
   if (phase === "fallback") {
     return (
@@ -364,11 +366,11 @@ export function SuperMapMap(props: SuperMapMapProps) {
         </span>
         <strong>{comparedCandidateRouteCount}/{routes.length} 已加入对比</strong>
       </div>
-      {analysisMapFocus && (
-        <div className="map-analysis-focus">
-          <span>地图联动</span>
-          <strong>{analysisMapFocus.label}</strong>
-          <small>{analysisMapFocus.mileageLabel}</small>
+      {supportPlanningPoints.length > 0 && (
+        <div className="map-support-planning">
+          <span>保障规划图层</span>
+          <strong>{supportPlanningPoints.length} 个建议点</strong>
+          <small>{supportPlanningTypes.join(" / ")}</small>
         </div>
       )}
       <MapGenerationProgress isGenerating={isGenerating} progress={generationProgress} status={generationStatus} />

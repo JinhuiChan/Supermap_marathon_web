@@ -962,6 +962,54 @@ textarea {
   text-shadow: none;
 }
 
+.support-plan-marker {
+  width: 28px !important;
+  height: 28px !important;
+  border: 0;
+  background: transparent;
+}
+
+.support-plan-marker span {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 8px 16px rgba(15, 38, 58, 0.24);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.support-plan-marker.supply span {
+  background: #23836f;
+}
+
+.support-plan-marker.medical span {
+  background: #c43d32;
+}
+
+.support-plan-marker.restroom span {
+  background: #7c3aed;
+}
+
+.support-plan-marker.guide span {
+  background: #8a5b15;
+}
+
+.support-plan-label {
+  border: 0;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 2px 8px rgba(15, 38, 58, 0.18);
+  color: #173a52;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0;
+  padding: 3px 6px;
+}
+
 .map-poi-marker {
   width: auto !important;
   height: 32px !important;
@@ -1490,11 +1538,6 @@ textarea {
   border-color: #d7e6f5;
 }
 
-.analysis-list.risk-location {
-  background: #fffaf2;
-  border-color: #f1d9ac;
-}
-
 .analysis-list.optimization-actions {
   background: #f8fbf7;
   border-color: #d6e7d2;
@@ -1507,7 +1550,6 @@ textarea {
 }
 
 .segment-analysis-item,
-.risk-location-item,
 .optimization-action {
   display: grid;
   gap: 5px;
@@ -1518,7 +1560,6 @@ textarea {
 }
 
 .segment-analysis-item div,
-.risk-location-item div,
 .optimization-action div {
   display: flex;
   align-items: center;
@@ -1527,23 +1568,9 @@ textarea {
 }
 
 .segment-analysis-item b,
-.risk-location-item b,
 .optimization-action b {
   color: #173a52;
   font-size: 12px;
-}
-
-.risk-location-item button {
-  flex: 0 0 auto;
-  min-height: 26px;
-  border: 1px solid #d7e2eb;
-  border-radius: 6px;
-  background: #ffffff;
-  color: #173a52;
-  cursor: pointer;
-  font: inherit;
-  font-size: 10px;
-  font-weight: 850;
 }
 
 .segment-analysis-item strong {
@@ -1581,7 +1608,6 @@ textarea {
 }
 
 .segment-analysis-item p,
-.risk-location-item p,
 .optimization-action p {
   margin: 0;
   color: #5f7184;
@@ -1590,7 +1616,6 @@ textarea {
 }
 
 .segment-analysis-item small,
-.risk-location-item small,
 .optimization-action small {
   color: #778574;
   font-size: 11px;
@@ -3137,7 +3162,7 @@ textarea {
   font-size: 12px;
 }
 
-.map-analysis-focus {
+.map-support-planning {
   position: absolute;
   z-index: 905;
   top: 58px;
@@ -3145,46 +3170,28 @@ textarea {
   display: grid;
   gap: 3px;
   max-width: min(360px, calc(100% - 32px));
-  border: 1px solid rgba(217, 119, 6, 0.24);
-  border-left: 4px solid #d97706;
+  border: 1px solid rgba(35, 131, 111, 0.24);
+  border-left: 4px solid #23836f;
   border-radius: 8px;
   padding: 9px 11px;
-  background: rgba(255, 250, 240, 0.94);
+  background: rgba(247, 251, 249, 0.95);
   box-shadow: 0 10px 24px rgba(23, 39, 54, 0.14);
 }
 
-.map-analysis-focus span {
-  color: #8a5c10;
+.map-support-planning span {
+  color: #0f766e;
   font-size: 11px;
   font-weight: 900;
 }
 
-.map-analysis-focus strong {
+.map-support-planning strong {
   color: #173a52;
   font-size: 13px;
 }
 
-.map-analysis-focus small {
+.map-support-planning small {
   color: #607284;
   font-size: 11px;
-}
-
-.analysis-focus-marker span {
-  display: block;
-  width: 26px;
-  height: 26px;
-  border: 4px solid #d97706;
-  border-radius: 50%;
-  background: rgba(255, 247, 237, 0.88);
-  box-shadow: 0 0 0 8px rgba(217, 119, 6, 0.18);
-}
-
-.analysis-focus-label {
-  border: 1px solid rgba(217, 119, 6, 0.32);
-  border-radius: 6px;
-  background: rgba(255, 250, 240, 0.96);
-  color: #173a52;
-  font-weight: 850;
 }
 
 .quality-issue-table {

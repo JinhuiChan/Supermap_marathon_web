@@ -3,18 +3,16 @@ import type { SupportPoint } from "../data/supportPoints";
 import {
   analyzeRoute,
   routeAnalysisScoreWeights,
-  superMapEvidenceChain,
-  type RouteRiskLocationNote
+  superMapEvidenceChain
 } from "../domain/routeAnalysis";
 import { evaluateRouteQuality } from "../domain/routeQuality";
 
 interface RouteAnalysisPanelProps {
   route: MarathonRoute;
   supportPoints: SupportPoint[];
-  onSelectRiskLocation?: (note: RouteRiskLocationNote) => void;
 }
 
-export function RouteAnalysisPanel({ route, supportPoints, onSelectRiskLocation }: RouteAnalysisPanelProps) {
+export function RouteAnalysisPanel({ route, supportPoints }: RouteAnalysisPanelProps) {
   const analysis = analyzeRoute(route, supportPoints);
   const quality = evaluateRouteQuality(route, { targetDistanceKm: route.targetDistanceKm });
   const targetDistanceKm = route.targetDistanceKm ?? 42.195;
@@ -117,23 +115,6 @@ export function RouteAnalysisPanel({ route, supportPoints, onSelectRiskLocation 
             </article>
           ))}
         </div>
-      </div>
-      <div className="analysis-list risk-location">
-        <strong>风险定位说明</strong>
-        {analysis.riskLocationNotes.length > 0 ? (
-          analysis.riskLocationNotes.map((item) => (
-            <article key={item.id} className="risk-location-item">
-              <div>
-                <b>{item.issue}</b>
-                <button type="button" onClick={() => onSelectRiskLocation?.(item)}>定位到地图</button>
-              </div>
-              <p>{item.mileageHint}</p>
-              <small>{item.mapHint} {item.action}</small>
-            </article>
-          ))
-        ) : (
-          <p>暂无硬性风险项；仍需结合地图里程标注完成现场复核。</p>
-        )}
       </div>
       <div className="analysis-list optimization-actions">
         <strong>修改建议闭环</strong>
