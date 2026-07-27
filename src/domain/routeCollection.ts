@@ -18,6 +18,26 @@ export function upsertGeneratedRoute(routes: MarathonRoute[], route: MarathonRou
   return [...withoutSameId, withDistinctRouteColor(route, withoutSameId)];
 }
 
+export interface RouteWorkspaceState {
+  routes: MarathonRoute[];
+  activeRouteId: string;
+  comparedRouteIds: string[];
+}
+
+export function removeGeneratedRoute(
+  routes: MarathonRoute[],
+  activeRouteId: string,
+  comparedRouteIds: string[],
+  routeId: string
+): RouteWorkspaceState {
+  const nextRoutes = routes.filter((route) => route.id !== routeId);
+  return {
+    routes: nextRoutes,
+    activeRouteId: activeRouteId === routeId ? nextRoutes[0]?.id ?? "" : activeRouteId,
+    comparedRouteIds: comparedRouteIds.filter((id) => id !== routeId)
+  };
+}
+
 function withDistinctRouteColor(route: MarathonRoute, existingRoutes: MarathonRoute[]): MarathonRoute {
   const existingColors = existingRoutes.map((item) => item.color);
   if (isDistinctFromAll(route.color, existingColors)) return route;

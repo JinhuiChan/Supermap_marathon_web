@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { upsertGeneratedRoute } from "./routeCollection";
+import { removeGeneratedRoute, upsertGeneratedRoute } from "./routeCollection";
 import type { MarathonRoute } from "./routeMetrics";
 
 const baseRoute: MarathonRoute = {
@@ -69,5 +69,54 @@ describe("routeCollection", () => {
 
     expect(routes[1].color).not.toBe("#0f766e");
     expect(new Set(routes.map((route) => route.color))).toHaveLength(2);
+  });
+
+  it("removes a generated route and clears its comparison state", () => {
+    const other = { ...baseRoute, id: "other" };
+
+    expect(
+      removeGeneratedRoute(
+        [baseRoute, other],
+        baseRoute.id,
+        [baseRoute.id, other.id],
+        other.id
+      )
+    ).toEqual({
+      routes: [baseRoute],
+      activeRouteId: baseRoute.id,
+      comparedRouteIds: [baseRoute.id]
+    });
+  });
+
+  it("selects the first remaining route when the active route is deleted", () => {
+    const other = { ...baseRoute, id: "other" };
+
+    expect(
+      removeGeneratedRoute(
+        [baseRoute, other],
+        baseRoute.id,
+        [baseRoute.id],
+        baseRoute.id
+      )
+    ).toEqual({
+      routes: [other],
+      activeRouteId: other.id,
+      comparedRouteIds: []
+    });
+  });
+
+  it("clears route workspace IDs after deleting the final route", () => {
+    expect(
+      removeGeneratedRoute(
+        [baseRoute],
+        baseRoute.id,
+        [baseRoute.id],
+        baseRoute.id
+      )
+    ).toEqual({
+      routes: [],
+      activeRouteId: "",
+      comparedRouteIds: []
+    });
   });
 });
