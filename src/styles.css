@@ -1977,6 +1977,8 @@ textarea {
 }
 
 .gis-selection-panel {
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
@@ -2034,6 +2036,12 @@ textarea {
   border-radius: 10px;
   padding: 12px;
   background: #f8fafc;
+}
+
+.city-package-import {
+  order: -1;
+  margin-top: 0;
+  margin-bottom: 10px;
 }
 
 .gis-tool-group h3 {

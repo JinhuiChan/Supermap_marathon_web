@@ -39,6 +39,12 @@ describe("GisSelectionPanel", () => {
     expect(html).toContain("38MB");
   });
 
+  it("visually places city package import before the selection heading", () => {
+    const html = renderPanel();
+
+    expect(html).toContain("city-package-import");
+  });
+
   it("starts with an empty route-result surface and no preset route cards", () => {
     const html = renderPanel();
     expect(html).not.toContain("东湖线");
