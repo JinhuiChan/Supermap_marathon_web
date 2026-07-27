@@ -134,5 +134,7 @@ describe("getVisibleMapRoutes", () => {
     expect(html).toContain("保障规划图层");
     expect(html).toContain("2 个建议点");
     expect(html).toContain("补给 / 医疗");
+    expect(html).toContain("规划建议点，不同于普通 POI");
+    expect(html).toContain("support-plan-legend");
   });
 });

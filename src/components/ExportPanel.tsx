@@ -55,32 +55,36 @@ export function ExportPanel({ primaryRoute, routes, supportPoints, cityPackage =
       <div className="export-report-group">
         <h3>单路线分析报告</h3>
         <p className="muted">包含路线概况、指标表、风险复核项、保障规划建议、数据来源和认证测量边界说明。</p>
-        <button
-          type="button"
-          onClick={() => downloadHtml(singleRouteReport, "marathon-single-route-analysis.html")}
-          disabled={!singleReportRoute}
-        >
-          导出单路线 HTML 报告
-        </button>
-        <button
-          type="button"
-          onClick={() => downloadJson(routeJson, "marathon-current-route.json")}
-          disabled={!singleReportRoute}
-        >
-          保存当前路线 JSON
-        </button>
+        <div className="export-actions">
+          <button
+            type="button"
+            onClick={() => downloadHtml(singleRouteReport, "marathon-single-route-analysis.html")}
+            disabled={!singleReportRoute}
+          >
+            导出 HTML 报告
+          </button>
+          <button
+            type="button"
+            onClick={() => downloadJson(routeJson, "marathon-current-route.json")}
+            disabled={!singleReportRoute}
+          >
+            保存路线 JSON
+          </button>
+        </div>
       </div>
 
       <div className="export-report-group">
         <h3>多路线比选报告</h3>
         <p className="muted">包含综合排序、路线摘要、风险复核项和统一数据来源说明，可用浏览器打印为 PDF。</p>
-        <button
-          type="button"
-          onClick={() => downloadHtml(comparisonReport, "marathon-route-comparison.html")}
-          disabled={routes.length < 2}
-        >
-          导出多路线 HTML 报告
-        </button>
+        <div className="export-actions">
+          <button
+            type="button"
+            onClick={() => downloadHtml(comparisonReport, "marathon-route-comparison.html")}
+            disabled={routes.length < 2}
+          >
+            导出多路线 HTML 报告
+          </button>
+        </div>
       </div>
 
       <textarea

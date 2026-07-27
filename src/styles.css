@@ -681,6 +681,23 @@ textarea {
   gap: 12px;
 }
 
+.export-report-group {
+  display: grid;
+  gap: 10px;
+}
+
+.export-report-group h3,
+.export-report-group p {
+  margin-bottom: 0;
+}
+
+.export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 .export-panel textarea {
   width: 100%;
   min-height: 150px;
@@ -694,13 +711,17 @@ textarea {
 }
 
 .export-panel button {
-  min-height: 40px;
+  width: auto;
+  min-height: 36px;
+  flex: 0 1 auto;
   border: 0;
   border-radius: 8px;
-  padding: 0 14px;
+  padding: 0 12px;
   background: #173a52;
   color: #ffffff;
+  font-size: 13px;
   font-weight: 700;
+  line-height: 1.2;
   cursor: pointer;
 }
 
@@ -963,23 +984,31 @@ textarea {
 }
 
 .support-plan-marker {
-  width: 28px !important;
-  height: 28px !important;
+  width: 30px !important;
+  height: 30px !important;
   border: 0;
   background: transparent;
 }
 
 .support-plan-marker span {
   display: grid;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   place-items: center;
-  border: 2px solid #ffffff;
-  border-radius: 50%;
-  box-shadow: 0 8px 16px rgba(15, 38, 58, 0.24);
+  margin: 3px;
+  border: 2px dashed #ffffff;
+  border-radius: 7px;
+  box-shadow:
+    0 0 0 3px rgba(23, 58, 82, 0.22),
+    0 8px 16px rgba(15, 38, 58, 0.24);
   color: #ffffff;
   font-size: 12px;
   font-weight: 900;
+  transform: rotate(45deg);
+}
+
+.support-plan-marker span b {
+  transform: rotate(-45deg);
 }
 
 .support-plan-marker.supply span {
@@ -999,9 +1028,9 @@ textarea {
 }
 
 .support-plan-label {
-  border: 0;
+  border: 1px solid rgba(23, 58, 82, 0.2);
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(248, 251, 249, 0.96);
   box-shadow: 0 2px 8px rgba(15, 38, 58, 0.18);
   color: #173a52;
   font-size: 11px;
@@ -3192,6 +3221,55 @@ textarea {
 .map-support-planning small {
   color: #607284;
   font-size: 11px;
+}
+
+.map-support-planning p {
+  margin: 0;
+  color: #6b7b8b;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.support-plan-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding-top: 3px;
+}
+
+.support-plan-swatch {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 1px dashed #ffffff;
+  border-radius: 5px;
+  box-shadow: 0 0 0 2px rgba(23, 58, 82, 0.14);
+  color: #ffffff;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+  transform: rotate(45deg);
+}
+
+.support-plan-swatch b {
+  transform: rotate(-45deg);
+}
+
+.support-plan-swatch.supply {
+  background: #23836f;
+}
+
+.support-plan-swatch.medical {
+  background: #c43d32;
+}
+
+.support-plan-swatch.restroom {
+  background: #7c3aed;
+}
+
+.support-plan-swatch.guide {
+  background: #8a5b15;
 }
 
 .quality-issue-table {

@@ -232,9 +232,9 @@ export class MapEngine {
     for (const point of points) {
       const icon = divIcon({
         className: `support-plan-marker ${supportPlanningClass(point.type)}`,
-        html: `<span>${supportPlanningShortLabel(point.type)}</span>`,
-        iconSize: [28, 28],
-        iconAnchor: [14, 14]
+        html: `<span><b>${supportPlanningShortLabel(point.type)}</b></span>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
       });
       const layer = marker([point.coordinate[1], point.coordinate[0]], {
         icon,

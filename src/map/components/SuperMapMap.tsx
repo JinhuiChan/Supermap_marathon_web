@@ -371,6 +371,14 @@ export function SuperMapMap(props: SuperMapMapProps) {
           <span>保障规划图层</span>
           <strong>{supportPlanningPoints.length} 个建议点</strong>
           <small>{supportPlanningTypes.join(" / ")}</small>
+          <p>规划建议点，不同于普通 POI</p>
+          <div className="support-plan-legend" aria-label="保障规划图例">
+            {supportPlanningTypes.map((type) => (
+              <i key={type} className={`support-plan-swatch ${supportPlanningTypeClass(type)}`}>
+                <b>{type.slice(0, 1)}</b>
+              </i>
+            ))}
+          </div>
         </div>
       )}
       <MapGenerationProgress isGenerating={isGenerating} progress={generationProgress} status={generationStatus} />
@@ -480,5 +488,15 @@ function buildWaypointMarkers(
     }
   }
   return markers;
+}
+
+function supportPlanningTypeClass(type: string): string {
+  const classes: Record<string, string> = {
+    补给: "supply",
+    医疗: "medical",
+    厕所: "restroom",
+    引导: "guide"
+  };
+  return classes[type] ?? "guide";
 }
 

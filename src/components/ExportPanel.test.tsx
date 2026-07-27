@@ -36,8 +36,9 @@ describe("ExportPanel", () => {
     const html = renderToStaticMarkup(<ExportPanel routes={[route]} supportPoints={[]} />);
 
     expect(html).toContain("单路线分析报告");
-    expect(html).toContain("导出单路线 HTML 报告");
-    expect(html).toContain("保存当前路线 JSON");
+    expect(html).toContain("export-actions");
+    expect(html).toContain("导出 HTML 报告");
+    expect(html).toContain("保存路线 JSON");
     expect(html).toContain("多路线比选报告");
     expect(html).toContain("disabled");
   });
@@ -46,7 +47,7 @@ describe("ExportPanel", () => {
     const secondRoute = { ...route, id: "second", name: "第二候选线" };
     const html = renderToStaticMarkup(<ExportPanel routes={[route, secondRoute]} supportPoints={[]} />);
 
-    expect(html).toContain("导出单路线 HTML 报告");
+    expect(html).toContain("导出 HTML 报告");
     expect(html).toContain("导出多路线 HTML 报告");
     expect(html).not.toContain("导出对比报告");
   });
