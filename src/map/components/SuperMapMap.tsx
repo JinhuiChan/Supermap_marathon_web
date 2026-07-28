@@ -6,7 +6,7 @@ import type { Coordinate, MarathonRoute } from "../../domain/routeMetrics";
 import type { SupportPlanningMapPoint } from "../../domain/routeSupportPlanningMap";
 import { fetchIserverPoiLabels } from "../../services/iserverPoi";
 import { RouteMap } from "../../components/RouteMap";
-import { loadScript, loadStylesheet } from "../core/loadScript";
+import { loadScriptsInOrder, loadStylesheet } from "../core/loadScript";
 import { MapEngine } from "../core/MapEngine";
 import {
   extractPoiLabelsFromGeoJson,
@@ -93,7 +93,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
   const [vectorBasemapFeatures, setVectorBasemapFeatures] = useState<VectorBasemapFeature[]>([]);
   const [roadNetworkStatus, setRoadNetworkStatus] = useState(`${cityPackage.name}道路走廊：加载中`);
   const [phase, setPhase] = useState<MapPhase>("loading");
-  const [phaseMessage, setPhaseMessage] = useState("加载地图组件...");
+  const [phaseMessage, setPhaseMessage] = useState("加载 SuperMap iClient...");
 
   const onSelectRef = useRef(onSelectRoute);
   onSelectRef.current = onSelectRoute;
@@ -233,17 +233,17 @@ export function SuperMapMap(props: SuperMapMapProps) {
 
     const initMap = async () => {
       setPhase("loading");
-      setPhaseMessage("加载地图组件...");
+      setPhaseMessage("加载 SuperMap iClient...");
 
       try {
-        await loadScript(superMapConfig.leafletJsUrl);
-        if (superMapConfig.leafletCssUrl) {
-          await loadStylesheet(superMapConfig.leafletCssUrl).catch(() => {});
+        await loadScriptsInOrder(superMapConfig.iClientLeafletScripts);
+        for (const stylesheetUrl of superMapConfig.iClientLeafletStyleUrls) {
+          await loadStylesheet(stylesheetUrl).catch(() => {});
         }
       } catch {
         if (!cancelled) {
           setPhase("fallback");
-          setPhaseMessage("地图组件加载失败，使用二维示意图");
+          setPhaseMessage("SuperMap iClient 加载失败，使用二维示意图");
         }
         return;
       }
@@ -251,12 +251,13 @@ export function SuperMapMap(props: SuperMapMapProps) {
       if (cancelled) return;
 
       setPhase("initializing");
-      setPhaseMessage("初始化 iDesktop 发布图...");
+      setPhaseMessage("初始化 iClient 地图服务...");
 
       try {
         const engine = new MapEngine({
           container,
           wmsUrl: superMapConfig.wmsMapUrl,
+          mapRestUrl: superMapConfig.expectedMapServiceUrl,
           wmsLayerName: superMapConfig.wmsLayerName,
           defaultBasemap: superMapConfig.defaultBasemap,
           center: cityPackage.mapCenter,
@@ -365,7 +366,7 @@ export function SuperMapMap(props: SuperMapMapProps) {
     <section className="map-panel" aria-label={`${cityPackage.displayName}赛道地图`}>
       <div className="map-toolbar">
         <span>
-          {cityPackage.name} WebGIS 赛道工作台 · iDesktop 发布图 + 路线/POI 矢量图层
+          {cityPackage.name} WebGIS 赛道工作台 · SuperMap iClient + iServer 地图服务
         </span>
         <strong>{comparedCandidateRouteCount}/{routes.length} 已加入对比</strong>
       </div>

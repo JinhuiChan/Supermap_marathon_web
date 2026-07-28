@@ -153,7 +153,7 @@ export default function App({
     initialLayerVisibility ?? {
       routes: true,
       roadNetwork: true,
-      supportPlanning: true
+      supportPlanning: false
     }
   );
 

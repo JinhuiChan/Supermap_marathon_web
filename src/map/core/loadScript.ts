@@ -1,9 +1,9 @@
 export type LoadState = "idle" | "loading" | "ready" | "error";
 
 let state: LoadState = "idle";
-let loadPromise: Promise<void> | null = null;
 let lastError: Error | null = null;
-let loadedUrl: string | null = null;
+let scriptPromises = new Map<string, Promise<void>>();
+let scriptStates = new Map<string, LoadState>();
 let stylesheetPromises = new Map<string, Promise<void>>();
 
 export function getScriptLoadState(): LoadState {
@@ -15,29 +15,17 @@ export function getScriptLoadError(): Error | null {
 }
 
 export function loadScript(url: string): Promise<void> {
-  if (state === "ready") {
-    if (loadedUrl !== url) {
-      return Promise.reject(
-        new Error(`A different iClient script is already loaded: ${loadedUrl}`)
-      );
-    }
-    return Promise.resolve();
-  }
-  if (state === "loading" && loadPromise) {
-    if (loadedUrl !== url) {
-      return Promise.reject(
-        new Error(`A different iClient script is already loading: ${loadedUrl}`)
-      );
-    }
-    return loadPromise;
-  }
+  if (scriptStates.get(url) === "ready") return Promise.resolve();
+  const cached = scriptPromises.get(url);
+  if (cached) return cached;
 
   state = "loading";
-  loadedUrl = url;
-  loadPromise = new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector(`script[data-supermap-iclient]`);
+  scriptStates.set(url, "loading");
+  const loadPromise = new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector(`script[data-supermap-iclient][src="${url}"]`);
     if (existing) {
-      state = "ready";
+      scriptStates.set(url, "ready");
+      state = allScriptsReady() ? "ready" : "loading";
       lastError = null;
       resolve();
       return;
@@ -49,12 +37,15 @@ export function loadScript(url: string): Promise<void> {
     script.dataset.supermapIclient = "true";
 
     script.onload = () => {
-      state = "ready";
+      scriptStates.set(url, "ready");
+      state = allScriptsReady() ? "ready" : "loading";
       lastError = null;
       resolve();
     };
 
-    script.onerror = (event) => {
+    script.onerror = () => {
+      scriptPromises.delete(url);
+      scriptStates.set(url, "error");
       state = "error";
       lastError = new Error(`Failed to load iClient script: ${url}`);
       script.remove();
@@ -64,7 +55,14 @@ export function loadScript(url: string): Promise<void> {
     document.head.appendChild(script);
   });
 
+  scriptPromises.set(url, loadPromise);
   return loadPromise;
+}
+
+export async function loadScriptsInOrder(urls: string[]): Promise<void> {
+  for (const url of urls) {
+    await loadScript(url);
+  }
 }
 
 export function loadStylesheet(url: string): Promise<void> {
@@ -99,8 +97,12 @@ export function loadStylesheet(url: string): Promise<void> {
 
 export function resetScriptState(): void {
   state = "idle";
-  loadPromise = null;
   lastError = null;
-  loadedUrl = null;
+  scriptPromises.clear();
+  scriptStates.clear();
   stylesheetPromises.clear();
+}
+
+function allScriptsReady(): boolean {
+  return scriptStates.size > 0 && [...scriptStates.values()].every((scriptState) => scriptState === "ready");
 }

@@ -13,8 +13,8 @@ describe("LayerControlPanel", () => {
       />
     );
 
-    expect(html).toContain("iDesktop 发布图");
-    expect(html).toContain("比赛指定底图");
+    expect(html).toContain("iClient 地图服务");
+    expect(html).toContain("比赛指定 iServer REST 底图");
     expect(html).toContain("武汉道路网络");
     expect(html).not.toContain("OpenStreetMap");
     expect(html).not.toContain("本地矢量街道图");

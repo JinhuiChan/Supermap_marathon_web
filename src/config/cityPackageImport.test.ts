@@ -35,4 +35,26 @@ describe("cityPackageImport", () => {
     if (result.ok) return;
     expect(result.error).toContain("mapCenter");
   });
+
+  it("derives iClient Leaflet assets from an imported iServer base URL", () => {
+    const result = parseCityPackageImportText(JSON.stringify({
+      name: "Test City",
+      mapCenter: [114, 30],
+      iServerBaseUrl: "http://localhost:18090/iserver"
+    }), activeCityPackage);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.cityPackage.superMap.iClientJavaScriptUrl).toBe(
+      "http://localhost:18090/iserver/iClient/forJavaScript/web/index.html"
+    );
+    expect(result.cityPackage.superMap.iClientLeafletScripts).toEqual([
+      "http://localhost:18090/iserver/iClient/forJavaScript/web/libs/leaflet/1.9.4/leaflet.js",
+      "http://localhost:18090/iserver/iClient/forJavaScript/dist/leaflet/iclient-leaflet-es6.min.js"
+    ]);
+    expect(result.cityPackage.superMap.iClientLeafletStyleUrls).toEqual([
+      "http://localhost:18090/iserver/iClient/forJavaScript/web/libs/leaflet/1.9.4/leaflet.css",
+      "http://localhost:18090/iserver/iClient/forJavaScript/dist/leaflet/iclient-leaflet.min.css"
+    ]);
+  });
 });

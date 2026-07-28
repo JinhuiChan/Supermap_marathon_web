@@ -33,6 +33,7 @@ export function parseCityPackageImportText(text: string, basePackage: CityPackag
     routingRoadNetworkGeoJsonUrl;
 
   const iServerBaseUrl = readString(record.iServerBaseUrl) || basePackage.superMap.iServerBaseUrl;
+  const iClientForJavaScriptBaseUrl = `${iServerBaseUrl}/iClient/forJavaScript`;
   const wmsMapUrl = readString(record.wmsMapUrl) || basePackage.superMap.wmsMapUrl;
   const wmsLayerName = readString(record.wmsLayerName) || basePackage.superMap.wmsLayerName;
   const supportPointsUrl = readString(record.supportPointsUrl);
@@ -52,6 +53,15 @@ export function parseCityPackageImportText(text: string, basePackage: CityPackag
     superMap: {
       ...basePackage.superMap,
       iServerBaseUrl,
+      iClientJavaScriptUrl: `${iClientForJavaScriptBaseUrl}/web/index.html`,
+      iClientLeafletScripts: [
+        `${iClientForJavaScriptBaseUrl}/web/libs/leaflet/1.9.4/leaflet.js`,
+        `${iClientForJavaScriptBaseUrl}/dist/leaflet/iclient-leaflet-es6.min.js`
+      ],
+      iClientLeafletStyleUrls: [
+        `${iClientForJavaScriptBaseUrl}/web/libs/leaflet/1.9.4/leaflet.css`,
+        `${iClientForJavaScriptBaseUrl}/dist/leaflet/iclient-leaflet.min.css`
+      ],
       wmsMapUrl,
       wmsLayerName,
       displayRoadNetworkGeoJsonUrl,
@@ -69,7 +79,7 @@ export function parseCityPackageImportText(text: string, basePackage: CityPackag
         parks: landmarksUrl || basePackage.superMap.constraintLayerUrls.parks,
         commercialPotential: supportPointsUrl || basePackage.superMap.constraintLayerUrls.commercialPotential
       },
-      basemapPolicy: `当前城市包使用 ${name} 的 SuperMap iServer/WMS 与本地 GeoJSON 路网配置。`
+      basemapPolicy: `当前城市包使用 ${name} 的 SuperMap iServer REST/WMS 与本地 GeoJSON 路网配置。`
     }
   };
 

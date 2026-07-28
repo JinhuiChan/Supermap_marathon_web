@@ -181,7 +181,7 @@ Supermap_marathon_web 使用说明与技术说明
   TypeScript 5
   Vite 7
   Vitest
-  Leaflet
+  SuperMap iClient for JavaScript（Leaflet 版）
   lucide-react
 
 React 负责 UI 状态和组件渲染。Vite 负责本地开发服务器、生产构建和测试环境集成。
@@ -369,9 +369,9 @@ reliability 分为：
 
 SuperMapMap 负责加载数据、初始化地图和同步 React 状态到 MapEngine。
 
-MapEngine 封装 Leaflet：
+MapEngine 封装 SuperMap iClient for JavaScript（Leaflet 版）：
 
-  初始化 WMS 底图
+  初始化 iServer REST 地图图层
   绘制路线
   绘制路网
   绘制 POI 标签
@@ -380,7 +380,7 @@ MapEngine 封装 Leaflet：
   管理路线点击事件
   高亮当前路线和对比路线
 
-如果 Leaflet 或 WMS 初始化失败，系统会回退到 src/components/RouteMap.tsx 的 SVG 示意图。
+如果 SuperMap iClient 或 iServer 地图服务初始化失败，系统会回退到 src/components/RouteMap.tsx 的 SVG 示意图。
 
 9. SuperMap 接入
 
@@ -403,11 +403,50 @@ supermapHealth.ts 检测服务是否可访问。
 
 iserverPoi.ts 从 iServer REST 数据服务读取 POI 标签。读取失败时，前端会使用本地 GeoJSON 和 wuhanLandmarks.ts 中的地标标签作为回退。
 
-10. 数据生成脚本
+10. SuperMap 工作空间与 iServer 发布步骤
+
+比赛材料中需要把工作空间、数据源和服务发布过程写清楚，建议按下面顺序整理：
+
+  1. 在 SuperMap iDesktopX 中运行 scripts/auto_publish.py，生成 supermap-workspace/wuhan-marathon.smwu 和 supermap-workspace/wuhan-marathon.udbx。
+  2. 如果本机使用 UDB 数据源，交付说明中同时写明 .udb/.udd 文件路径；如果使用 UDBX，则以 .udbx 为准。
+  3. 将工作空间发布副本放在 E:/SuperMap/data/processed/wuhan_marathon_supermap_workspace/，iServer 服务配置指向该英文路径下的 wuhan-marathon.smwu，避免中文路径和同名服务覆盖问题。
+  4. 在 iDesktopX 中打开 wuhan-marathon.smwu，检查道路、路线、约束面、DEM/坡度等图层名称与坐标系。
+  5. 在 iServer 管理页面发布工作空间，发布道路地图服务、约束面地图服务、DEM/坡度地图服务和必要的数据服务。
+  6. 道路地图服务发布后，前端默认使用 REST 地图地址：
+
+     http://127.0.0.1:8090/iserver/services/map-wuhan-road-network/rest/maps/road_network_osm%40wuhan_marathon_base
+
+     该道路底图服务以 road_network_osm 线要素为主，用于选线和路径生成，不把大体量面要素混入主底图。
+
+  7. 面要素发布为约束地图服务：
+
+     http://127.0.0.1:8090/iserver/services/map-wuhan-constraints/rest/maps/wuhan_marathon_constraints
+
+     包含 constraint_water_area、constraint_water_line、constraint_sensitive_hospital_area、constraint_sensitive_school_area、park_green_osm、poi_commercial_potential_area、poi_traffic_station_area。前端默认不直接渲染这些大 GeoJSON 面坐标，避免影响页面缩放和平移性能。
+
+  8. DEM/坡度发布为地形服务：
+
+     http://127.0.0.1:8090/iserver/services/map-wuhan-dem-slope/rest/maps/wuhan_dem_slope
+
+  9. WMS 地址保留为服务健康检查和兜底：
+
+     http://127.0.0.1:8090/iserver/services/map-wuhan-road-network/wms111
+
+  10. iClient for JavaScript 由本机 iServer 提供，前端加载：
+
+     http://127.0.0.1:8090/iserver/iClient/forJavaScript/web/libs/leaflet/1.9.4/leaflet.js
+     http://127.0.0.1:8090/iserver/iClient/forJavaScript/dist/leaflet/iclient-leaflet-es6.min.js
+
+     不在 React 运行时动态加载 include-leaflet.js，因为该文件通过 document.write 注入依赖，页面加载完成后再执行会导致 Leaflet 未定义。
+
+  11. 发布后用 /iserver/services.json、REST 地图 JSON、WMS GetCapabilities 和 iClient 脚本 URL 逐项验证。
+  12. 如果 iServer 发布时设置了非常规服务名、地图名、端口、权限或跨域策略，需要在部署说明中截图留档；常规默认发布只需保留服务列表、道路 REST 地图、约束面 REST 地图和 DEM/坡度地图页面截图。
+
+11. 数据生成脚本
 
 scripts 目录用于本地数据准备：
 
-  auto_publish.py：导入数据和辅助 iDesktopX 发布。
+  auto_publish.py：导入道路、约束面、DEM/坡度数据，生成道路底图、约束面和 DEM/坡度三类 iServer 发布对象。
   build_web_gis_assets.py：生成前端 GeoJSON 资产。
   clip_wuhan_roads.py：裁剪武汉道路范围。
   simplify_roads.py：简化道路几何。
@@ -416,6 +455,19 @@ scripts 目录用于本地数据准备：
   generate_full_osm_all_waypoint_routes.ts：批量生成 Full OSM 控制点路线。
 
 这些脚本不是前端运行时必需，但用于准备 public/data 下的静态数据。
+
+12. 算法补充建议
+
+答辩时建议把路线生成算法按“数据输入 - 图构建 - 控制点约束 - 质量门禁 - 输出材料”说明：
+
+  1. 数据输入：使用 public/data/local-wuhan-road-network-osm.geojson 作为全量道路网络，结合城市包中的控制点、桥梁规则、地标权重和坡度/道路等级属性。
+  2. 图构建：roadNetworkGeoJson.ts 将 GeoJSON 转为 RoadGraph，节点为道路端点或交汇点，边保存长度、道路等级、桥梁、坡度和赛事可用性。
+  3. 控制点吸附：fullOsmAllWaypointRoute.ts 将起点、途经点和终点吸附到最近道路节点，并记录控制点命中距离。
+  4. 分段寻路：在控制点之间使用带优先队列的最短路径搜索，代价由道路长度、道路等级惩罚、重复边惩罚和拓扑惩罚共同决定。
+  5. 里程补齐：如果控制点串联后不足 42.195 km，算法继续沿可用道路搜索补齐段，并尽量减少自交、复访和折返。
+  6. 指标计算：计算距离、累计爬升、最大坡度、桥梁距离、急弯、自交、复访、道路贴合率、地标覆盖率和赛事适宜性评分。
+  7. 质量门禁：routeQuality.ts 使用全马距离、坡度、自交、重复道路、局部绳结、发卡掉头等阈值判断是否合规。
+  8. 输出材料：前端导出 GeoJSON、控制点 CSV、分析 HTML/打印 PDF；如老师需要 Word/Excel 附件，可由这些导出结果整理为 docx/xlsx。
 
 
 六、仓库清理说明

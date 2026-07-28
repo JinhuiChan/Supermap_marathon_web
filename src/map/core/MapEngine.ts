@@ -32,6 +32,7 @@ import type { VectorBasemapFeature } from "../layers/VectorBasemapLayer";
 export interface MapEngineOptions {
   container: HTMLElement;
   wmsUrl: string;
+  mapRestUrl: string;
   wmsLayerName: string;
   defaultBasemap: BasemapMode;
   center: [number, number];
@@ -57,6 +58,7 @@ export class MapEngine {
   private onMapClickCb: ((coordinate: Coordinate) => void) | null = null;
   private container: HTMLElement;
   private wmsUrl: string;
+  private mapRestUrl: string;
   private wmsLayerName: string;
   private basemapMode: BasemapMode;
   private center: [number, number];
@@ -76,6 +78,7 @@ export class MapEngine {
   constructor(options: MapEngineOptions) {
     this.container = options.container;
     this.wmsUrl = options.wmsUrl;
+    this.mapRestUrl = options.mapRestUrl;
     this.wmsLayerName = options.wmsLayerName;
     this.basemapMode = options.defaultBasemap;
     this.center = options.center;
@@ -110,15 +113,7 @@ export class MapEngine {
     this.createMapPane("support-point-pane", 520, "auto");
     this.createMapPane("planning-point-pane", 580, "auto");
 
-    const tileLayer = L.tileLayer as ((url: string, opts?: Record<string, unknown>) => unknown) & {
-      wms: (url: string, opts: Record<string, unknown>) => unknown;
-    };
-    this.basemapLayers.supermapDem = tileLayer.wms(this.wmsUrl, {
-      layers: this.wmsLayerName,
-      format: "image/png",
-      transparent: false,
-      attribution: "SuperMap iServer WMS"
-    });
+    this.basemapLayers.supermapDem = this.createSuperMapBasemapLayer(L);
     this.setBasemap(this.basemapMode);
 
     (map as { on: (event: string, cb: (e: Record<string, unknown>) => void) => void }).on("click", (e) => {
@@ -216,6 +211,35 @@ export class MapEngine {
     this.planningStartPoint = startPoint;
     this.planningEndPoint = endPoint;
     this.renderPlanningPoints();
+  }
+
+  private createSuperMapBasemapLayer(L: Record<string, unknown>): unknown {
+    const superMapNamespace = L.supermap as
+      | {
+          TiledMapLayer?: new (url: string, opts?: Record<string, unknown>) => unknown;
+          tiledMapLayer?: (url: string, opts?: Record<string, unknown>) => unknown;
+        }
+      | undefined;
+    if (superMapNamespace?.TiledMapLayer) {
+      return new superMapNamespace.TiledMapLayer(this.mapRestUrl, {
+        attribution: "SuperMap iClient for JavaScript"
+      });
+    }
+    if (superMapNamespace?.tiledMapLayer) {
+      return superMapNamespace.tiledMapLayer(this.mapRestUrl, {
+        attribution: "SuperMap iClient for JavaScript"
+      });
+    }
+
+    const tileLayer = L.tileLayer as ((url: string, opts?: Record<string, unknown>) => unknown) & {
+      wms: (url: string, opts: Record<string, unknown>) => unknown;
+    };
+    return tileLayer.wms(this.wmsUrl, {
+      layers: this.wmsLayerName,
+      format: "image/png",
+      transparent: false,
+      attribution: "SuperMap iServer WMS fallback"
+    });
   }
 
   setSupportPlanningPoints(points: SupportPlanningMapPoint[]): void {

@@ -119,8 +119,8 @@ export function SuperMapStatusPanel({ cityPackage = activeCityPackage }: { cityP
           <dd>{superMapConfig.iServerBaseUrl}</dd>
         </div>
         <div>
-          <dt>WMS 底图源</dt>
-          <dd title={superMapConfig.wmsMapUrl}>图层 {superMapConfig.wmsLayerName} · iDesktop 发布图</dd>
+          <dt>WMS 兼容源</dt>
+          <dd title={superMapConfig.wmsMapUrl}>图层 {superMapConfig.wmsLayerName} · 健康检查/兜底</dd>
         </div>
         <div>
           <dt>约束图层服务</dt>
@@ -135,6 +135,12 @@ export function SuperMapStatusPanel({ cityPackage = activeCityPackage }: { cityP
           <dd>{superMapConfig.iClientJavaScriptUrl}</dd>
         </div>
         <div>
+          <dt>iClient Leaflet 运行库</dt>
+          <dd title={[...superMapConfig.iClientLeafletScripts, ...superMapConfig.iClientLeafletStyleUrls].join("\n")}>
+            {superMapConfig.iClientLeafletScripts.length} 个脚本 / {superMapConfig.iClientLeafletStyleUrls.length} 个样式
+          </dd>
+        </div>
+        <div>
           <dt>{cityPackage.name} DEM / 坡度数据</dt>
           <dd>{superMapConfig.demMetadata.name} · {superMapConfig.demMetadata.crs}</dd>
         </div>
@@ -145,7 +151,7 @@ export function SuperMapStatusPanel({ cityPackage = activeCityPackage }: { cityP
       </dl>
 
       <p className="integration-note">
-        地图面板默认使用 iDesktop 发布到 iServer 的{cityPackage.name}道路 WMS 地图；候选路线、路网、约束和 POI 由前端矢量图层叠加。
+        地图面板默认使用 SuperMap iClient for JavaScript 访问 iServer 发布的{cityPackage.name}道路 REST 地图；候选路线、路网、约束和 POI 由前端矢量图层叠加。
         上次检测：{lastCheck}
       </p>
     </section>

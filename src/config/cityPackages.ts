@@ -12,8 +12,8 @@ export type BasemapMode = "supermapDem";
 export interface SuperMapCityConfig {
   version: string;
   iServerBaseUrl: string;
-  leafletJsUrl: string;
-  leafletCssUrl: string;
+  iClientLeafletScripts: string[];
+  iClientLeafletStyleUrls: string[];
   defaultBasemap: BasemapMode;
   serviceUrls: {
     roadMapWms: string;
@@ -71,6 +71,7 @@ export interface CityPackage {
 }
 
 const iServerBaseUrl = "http://127.0.0.1:8090/iserver";
+const iClientForJavaScriptBaseUrl = `${iServerBaseUrl}/iClient/forJavaScript`;
 
 export const wuhanRoutePlans: WaypointRoutePlan[] = [
   ...waypointRoutePlans,
@@ -98,8 +99,14 @@ export const wuhanCityPackage: CityPackage = {
     version: "SuperMap GIS 2025 Update1 / V12.0.1.0",
     iServerBaseUrl,
 
-    leafletJsUrl: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
-    leafletCssUrl: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+    iClientLeafletScripts: [
+      `${iClientForJavaScriptBaseUrl}/web/libs/leaflet/1.9.4/leaflet.js`,
+      `${iClientForJavaScriptBaseUrl}/dist/leaflet/iclient-leaflet-es6.min.js`
+    ],
+    iClientLeafletStyleUrls: [
+      `${iClientForJavaScriptBaseUrl}/web/libs/leaflet/1.9.4/leaflet.css`,
+      `${iClientForJavaScriptBaseUrl}/dist/leaflet/iclient-leaflet.min.css`
+    ],
 
     defaultBasemap: "supermapDem",
 
@@ -117,10 +124,10 @@ export const wuhanCityPackage: CityPackage = {
     wmsMapUrl: `${iServerBaseUrl}/services/map-wuhan-road-network/wms111`,
     wmsLayerName: "0",
 
-    iClientJavaScriptUrl: `${iServerBaseUrl}/iClient/forJavaScript/web/index.html`,
+    iClientJavaScriptUrl: `${iClientForJavaScriptBaseUrl}/web/index.html`,
 
     expectedMapServiceUrl: `${iServerBaseUrl}/services/map-wuhan-road-network/rest/maps/road_network_osm%40wuhan_marathon_base`,
-    basemapPolicy: "比赛底图严格使用 iDesktopX 制图后发布到 iServer 的 WMS 服务。",
+    basemapPolicy: "比赛底图严格使用 iDesktopX 制图后发布到 iServer 的 REST 地图服务，WMS 保留为健康检查和兜底。",
 
     displayRoadNetworkGeoJsonUrl: "data/local-wuhan-road-network-osm.geojson",
     routingRoadNetworkGeoJsonUrl: "data/local-wuhan-marathon-area-roads.geojson",

@@ -25,8 +25,8 @@ export function LayerControlPanel({
     <section className="side-section layer-control">
       <h2>图层控制</h2>
       <div className="basemap-lock" aria-label="底图来源">
-        <strong>iDesktop 发布图</strong>
-        <small>比赛指定底图 · {superMapConfig.wmsLayerName} 图层</small>
+        <strong>iClient 地图服务</strong>
+        <small>比赛指定 iServer REST 底图 · WMS {superMapConfig.wmsLayerName} 兜底</small>
         <p>{superMapConfig.basemapPolicy}</p>
       </div>
       <label className="layer-toggle">

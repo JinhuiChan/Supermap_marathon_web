@@ -1,6 +1,6 @@
 # Supermap_marathon_web
 
-武汉马拉松赛道空间选线 WebGIS 系统。项目使用 React、TypeScript、Vite、Leaflet 和 SuperMap iServer/WMS 服务，围绕武汉三条差异化马拉松路线进行 Full OSM 路网生成、控制点命中、赛道质量检查、路线对比、赛道分析和保障规划建议。
+武汉马拉松赛道空间选线 WebGIS 系统。项目使用 React、TypeScript、Vite、SuperMap iClient for JavaScript（Leaflet 版）和 SuperMap iServer 服务，围绕武汉三条差异化马拉松路线进行 Full OSM 路网生成、控制点命中、赛道质量检查、路线对比、赛道分析和保障规划建议。
 
 ## 项目现状
 
@@ -38,13 +38,26 @@ npm.cmd run build
 http://127.0.0.1:8090/iserver
 ```
 
-关键配置在 `src/config/supermap.ts`。前端会优先加载 iDesktopX 发布的 WMS 地图服务，同时叠加本地 GeoJSON 路网、约束、POI 和生成路线。用于 Full OSM 生成的核心数据文件是：
+关键配置在 `src/config/supermap.ts`。前端会从本机 iServer 加载 SuperMap iClient for JavaScript（Leaflet 版），优先使用 iServer REST 地图服务作为底图，同时叠加生成路线、控制点、POI 标签和必要的轻量矢量；大体量水域、绿地、学校、医院、商业潜力区等面要素不默认前端直绘，而是通过 iDesktopX 工作空间发布为 `map-wuhan-constraints` 约束地图服务，避免拖慢浏览器。WMS 地址保留用于服务检测和兼容兜底。用于 Full OSM 生成的核心数据文件是：
 
 ```text
 public/data/local-wuhan-road-network-osm.geojson
 ```
 
 这个大文件已随仓库提交；同学克隆仓库并安装依赖后，可以直接启动页面生成路线，不需要额外拷贝路网数据。
+
+## 比赛数据与部署清单
+
+需要提交或说明的 SuperMap 数据链路如下：
+
+- SuperMap 工作空间：`supermap-workspace/wuhan-marathon.smwu`。
+- SuperMap 数据源：`supermap-workspace/wuhan-marathon.udbx`；如果使用旧版 UDB，也在说明中写明 `.udb/.udd` 文件位置。
+- 本机 iServer 发布副本：`E:/SuperMap/data/processed/wuhan_marathon_supermap_workspace/wuhan-marathon.smwu` 和同目录 `wuhan-marathon.udbx`，用于避开中文路径和同名服务覆盖问题。
+- 发布脚本：`scripts/auto_publish.py`，在 SuperMap iDesktopX Python 环境中导入 GeoJSON/DEM、生成工作空间和数据源。
+- iServer 发布入口：将 `.smwu` 工作空间发布为地图服务，前端默认访问 `map-wuhan-road-network` 的 REST 道路地图；面要素发布为 `map-wuhan-constraints` 约束地图服务；DEM/坡度发布为 `map-wuhan-dem-slope`，WMS 作为健康检查和兜底。
+- iClient 运行库：直接加载 `web/libs/leaflet/1.9.4/leaflet.js` 与 `dist/leaflet/iclient-leaflet-es6.min.js`，避免在 React 运行时动态执行 `include-leaflet.js` 的 `document.write`。
+- 交付材料：页面导出的路线 GeoJSON、控制点 CSV、分析 HTML/打印 PDF，可按老师要求另存为 Excel/Word 版附件。
+- 截图留档：服务发布页面如有特殊参数，需要补充截图；现有质量与拓扑截图位于 `artifacts/route-qa/` 和 `artifacts/route-topology/`。
 
 ## 路线类型
 
@@ -130,7 +143,7 @@ public/data/local-wuhan-road-network-osm.geojson
 | `RouteAnalysisPanel.tsx` / `.test.tsx` | 赛道分析、数据来源、数据缺口和保障规划建议展示。 |
 | `RouteDetails.tsx` | 单条路线基础指标详情。 |
 | `RouteLibrary.tsx` / `.test.tsx` | 路线库展示组件。 |
-| `RouteMap.tsx` | Leaflet/SuperMap 不可用时的 SVG 备用示意地图。 |
+| `RouteMap.tsx` | SuperMap iClient 或 iServer 地图服务不可用时的 SVG 备用示意地图。 |
 | `RouteQualityPanel.tsx` / `.test.tsx` | 质量门禁证据展示，包括距离、坡度、自交、复访、折返等。 |
 | `SelectionProfilePanel.tsx` / `.test.tsx` | 历史选线偏好面板，保留给扩展/对照使用。 |
 | `SuperMapStatusPanel.tsx` | SuperMap iServer 服务状态检查展示。 |
@@ -182,11 +195,11 @@ public/data/local-wuhan-road-network-osm.geojson
 
 | 文件 | 用途 |
 | --- | --- |
-| `src/map/components/SuperMapMap.tsx` / `.test.ts` | 地图主组件，加载 Leaflet、WMS、矢量路线、路网和 POI。 |
+| `src/map/components/SuperMapMap.tsx` / `.test.ts` | 地图主组件，加载 SuperMap iClient for JavaScript、iServer 地图服务、矢量路线、路网和 POI。 |
 | `src/map/components/Scene3DPanel.tsx` | 三维场景服务信息面板。 |
 | `src/map/components/LoadingSpinner.tsx` | 地图加载状态组件。 |
-| `src/map/core/MapEngine.ts` | Leaflet 地图封装，管理底图、路线、路网、POI、图层显隐和事件。 |
-| `src/map/core/loadScript.ts` | 动态加载 Leaflet JS/CSS。 |
+| `src/map/core/MapEngine.ts` | iClient Leaflet 地图封装，管理 iServer 底图、路线、路网、POI、图层显隐和事件。 |
+| `src/map/core/loadScript.ts` | 按顺序动态加载 SuperMap iClient Leaflet JS/CSS。 |
 | `src/map/layers/RouteLayer.ts` / `.test.ts` | 路线矢量图层绘制和交互。 |
 | `src/map/layers/RoadNetworkLayer.ts` / `.test.ts` | 道路网络 GeoJSON 提取和地图绘制。 |
 | `src/map/layers/PoiLabelLayer.ts` / `.test.ts` | POI 标签提取和绘制。 |

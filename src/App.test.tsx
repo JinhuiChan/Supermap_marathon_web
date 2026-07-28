@@ -56,6 +56,17 @@ describe("App", () => {
     expect(html).toContain("重复道路 0%");
   });
 
+  it("does not check the support planning layer by default", () => {
+    const html = renderToStaticMarkup(<App />);
+    const layerControl = html.match(/<section class="side-section layer-control"[\s\S]*?<\/section>/)?.[0] ?? "";
+    const checkboxAttrs = [...layerControl.matchAll(/<input type="checkbox"([^>]*)\/>/g)].map((match) => match[1]);
+
+    expect(checkboxAttrs).toHaveLength(3);
+    expect(checkboxAttrs[0]).toContain("checked");
+    expect(checkboxAttrs[1]).toContain("checked");
+    expect(checkboxAttrs[2]).not.toContain("checked");
+  });
+
   it("does not render the candidate route drawer before any route is generated", () => {
     const html = renderToStaticMarkup(<App />);
     const selectionDock = html.match(/<aside class="gis-selection-dock"[\s\S]*?<\/aside>/)?.[0] ?? "";
@@ -77,9 +88,10 @@ describe("App", () => {
   it("uses release-ready wording without developer-facing runtime labels", () => {
     const html = renderToStaticMarkup(<App />);
 
+    expect(html).toContain("SuperMap iClient");
     expect(html).not.toContain("Full OSM");
     expect(html).not.toContain("experimental");
-    expect(html).not.toContain("Leaflet");
+    expect(html).not.toContain("unpkg.com");
     expect(html).not.toContain("用于切换城市演示");
     expect(html).not.toContain("错误的官方");
     expect(html).not.toContain("已删除");

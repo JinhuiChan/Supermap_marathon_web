@@ -213,7 +213,7 @@ export function GisSelectionPanel({
 
       <section className="gis-tool-group city-package-import">
         <h3>城市包导入</h3>
-        <p className="gis-tool-hint">支持导入城市名称、地图中心、路网 GeoJSON、SuperMap iServer/WMS 地址等 JSON 配置，用于切换城市数据源。</p>
+        <p className="gis-tool-hint">支持导入城市名称、地图中心、路网 GeoJSON、SuperMap iServer REST/WMS 地址等 JSON 配置，用于切换城市数据源。</p>
         <div className="manual-import-actions">
           <button type="button" onClick={() => setCityImportOpen((current) => !current)}>导入城市包 JSON</button>
           <label>
