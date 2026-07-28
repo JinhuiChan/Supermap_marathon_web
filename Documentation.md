@@ -40,11 +40,12 @@ Supermap_marathon_web 使用说明与技术说明
   SuperMap GIS 2025 Update1 / V12.0.1.0
   SuperMap iServer: http://127.0.0.1:8090/iserver
 
-前端配置集中在：
+前端配置以城市包为主，兼容导出文件如下：
 
+  src/config/cityPackages.ts
   src/config/supermap.ts
 
-该配置包含 iServer 地址、WMS/REST 服务地址、地图中心点、缩放级别、DEM 元数据、本地 GeoJSON 数据路径等。
+cityPackages.ts 定义武汉城市包、iServer 服务地址、iClient 脚本、地图中心点、缩放级别、DEM 元数据和本地 GeoJSON 数据路径；supermap.ts 仅导出当前城市包中的 superMapConfig，兼容旧引用。
 
 
 三、启动使用流程
@@ -92,6 +93,8 @@ Supermap_marathon_web 使用说明与技术说明
   多路线对比
   报告导出
   质量合规检查
+
+保障规划点图层默认不自动勾选，避免路线生成后地图上立即叠加补给、医疗、厕所和引导建议点。需要查看时，可在“GIS 详情 - 图层控制”中手动打开“保障规划点”。
 
 
 四、主要功能说明
@@ -167,7 +170,7 @@ Supermap_marathon_web 使用说明与技术说明
   厕所点建议
   志愿者/隔离带/方向标识建议
 
-所有保障建议都会明确说明“不是官方保障方案”，避免被误读为真实赛事部署。
+所有保障建议都会明确说明用途边界：它们用于候选路线比选和后续保障细化，不替代真实赛事部署、官方补给点、医疗点或交通管制方案。
 
 
 五、技术架构说明
@@ -205,7 +208,7 @@ App.tsx 管理以下核心状态：
   generationProgress：生成进度百分比
   activeRouteId：当前选中路线
   comparedRouteIds：加入对比的路线 ID
-  mapLayerVisibility：路线层和道路层显隐
+  mapLayerVisibility：路线层、道路层和保障规划点显隐
 
 页面启动后，App 会 fetch Full OSM 路网数据。用户点击路线按钮后，App 调用 buildFullOsmAllWaypointRouteAsync 生成路线，并把算法回调的进度传给 GisSelectionPanel 显示。
 
@@ -386,18 +389,22 @@ MapEngine 封装 SuperMap iClient for JavaScript（Leaflet 版）：
 
 核心文件：
 
+  src/config/cityPackages.ts
   src/config/supermap.ts
   src/services/supermapHealth.ts
   src/services/iserverPoi.ts
 
-supermap.ts 定义服务地址：
+cityPackages.ts 定义城市包和服务地址，supermap.ts 从当前城市包导出 superMapConfig：
 
+  iClientLeafletScripts
+  iClientLeafletStyleUrls
   roadMapWms
   roadMapRest
   roadDataRest
   poiDataRest
   constraintMapRest
   demSlopeMapRest
+  expectedMapServiceUrl
 
 supermapHealth.ts 检测服务是否可访问。
 
@@ -470,18 +477,18 @@ scripts 目录用于本地数据准备：
   8. 输出材料：前端导出 GeoJSON、控制点 CSV、分析 HTML/打印 PDF；如老师需要 Word/Excel 附件，可由这些导出结果整理为 docx/xlsx。
 
 
-六、仓库清理说明
+六、仓库文档说明
 ------------------------------------------------------------
 
-本次整理后，仓库自有 Markdown 文件只保留：
+当前仓库保留以下 Markdown 入口：
 
   README.md
-
-历史开发计划、草稿和阶段性设计说明已删除。详细使用与技术说明迁移到：
-
   Documentation.md
+  docs/city-package-template.md
+  docs/superpowers/plans/*.md
+  docs/superpowers/specs/*.md
 
-这样可以避免仓库内出现多个互相冲突的说明入口。
+其中 README.md 面向快速运行和目录说明，Documentation.md 面向最终交付、答辩和部署说明；docs/city-package-template.md 用于后续扩展城市包；docs/superpowers 下的计划/设计记录用于追溯已完成的局部开发任务，不作为比赛提交主说明。
 
 
 七、测试与验收
@@ -496,6 +503,9 @@ scripts 目录用于本地数据准备：
 
   src/App.test.tsx
   src/components/GisSelectionPanel.test.tsx
+  src/components/LayerControlPanel.test.tsx
+  src/map/components/SuperMapMap.test.ts
+  src/config/supermapWorkspace.test.ts
   src/components/RouteAnalysisPanel.test.tsx
   src/data/fullOsmAllWaypointRoute.test.ts
   src/domain/routeAnalysis.test.ts
@@ -510,7 +520,7 @@ scripts 目录用于本地数据准备：
 
 1. Full OSM 生成路线是规划结果，不等于正式赛事认证路线。
 2. World Athletics / AIMS 认证仍需合资格测量员沿最短可跑线实测。
-3. 保障规划建议不是官方保障方案。
+3. 保障规划建议不替代官方补给、医疗、交通管制和现场执行方案。
 4. 医疗、补给、厕所、停车、交通管制、人流疏散等需要后续接入真实官方数据或现场踏勘。
 5. public/data/local-wuhan-road-network-osm.geojson 已随仓库提交；如果被手动删除，路线生成不可用。
 6. 如果 SuperMap iServer 未启动，WMS/REST 状态会失败，但前端仍可在可用数据范围内显示页面和回退内容。

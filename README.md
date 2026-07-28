@@ -8,7 +8,7 @@
 - 三条路线均为全马目标距离：东湖线、滨江线、城市景观线。
 - 生成路线时显示阶段式真实进度：路网图、控制点吸附、控制点连接、里程补齐、指标计算、完成。
 - 赛道分析基于路线几何、道路属性、拓扑检测、坡度指标和本地服务点数据输出，不把估算指标当作官方结论。
-- 赛事保障模块已改为“保障规划建议”，按路线长度、桥梁、坡度、自交、重复道路等指标推导补给、医疗、厕所和引导建议。
+- 赛事保障模块已改为“保障规划建议”，按路线长度、桥梁、坡度、自交、重复道路等指标推导补给、医疗、厕所和引导建议；保障规划点默认不自动勾选，用户可在图层控制中手动打开。
 
 ## 快速运行
 
@@ -38,7 +38,7 @@ npm.cmd run build
 http://127.0.0.1:8090/iserver
 ```
 
-关键配置在 `src/config/supermap.ts`。前端会从本机 iServer 加载 SuperMap iClient for JavaScript（Leaflet 版），优先使用 iServer REST 地图服务作为底图，同时叠加生成路线、控制点、POI 标签和必要的轻量矢量；大体量水域、绿地、学校、医院、商业潜力区等面要素不默认前端直绘，而是通过 iDesktopX 工作空间发布为 `map-wuhan-constraints` 约束地图服务，避免拖慢浏览器。WMS 地址保留用于服务检测和兼容兜底。用于 Full OSM 生成的核心数据文件是：
+关键城市包配置在 `src/config/cityPackages.ts`，`src/config/supermap.ts` 只负责导出当前城市的 SuperMap 配置。前端会从本机 iServer 加载 SuperMap iClient for JavaScript（Leaflet 版），优先使用 iServer REST 地图服务作为底图，同时叠加生成路线、控制点、POI 标签和必要的轻量矢量；大体量水域、绿地、学校、医院、商业潜力区等面要素不默认前端直绘，而是通过 iDesktopX 工作空间发布为 `map-wuhan-constraints` 约束地图服务，避免拖慢浏览器。WMS 地址保留用于服务检测和兼容兜底。用于 Full OSM 生成的核心数据文件是：
 
 ```text
 public/data/local-wuhan-road-network-osm.geojson
@@ -72,8 +72,9 @@ public/data/local-wuhan-road-network-osm.geojson
 | 文件 | 用途 |
 | --- | --- |
 | `.gitignore` | 忽略依赖、构建产物、本地 SuperMap 工作空间和本地大数据文件。 |
-| `README.md` | 项目总览、运行方式和仓库文件说明；仓库中唯一保留的 Markdown 文档。 |
+| `README.md` | 项目总览、运行方式和仓库文件说明。 |
 | `Documentation.md` | 使用说明和详细技术说明，面向最终交付和答辩说明。 |
+| `docs/` | 城市包模板以及保留的开发计划/设计记录，用于后续扩展和追溯。 |
 | `package.json` | npm 脚本、运行依赖和开发依赖声明。 |
 | `package-lock.json` | 锁定 npm 依赖版本，保证安装一致性。 |
 | `tsconfig.json` | TypeScript 编译配置。 |
@@ -128,6 +129,7 @@ public/data/local-wuhan-road-network-osm.geojson
 | `src/App.test.tsx` | App 顶层渲染、Full OSM UI 和中文文案防乱码测试。 |
 | `src/styles.css` | 全局样式、地图布局、控制面板、分析卡和进度条样式。 |
 | `src/types/geojson.d.ts` | GeoJSON 模块/类型声明。 |
+| `src/types/node-fs.d.ts` | 测试中读取脚本文件所需的最小 Node `fs` 类型声明。 |
 
 ### src/components
 
@@ -152,8 +154,12 @@ public/data/local-wuhan-road-network-osm.geojson
 
 | 文件 | 用途 |
 | --- | --- |
-| `supermap.ts` | SuperMap iServer 地址、WMS/REST 服务、数据 URL、地图中心和 DEM 元数据配置。 |
-| `supermap.test.ts` | SuperMap 配置基本可用性测试。 |
+| `cityPackages.ts` / `.test.ts` | 武汉城市包、路线模板、iServer 服务 URL、iClient 脚本、DEM/约束数据路径和默认地图视图。 |
+| `cityPackageImport.ts` / `.test.ts` | 城市包 JSON 导入和 SuperMap 默认配置补齐。 |
+| `cityPackageChecklist.ts` / `.test.ts` | 城市包必备数据项检查。 |
+| `cityRoutingProfiles.ts` / `.test.ts` | 城市选线策略、地标影响和跨江桥规则。 |
+| `supermap.ts` | 从当前城市包导出 `superMapConfig`，兼容旧引用。 |
+| `supermap.test.ts` / `supermapWorkspace.test.ts` | SuperMap iClient、iServer 服务 URL 和工作空间发布脚本测试。 |
 
 ### src/data
 
@@ -196,7 +202,6 @@ public/data/local-wuhan-road-network-osm.geojson
 | 文件 | 用途 |
 | --- | --- |
 | `src/map/components/SuperMapMap.tsx` / `.test.ts` | 地图主组件，加载 SuperMap iClient for JavaScript、iServer 地图服务、矢量路线、路网和 POI。 |
-| `src/map/components/Scene3DPanel.tsx` | 三维场景服务信息面板。 |
 | `src/map/components/LoadingSpinner.tsx` | 地图加载状态组件。 |
 | `src/map/core/MapEngine.ts` | iClient Leaflet 地图封装，管理 iServer 底图、路线、路网、POI、图层显隐和事件。 |
 | `src/map/core/loadScript.ts` | 按顺序动态加载 SuperMap iClient Leaflet JS/CSS。 |
